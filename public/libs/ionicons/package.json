@@ -14,11 +14,11 @@
   "collection": "dist/collection/collection-manifest.json",
   "collection:main": "dist/collection/index.js",
   "scripts": {
-    "build": "tsc -p scripts/tsconfig.json && npm run build.files && npm run build.component && npm run collection.copy",
+    "build": "node api.js && tsc -p scripts/tsconfig.json && npm run build.files && npm run build.component && npm run collection.copy",
     "build.files": "node scripts/build.js",
     "build.component": "stencil build",
     "collection.copy": "node scripts/collection-copy.js",
-    "start": "stencil build --dev --watch --serve",
+    "start": "node api.js && stencil build --dev --watch --serve",
     "test": "stencil test --spec",
     "release": "np --no-2fa",
     "version": "npm run build"

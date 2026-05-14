@@ -1,6 +1,4 @@
 # Local environment and secrets
-.env
-.env.*
 !.env.example
 auth.json
 *.env.txt
@@ -63,7 +61,6 @@ error_log
 
 # Local editor and agent files
 /.idea/
-/.vscode/
 /.agents/
 /.codex
 *.sublime-project
@@ -85,3 +82,4 @@ __MACOSX/
 
 # Local debug files
 /phpinfo.php
+config.bat
