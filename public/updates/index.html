@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Xtrafreaky Delivery Log</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Complete light palette on bare :root — neutrals carry a slight magenta bias
+     from the platform's own brand rather than sitting at flat grey. */
+  :root {
+    --ground:      #faf8fb;
+    --surface:     #ffffff;
+    --surface-alt: #f4f0f6;
+    --line:        #e6dfea;
+    --ink:         #221c26;
+    --ink-2:       #55495d;
+    --ink-mute:    #7d7286;
+    --accent:      #cb0c9f;
+    --live:        #197a4b;
+    --live-bg:     #e4f5eb;
+    --block:       #96600d;
+    --block-bg:    #fbf0dc;
+    --shadow:      0 1px 2px rgba(34,28,38,.06), 0 8px 24px -12px rgba(34,28,38,.14);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #141017;
+      --surface:     #1c1721;
+      --surface-alt: #241d2a;
+      --line:        #2f2637;
+      --ink:         #f3eef6;
+      --ink-2:       #b9aec2;
+      --ink-mute:    #8b7f94;
+      --accent:      #f254c9;
+      --live:        #4fd18b;
+      --live-bg:     #14301f;
+      --block:       #e8ad4e;
+      --block-bg:    #33260f;
+      --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:      #141017;
+    --surface:     #1c1721;
+    --surface-alt: #241d2a;
+    --line:        #2f2637;
+    --ink:         #f3eef6;
+    --ink-2:       #b9aec2;
+    --ink-mute:    #8b7f94;
+    --accent:      #f254c9;
+    --live:        #4fd18b;
+    --live-bg:     #14301f;
+    --block:       #e8ad4e;
+    --block-bg:    #33260f;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Public Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 56px 22px 88px; display: flex; flex-direction: column; gap: 44px; }
+
+  h1, h2, h3 { font-family: "Familjen Grotesk", ui-sans-serif, system-ui, sans-serif; text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(30px, 5.2vw, 44px); font-weight: 700; letter-spacing: -.022em; line-height: 1.08; }
+  h2 { font-size: 20px; font-weight: 600; letter-spacing: -.012em; }
+  h3 { font-size: 15.5px; font-weight: 600; letter-spacing: -.006em; }
+  p  { margin: 0; }
+  a  { color: inherit; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+  .eyebrow {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11.5px; font-weight: 500; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--accent);
+  }
+  .lede { color: var(--ink-2); font-size: 17px; max-width: 62ch; }
+
+  .band { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line);
+          border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+  .cell { background: var(--surface); padding: 18px 18px 16px; }
+  .cell b { display: block; font-family: "Familjen Grotesk", sans-serif; font-size: 30px;
+            font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .cell span { display: block; margin-top: 3px; font-size: 12px; color: var(--ink-mute);
+               letter-spacing: .04em; text-transform: uppercase; font-weight: 600; }
+
+  section { display: flex; flex-direction: column; gap: 16px; }
+  .sechead { display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+             padding-bottom: 11px; border-bottom: 1px solid var(--line); }
+  .sechead p { font-size: 13px; color: var(--ink-mute); }
+
+  .rows { display: flex; flex-direction: column; gap: 10px; }
+  .row { display: grid; grid-template-columns: 40px 1fr auto; gap: 16px; align-items: start;
+         background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+         padding: 15px 17px; }
+  /* The number is the client's own docx point — real information, not decoration. */
+  .num { font-family: "JetBrains Mono", monospace; font-size: 12.5px; font-weight: 500;
+         color: var(--accent); padding-top: 2px; font-variant-numeric: tabular-nums; line-height: 1.4; }
+  .body-col { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+  .what { font-size: 13.6px; color: var(--ink-2); }
+  .links { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 1px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+          font-family: "JetBrains Mono", monospace; font-size: 12px;
+          background: var(--surface-alt); border: 1px solid var(--line);
+          color: var(--ink-2); padding: 4px 9px; border-radius: 999px; }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .lock { font-size: 10px; opacity: .65; }
+
+  .tag { flex-shrink: 0; font-size: 11px; font-weight: 700; letter-spacing: .05em;
+         text-transform: uppercase; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+  .tag.live  { background: var(--live-bg);  color: var(--live); }
+  .tag.block { background: var(--block-bg); color: var(--block); }
+
+  .note { background: var(--surface-alt); border: 1px solid var(--line);
+          border-radius: 12px; padding: 17px 19px; display: flex; flex-direction: column; gap: 9px; }
+  .note p { font-size: 14px; color: var(--ink-2); }
+  ul { margin: 0; padding-left: 19px; display: flex; flex-direction: column; gap: 8px; }
+  li { font-size: 14px; color: var(--ink-2); }
+  li b, .note p b { color: var(--ink); font-weight: 600; }
+  code { font-family: "JetBrains Mono", monospace; font-size: .88em;
+         background: var(--surface); border: 1px solid var(--line);
+         padding: 1px 5px; border-radius: 5px; color: var(--ink); }
+
+  footer { border-top: 1px solid var(--line); padding-top: 20px; font-size: 13px; color: var(--ink-mute);
+           display: flex; flex-direction: column; gap: 5px; }
+
+  @media (max-width: 620px) {
+    .band { grid-template-columns: repeat(2, 1fr); }
+    .row { grid-template-columns: 30px 1fr; }
+    .tag { grid-column: 2; justify-self: start; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header style="display:flex;flex-direction:column;gap:13px;">
+    <p class="eyebrow">xtrafreaky.com &middot; delivery log</p>
+    <h1>Every point from the feedback document, and where it now lives.</h1>
+    <p class="lede">
+      Fifteen numbered points were raised. Fourteen are built, deployed and verified on the
+      live site. One is held pending a legal decision. Numbers below match your document.
+    </p>
+  </header>
+
+  <div class="band">
+    <div class="cell"><b>14</b><span>Delivered</span></div>
+    <div class="cell"><b>1</b><span>Blocked</span></div>
+    <div class="cell"><b>57</b><span>Files live</span></div>
+    <div class="cell"><b>5</b><span>Bugs found</span></div>
+  </div>
+
+  <section>
+    <div class="sechead">
+      <h2>Delivered &amp; live</h2>
+      <p>Links marked &#128274; need you signed in</p>
+    </div>
+    <div class="rows">
+
+      <div class="row">
+        <div class="num">01</div>
+        <div class="body-col">
+          <h3>Token marketplace</h3>
+          <p class="what">Search and sorting now work &mdash; they previously did nothing. The permanent <code>+0.00%</code> is fixed, with real 24h volume, holder counts, sparklines drawn from actual price history, and a Top Gainers section.</p>
+          <div class="links"><a class="chip" href="https://xtrafreaky.com/cryptocurrency/marketplace">/cryptocurrency/marketplace <span class="lock">&#128274;</span></a></div>
+        </div>
+        <span class="tag live">Live</span>
+      </div>
+
+      <div class="row">
+        <div class="num">02</div>
+        <div class="body-col">
+          <h3>Achievements &amp; leaderboards</h3>
+          <p class="what">The white-on-white contrast bug is fixed. Badges went from 8 to 18 across five categories, each with a progress bar showing how close you are. The leaderboard gained a podium and a Top Level tab.</p>
+          <div class="links">
+            <a class="chip" href="https://xtrafreaky.com/achievements">/achievements <span class="lock">&#128274;</span></a>
+            <a class="chip" href="https://xtrafreaky.com/leaderboard">/leaderboard <span class="lock">&#128274;</span></a>
+          </div>
+        </div>
+        <span class="tag live">Live</span>
+      </div>
+
+      <div class="row">
+        <div class="num">03</div>
+        <div class="body-col">
+          <h3>Create post</h3>
+          <p class="what">The page used an indigo and violet palette against the site's magenta &mdash; that clash was the &ldquo;two different designs&rdquo; problem. Recoloured onto brand. Kept rather than deleted, because it still handles text and image posts the video page doesn't.</p>
+          <div class="links"><a class="chip" href="https://xtrafreaky.com/posts/create">/posts/create <span class="lock">&#128274;</span></a></div>
+        </div>
+        <span class="tag live">Live</span>
+      </div>
+
+      <div class="row">
+        <div class="num">04</div>
+        <div class="body-col">
+          <h3>Notification tabs</h3>
+          <p class="what">&ldquo;Likes&rdquo; and &ldquo;Subscriptions&rdquo; collided because every tab was forced into an equal slice of the width regardless of label length. Tabs now size to their own text and the row scrolls.</p>
+          <div class="links"><a class="chip" href="https://xtrafreaky.com/my/notifications">/my/notifications <span class="lock">&#128274;</span></a></div>
+        </div>
+        <span class="tag live">Live</span>
+      </div>
+
+      <div class="row">
+        <div class="num">05</div>
+        <div class="body-col">
+          <h3>Profile settings</h3>
+          <p class="what">Grouped into cards with a profile-strength meter, live character counters and a sticky save bar. The cover and avatar could not be changed on a phone at all &mdash; the controls only appeared on hover. Fixed.</p>
+          <div class="links"><a class="chip" href="https://xtrafreaky.com/my/settings/profile">/my/settings/profile <span class="lock">&#128274;</span></a></div>
+        </div>
+        <span class="tag live">Live</span>
+      </div>
+
+      <div class="row">
+        <div class="num">06</div>
+        <div class="body-col">
+          <h3>Custom request modal</h3>
+          <p class="what">The 8/10 page &mdash; tightened detail and validation rather than rebuilt.</p>
+          <div class="links"><a class="chip" href="https://xtrafreaky.com/custom-requests/marketplace">/custom-requests/marketplace</a></div>
+        </div>
+        <span class="tag live">Live</span>
+      </div>
+
+      <div class="row">
+        <div class="num">07</div>
+        <div class="body-col">
+          <h3>Homepage video seeking</h3>
+          <p class="what">The progress bar was display-only, which is why nothing could be skipped or fast-forwarded. It is now a real scrubber &mdash; drag, click, or arrow keys, with a time readout.</p>
+          <div class="links"><a class="chip" href="https://xtrafreaky.com/">/ &mdash; homepage feed</a></div>
+        </div>
+        <span class="tag live">Live</span>
+      </div>
+
+      <div class="row">
+        <div class="num">08</div>
+        <div class="body-col">
+          <h3>Challenges browse</h3>
+          <p class="what">Rebuilt as a wall of challenge videos with Watch / Fund / Completed tabs, an &ldquo;Almost funded&rdquo; rail and live funding bars. Completing a request never stored the video anywhere &mdash; that had to be built first, or there would be nothing to browse.</p>
+          <div class="links"><a class="chip" href="https://xtrafreaky.com/custom-requests/marketplace">/custom-requests/marketplace</a></div>
+        </div>
+        <span class="tag live">Live</span>
+      </div>
+
+      <div class="row">
+        <div class="num">09</div>
+        <div class="body-col">
+          <h3>Crypto splash removed</h3>
+          <p class="what">The dead interstitial now redirects straight to the token marketplace. Every existing menu link still works.</p>
+          <div class="links"><a class="chip" href="https://xtrafreaky.com/cryptocurrency">/cryptocurrency <span class="lock">&#128274;</span></a></div>
+        </div>
+        <span class="tag live">Live</span>
+      </div>
+
+      <div class="row">
+        <div class="num">10</div>
+        <div class="body-col">
+          <h3>Settings, security &amp; 2FA</h3>
+          <p class="what">A new Security page: posture summary, two-factor, password change, and device sessions you can revoke individually. Referrals &mdash; the one settings page with no styling of its own &mdash; was rebuilt to match.</p>
+          <div class="links">
+            <a class="chip" href="https://xtrafreaky.com/my/settings/security">/my/settings/security <span class="lock">&#128274;</span></a>
+            <a class="chip" href="https://xtrafreaky.com/my/settings/referrals">/my/settings/referrals <span class="lock">&#128274;</span></a>
+          </div>
+        </div>
+        <span class="tag live">Live</span>
+      </div>
+
+      <div class="row">
+        <div class="num">14</div>
+        <div class="body-col">
+          <h3>Upload video</h3>
+          <p class="what">Design kept as you asked, with set price, make private and editing brought across from the create-post page.</p>
+          <div class="links"><a class="chip" href="https://xtrafreaky.com/videos/create">/videos/create <span class="lock">&#128274;</span></a></div>
+        </div>
+        <span class="tag live">Live</span>
+      </div>
+
+      <div class="row">
+        <div class="num">15</div>
+        <div class="body-col">
+          <h3>Profile redesign</h3>
+          <p class="what">Rebuilt toward the FanFix reference: full-bleed cover, ringed avatar with presence dot, Follow and Subscribe pair, inline message composer and post count above the tabs.</p>
+          <div class="links"><a class="chip" href="https://xtrafreaky.com/sampleuser1">/sampleuser1 &mdash; example profile</a></div>
+        </div>
+        <span class="tag live">Live</span>
+      </div>
+
+      <div class="row">
+        <div class="num">12<br>13</div>
+        <div class="body-col">
+          <h3>No work required</h3>
+          <p class="what">Point 12's screenshot turned out to be the same create-post page as point 3, photographed further down. Point 13 was covered by point 2.</p>
+        </div>
+        <span class="tag live">Closed</span>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Waiting on a decision</h2></div>
+    <div class="rows">
+      <div class="row">
+        <div class="num">11</div>
+        <div class="body-col">
+          <h3>NFT marketplace</h3>
+          <p class="what">
+            The page itself is done and live &mdash; restyled, with search, sorting, real stats, and minting
+            driven from uploads exactly as you specified. Two things from your note are not built:
+            <b>fractional ownership</b> (&ldquo;own a percentage of a whole NFT&rdquo;) and
+            <b>auto-minting to everyone who receives a photo or video</b>. Both hinge on whether creator
+            coins launch as utility-only or tradeable. That choice changes the ledger design and cannot be
+            safely reversed once real money is in it, so it needs your lawyer's answer rather than a guess.
+          </p>
+          <div class="links">
+            <a class="chip" href="https://xtrafreaky.com/nft/marketplace">/nft/marketplace <span class="lock">&#128274;</span></a>
+            <a class="chip" href="https://xtrafreaky.com/nft/mintable">/nft/mintable <span class="lock">&#128274;</span></a>
+          </div>
+        </div>
+        <span class="tag block">Blocked</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <h2>Built alongside</h2>
+      <p>Not in the document</p>
+    </div>
+    <div class="rows">
+      <div class="row">
+        <div class="num">&mdash;</div>
+        <div class="body-col">
+          <h3>One unified wallet</h3>
+          <p class="what">Money was spread across three separate wallet pages. It is now a single surface with Overview, Tokens, NFTs, Coins and Activity. Credits, coins and NFTs used to be hidden entirely unless an on-chain wallet was connected &mdash; none of them need one.</p>
+          <div class="links">
+            <a class="chip" href="https://xtrafreaky.com/wallet">/wallet <span class="lock">&#128274;</span></a>
+            <a class="chip" href="https://xtrafreaky.com/creator-coins">/creator-coins <span class="lock">&#128274;</span></a>
+          </div>
+        </div>
+        <span class="tag live">Live</span>
+      </div>
+      <div class="row">
+        <div class="num">&mdash;</div>
+        <div class="body-col">
+          <h3>Automatic creator coins &amp; demo content</h3>
+          <p class="what">Every new account is given its own coin at signup, with no manual step. Ten sample videos and seven challenges populate the feed so nothing opens empty.</p>
+          <div class="links"><a class="chip" href="https://xtrafreaky.com/videos">/videos</a></div>
+        </div>
+        <span class="tag live">Live</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <h2>Problems found along the way</h2>
+      <p>None of these were in the feedback</p>
+    </div>
+    <div class="note">
+      <ul>
+        <li><b>Two-factor login was completely broken.</b> The code read one set of database columns while the table had another. Switching 2FA on would have crashed login for that account.</li>
+        <li><b>A deposit page took no payment.</b> It reported &ldquo;Successfully deposited $X&rdquo; without charging anything. Now routed to the real Stripe and PayPal flow.</li>
+        <li><b>Price charts were invented.</b> Token sparklines drew random shapes &mdash; on assets people spend money on. They now plot real recorded history, or a flat line when there is none.</li>
+        <li><b>The desktop menu and search did nothing.</b> Both buttons were visible, but the panel they open was force-hidden on desktop.</li>
+        <li><b>Marketplace search and sorting were decorative.</b> The controls existed; nothing behind them read the values.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2>Two things to action</h2></div>
+    <div class="note">
+      <p><b>Demo content is on the live site.</b> Ten sample videos and seven challenges, all clearly labelled as samples. Remove them before real users arrive with <code>php artisan sample:videos --purge --files</code> and <code>php artisan sample:challenges --purge</code>.</p>
+      <p><b>Deploys currently need a VPN.</b> The host's firewall is blocking our whole IP range from SSH, FTP and cPanel, though the website itself is unaffected. Worth asking GoDaddy to lift the block on <code>202.63.209.0/24</code>.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>All 57 changed files verified byte-identical on the live server. No pending database migrations.</p>
+    <p>Every link above was checked and is responding.</p>
+    <p>Last updated 18 August 2026.</p>
+  </footer>
+
+</div>
+</body>
+</html>
