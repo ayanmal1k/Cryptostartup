@@ -35,45 +35,80 @@ fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 # --- Collect the file list ---------------------------------------------------------
 if [ "${1:-}" = "--dry-run" ]; then DRY_RUN=1; shift; fi
 
+declare -a DELETED=()
+
 if [ "${1:-}" = "--files" ]; then
     shift
     FILES=("$@")
 else
     REF="${1:-HEAD~1}"
-    mapfile -t FILES < <(git diff --name-only --diff-filter=ACMR "$REF"..HEAD)
+    mapfile -t FILES   < <(git diff --name-only --diff-filter=ACMR "$REF"..HEAD)
+    # Deletions need to be mirrored too. A file removed from the repo but left on the
+    # server stays reachable if it sits in public_html (which is served directly, routes
+    # or no routes) — that is exactly how a deleted dev page keeps answering 200.
+    mapfile -t DELETED < <(git diff --name-only --diff-filter=D "$REF"..HEAD)
 fi
 
-[ "${#FILES[@]}" -gt 0 ] || fail "no changed files to deploy"
+[ "${#FILES[@]}" -gt 0 ] || [ "${#DELETED[@]}" -gt 0 ] || fail "no changed files to deploy"
 
 # --- Map local paths to remote paths ------------------------------------------------
 # public/*  ->  public_html/*   (public_html IS Laravel's public dir on this host)
 # everything else -> laravel/*
 declare -a UPLOADS=()
 declare -a SKIPPED=()
+declare -a REMOVALS=()
 NEEDS_MIGRATE=0
 NEEDS_VIEW_CLEAR=0
+NEEDS_ROUTE_CLEAR=0
 
-for f in "${FILES[@]}"; do
+remote_path_for() {
+    case "$1" in
+        public/*) printf '%s/%s' "$REMOTE_PUB" "${1#public/}" ;;
+        *)        printf '%s/%s' "$REMOTE_APP" "$1" ;;
+    esac
+}
+
+for f in ${FILES[@]+"${FILES[@]}"}; do
     [ -f "$f" ] || { SKIPPED+=("$f (missing locally)"); continue; }
 
+    remote=$(remote_path_for "$f")
+
     case "$f" in
-        public/*)            remote="$REMOTE_PUB/${f#public/}" ;;
-        database/migrations/*) remote="$REMOTE_APP/$f"; NEEDS_MIGRATE=1 ;;
-        *)                   remote="$REMOTE_APP/$f" ;;
+        database/migrations/*) NEEDS_MIGRATE=1 ;;
     esac
 
     case "$f" in
         resources/views/*) NEEDS_VIEW_CLEAR=1 ;;
     esac
 
+    # This app registers closure routes, so `route:cache` cannot be used and the route
+    # file is read per request — but clear anyway, in case a cache was ever written by
+    # hand. Cheap, and the alternative is a route change that silently does nothing.
+    case "$f" in
+        routes/*.php) NEEDS_ROUTE_CLEAR=1 ;;
+    esac
+
     UPLOADS+=("$f|$remote")
 done
 
+for f in ${DELETED[@]+"${DELETED[@]}"}; do
+    REMOVALS+=("$(remote_path_for "$f")")
+    case "$f" in
+        resources/views/*) NEEDS_VIEW_CLEAR=1 ;;
+        routes/*.php)      NEEDS_ROUTE_CLEAR=1 ;;
+    esac
+done
+
 echo "Deploying ${#UPLOADS[@]} file(s) to $HOST"
-for u in "${UPLOADS[@]}"; do log "${u%%|*}  ->  ${u##*|}"; done
+for u in ${UPLOADS[@]+"${UPLOADS[@]}"}; do log "${u%%|*}  ->  ${u##*|}"; done
+if [ "${#REMOVALS[@]}" -gt 0 ]; then
+    echo "Removing ${#REMOVALS[@]} file(s) on the server:"
+    for r in "${REMOVALS[@]}"; do log "rm $r"; done
+fi
 [ "${#SKIPPED[@]}" -eq 0 ] || { echo "Skipped:"; for s in "${SKIPPED[@]}"; do log "$s"; done; }
-[ "$NEEDS_MIGRATE" -eq 1 ]    && log "(migrations included — will run migrate --force)"
-[ "$NEEDS_VIEW_CLEAR" -eq 1 ] && log "(views included — will clear compiled views)"
+[ "$NEEDS_MIGRATE" -eq 1 ]     && log "(migrations included — will run migrate --force)"
+[ "$NEEDS_VIEW_CLEAR" -eq 1 ]  && log "(views included — will clear compiled views)"
+[ "$NEEDS_ROUTE_CLEAR" -eq 1 ] && log "(routes changed — will clear the route cache)"
 
 if [ "$DRY_RUN" -eq 1 ]; then echo "dry run — nothing sent"; exit 0; fi
 
@@ -107,50 +142,72 @@ if [ "${XF_MUX:-0}" = "1" ]; then
 fi
 
 # --- Upload: ONE sftp batch ---------------------------------------------------------
-: > "$TMP/batch"
+if [ "${#UPLOADS[@]}" -gt 0 ]; then
+    : > "$TMP/batch"
 
-# sftp's mkdir is not recursive and fails on existing dirs, so emit every ancestor of every
-# destination with a leading '-' (ignore errors). Without this, a file in a directory that
-# does not exist remotely — e.g. the first deploy of deploy/ — aborts the whole batch.
-{
-    for u in "${UPLOADS[@]}"; do
-        dir=$(dirname "${u##*|}")
-        path=""
-        IFS='/' read -ra parts <<< "${dir#/}"
-        for part in "${parts[@]}"; do
-            path="$path/$part"
-            printf '%s\n' "$path"
+    # sftp's mkdir is not recursive and fails on existing dirs, so emit every ancestor of every
+    # destination with a leading '-' (ignore errors). Without this, a file in a directory that
+    # does not exist remotely — e.g. the first deploy of deploy/ — aborts the whole batch.
+    {
+        for u in "${UPLOADS[@]}"; do
+            dir=$(dirname "${u##*|}")
+            path=""
+            IFS='/' read -ra parts <<< "${dir#/}"
+            for part in "${parts[@]}"; do
+                path="$path/$part"
+                printf '%s\n' "$path"
+            done
         done
+    } | awk '!seen[$0]++' | while read -r d; do
+        printf -- '-mkdir %s\n' "$d" >> "$TMP/batch"
     done
-} | awk '!seen[$0]++' | while read -r d; do
-    printf -- '-mkdir %s\n' "$d" >> "$TMP/batch"
-done
 
-for u in "${UPLOADS[@]}"; do
-    printf 'put %s %s\n' "${u%%|*}" "${u##*|}" >> "$TMP/batch"
-done
-echo "bye" >> "$TMP/batch"
+    for u in "${UPLOADS[@]}"; do
+        printf 'put %s %s\n' "${u%%|*}" "${u##*|}" >> "$TMP/batch"
+    done
+    echo "bye" >> "$TMP/batch"
 
-echo "Uploading (single sftp session)..."
-sftp "${SSH_MUX[@]}" -b "$TMP/batch" "$HOST" > /dev/null || fail "upload failed"
-log "uploaded ${#UPLOADS[@]} file(s)"
+    echo "Uploading (single sftp session)..."
+    sftp "${SSH_MUX[@]}" -b "$TMP/batch" "$HOST" > /dev/null || fail "upload failed"
+    log "uploaded ${#UPLOADS[@]} file(s)"
+fi
 
 # --- Remote work: ONE ssh session ---------------------------------------------------
 REMOTE_SCRIPT="set -e
 cd $REMOTE_APP
 echo '--- syntax check ---'
 "
-for u in "${UPLOADS[@]}"; do
+for u in ${UPLOADS[@]+"${UPLOADS[@]}"}; do
     case "${u%%|*}" in
         *.php) REMOTE_SCRIPT+="php -l '${u##*|}' | grep -v '^No syntax errors' || true
 " ;;
     esac
 done
+
+if [ "${#REMOVALS[@]}" -gt 0 ]; then
+    REMOTE_SCRIPT+="echo '--- remove deleted files ---'
+"
+    for r in "${REMOVALS[@]}"; do
+        # Refuse anything that escapes the two known roots, so a malformed path can never
+        # turn into an rm somewhere else on the account.
+        case "$r" in
+            "$REMOTE_APP"/*|"$REMOTE_PUB"/*) ;;
+            *) fail "refusing to remove path outside the app roots: $r" ;;
+        esac
+        case "$r" in *..*) fail "refusing to remove path containing '..': $r" ;; esac
+        REMOTE_SCRIPT+="rm -f '$r' && echo 'removed $r'
+"
+    done
+fi
+
 [ "$NEEDS_MIGRATE" -eq 1 ] && REMOTE_SCRIPT+="echo '--- migrate ---'
 php artisan migrate --force 2>&1 | tail -5
 "
 [ "$NEEDS_VIEW_CLEAR" -eq 1 ] && REMOTE_SCRIPT+="echo '--- view:clear ---'
 php artisan view:clear 2>&1 | grep -i info || true
+"
+[ "$NEEDS_ROUTE_CLEAR" -eq 1 ] && REMOTE_SCRIPT+="echo '--- route:clear ---'
+php artisan route:clear 2>&1 | grep -i 'info\|error' || true
 "
 REMOTE_SCRIPT+="echo '--- done ---'"
 
