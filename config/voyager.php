@@ -190,6 +190,13 @@ return [
     // Here you can specify additional assets you would like to be included in the master.blade
     'additional_css' => [
         'css/admin-overrides.css',
+        // The admin views were rebuilt around a `jf-dash-*` design system and this file
+        // holds all 176 of its rules -- but it was never added here, so none of it was
+        // ever sent to the browser. Every admin page using those classes (dashboard,
+        // tokens, wallets, revenue) rendered as unstyled HTML: bulleted sidebar, bare
+        // headings, cards with no card. Loading it after the overrides so the overrides
+        // keep winning where the two disagree.
+        'css/admin-dashboard.css',
     ],
 
     'additional_js' => [

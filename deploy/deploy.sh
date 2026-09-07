@@ -60,6 +60,7 @@ declare -a REMOVALS=()
 NEEDS_MIGRATE=0
 NEEDS_VIEW_CLEAR=0
 NEEDS_ROUTE_CLEAR=0
+NEEDS_CONFIG_CLEAR=0
 
 remote_path_for() {
     case "$1" in
@@ -88,6 +89,12 @@ for f in ${FILES[@]+"${FILES[@]}"}; do
         routes/*.php) NEEDS_ROUTE_CLEAR=1 ;;
     esac
 
+    # Same reasoning for config: where bootstrap/cache/config.php exists, editing a
+    # file under config/ changes nothing at all until the cache is cleared.
+    case "$f" in
+        config/*.php) NEEDS_CONFIG_CLEAR=1 ;;
+    esac
+
     UPLOADS+=("$f|$remote")
 done
 
@@ -96,6 +103,7 @@ for f in ${DELETED[@]+"${DELETED[@]}"}; do
     case "$f" in
         resources/views/*) NEEDS_VIEW_CLEAR=1 ;;
         routes/*.php)      NEEDS_ROUTE_CLEAR=1 ;;
+        config/*.php)      NEEDS_CONFIG_CLEAR=1 ;;
     esac
 done
 
@@ -109,6 +117,7 @@ fi
 [ "$NEEDS_MIGRATE" -eq 1 ]     && log "(migrations included — will run migrate --force)"
 [ "$NEEDS_VIEW_CLEAR" -eq 1 ]  && log "(views included — will clear compiled views)"
 [ "$NEEDS_ROUTE_CLEAR" -eq 1 ] && log "(routes changed — will clear the route cache)"
+[ "$NEEDS_CONFIG_CLEAR" -eq 1 ] && log "(config changed — will clear the config cache)"
 
 if [ "$DRY_RUN" -eq 1 ]; then echo "dry run — nothing sent"; exit 0; fi
 
@@ -208,6 +217,9 @@ php artisan view:clear 2>&1 | grep -i info || true
 "
 [ "$NEEDS_ROUTE_CLEAR" -eq 1 ] && REMOTE_SCRIPT+="echo '--- route:clear ---'
 php artisan route:clear 2>&1 | grep -i 'info\|error' || true
+"
+[ "$NEEDS_CONFIG_CLEAR" -eq 1 ] && REMOTE_SCRIPT+="echo '--- config:clear ---'
+php artisan config:clear 2>&1 | grep -i 'info\|error' || true
 "
 REMOTE_SCRIPT+="echo '--- done ---'"
 
