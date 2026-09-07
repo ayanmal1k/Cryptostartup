@@ -1025,6 +1025,14 @@ Route::prefix('bounty-campaigns')->name('bounty-campaigns.')->middleware(['web']
 Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/achievements', [App\Http\Controllers\GamificationController::class, 'achievements'])->name('gamification.achievements');
     Route::get('/leaderboard', [App\Http\Controllers\GamificationController::class, 'leaderboard'])->name('gamification.leaderboard');
+
+    // Rewards hub: streak, daily quests, drops, inventory.
+    Route::get('/rewards', [App\Http\Controllers\EngagementController::class, 'hub'])->name('engagement.hub');
+    Route::post('/rewards/quests/{quest}/claim', [App\Http\Controllers\EngagementController::class, 'claimQuest'])
+        ->whereNumber('quest')->name('engagement.quest.claim');
+    Route::post('/rewards/drops/{drop}/open', [App\Http\Controllers\EngagementController::class, 'openDrop'])
+        ->whereNumber('drop')->name('engagement.drop.open');
+    Route::post('/rewards/drops/buy', [App\Http\Controllers\EngagementController::class, 'buyDrop'])->name('engagement.drop.buy');
 });
 
 Route::get('/search', ['uses' => 'SearchController@index', 'as' => 'search.get']);

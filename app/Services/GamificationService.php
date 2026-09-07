@@ -31,6 +31,18 @@ class GamificationService
     }
 
     /**
+     * Queue a celebration event from outside this class.
+     *
+     * EngagementService awards XP on its own path (it also moves sparks, which this
+     * class knows nothing about), so it needs a way to put a level-up toast on the
+     * same queue the celebration partial already drains.
+     */
+    public static function pushEvent(array $event)
+    {
+        self::$events[] = $event;
+    }
+
+    /**
      * Tick the user's daily streak. Safe to call on every request —
      * it only writes once per calendar day.
      */
@@ -46,9 +58,25 @@ class GamificationService
 
         $oldLevel = (int) ($user->level ?? 1);
 
-        if ($last && $last->isSameDay($today->copy()->subDay())) {
+        $gap = $last ? $last->diffInDays($today) : null;
+        $usedFreeze = false;
+
+        if ($gap === 1) {
             // Visited yesterday → streak continues.
             $user->streak_count = (int) ($user->streak_count ?? 0) + 1;
+        } elseif ($gap === 2 && (int) ($user->streak_freezes ?? 0) > 0) {
+            // Missed exactly one day, but the user is holding a freeze. Spend it and keep
+            // the streak alive.
+            //
+            // This is the single highest-value retention mechanic here, and it is the one
+            // that makes a long streak worth caring about: losing a 40-day streak to one
+            // bad day is the moment people stop coming back entirely. A freeze turns that
+            // into a near miss they survived. It only covers a single missed day -- longer
+            // gaps still reset, or the number stops meaning anything.
+            $user->streak_freezes = (int) $user->streak_freezes - 1;
+            $user->streak_frozen_on = $today->toDateString();
+            $user->streak_count = (int) ($user->streak_count ?? 0) + 1;
+            $usedFreeze = true;
         } else {
             // First ever visit, or streak was broken → restart at 1.
             $user->streak_count = 1;
@@ -63,6 +91,36 @@ class GamificationService
         // Daily XP + a small bonus that grows with the streak (capped).
         $streakBonus = min((int) $user->streak_count, 7) * 2;
         self::applyXp($user, self::XP_DAILY_VISIT + $streakBonus);
+
+        // Sparks for showing up. Guarded because this column arrives in a later migration
+        // than the streak columns, and a half-migrated server must not 500 on every page.
+        try {
+            $dailySparks = 5 + min((int) $user->streak_count, 10);
+            $user->sparks = (int) ($user->sparks ?? 0) + $dailySparks;
+            $user->lifetime_sparks = (int) ($user->lifetime_sparks ?? 0) + $dailySparks;
+        } catch (\Throwable $e) {
+            // sparks columns not migrated yet
+        }
+
+        if ($usedFreeze) {
+            self::$events[] = [
+                'type' => 'freeze',
+                'name' => 'Streak saved',
+                'icon' => '🧊',
+            ];
+        }
+
+        // Milestone streaks hand out a box. Chasing day 7 is a far stronger pull when
+        // something concrete lands at the end of it.
+        if (in_array((int) $user->streak_count, [3, 7, 14, 30, 60, 100], true)) {
+            try {
+                $tier = (int) $user->streak_count >= 30 ? 'gold'
+                    : ((int) $user->streak_count >= 7 ? 'silver' : 'bronze');
+                DropService::grant($user, $tier, 'streak');
+            } catch (\Throwable $e) {
+                // drops not migrated yet
+            }
+        }
 
         // Unlock any newly-earned achievements (safe if that table isn't migrated yet).
         try {
@@ -221,6 +279,22 @@ class GamificationService
                     'unlocked_at' => Carbon::now(),
                 ]);
                 self::applyXp($user, $a['xp'] ?? 0);
+
+                // Badge XP has to reach the ledger too, or "XP today" silently under-reports
+                // every unlock -- and unlocks are some of the largest single awards there are.
+                try {
+                    \App\Models\XpEvent::create([
+                        'user_id' => $user->id,
+                        'action' => 'achievement',
+                        'xp' => (int) ($a['xp'] ?? 0),
+                        'sparks' => 0,
+                        'subject_type' => 'achievement',
+                        'subject_id' => $key,
+                    ]);
+                } catch (\Throwable $e) {
+                    // xp_events not migrated yet — the unlock itself still stands
+                }
+
                 self::$events[] = ['type' => 'achievement', 'name' => $a['name'], 'icon' => $a['icon']];
             }
         }

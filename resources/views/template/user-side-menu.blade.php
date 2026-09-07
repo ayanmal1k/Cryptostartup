@@ -54,6 +54,15 @@
                     @include('elements.icon',['icon'=>'film-outline','variant'=>'medium','centered'=>false,'classes'=>'mr-2'])
                     {{__('Reels')}}</a>
             </li>
+            <li class="{{Route::currentRouteName() == 'engagement.hub' ? 'active' : ''}}">
+                <a class="scroll-link d-flex align-items-center" href="{{route('engagement.hub')}}">
+                    @include('elements.icon',['icon'=>'gift-outline','variant'=>'medium','centered'=>false,'classes'=>'mr-2'])
+                    {{__('Rewards')}}
+                    @if(($gmRewardsBadge ?? 0) > 0)
+                        <span class="badge badge-pill badge-danger ml-2">{{ $gmRewardsBadge }}</span>
+                    @endif
+                </a>
+            </li>
             <li class="{{Route::currentRouteName() == 'gamification.achievements' ? 'active' : ''}}">
                 <a class="scroll-link d-flex align-items-center" href="{{route('gamification.achievements')}}">
                     @include('elements.icon',['icon'=>'trophy-outline','variant'=>'medium','centered'=>false,'classes'=>'mr-2'])

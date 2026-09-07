@@ -108,6 +108,12 @@ class FeedController extends Controller
             $currentUserId = Auth::id();
             $videos = Feed::getUserVideos($user->id, $currentUserId);
 
+            // Reward exploring other creators, but never your own profile -- otherwise
+            // the quest completes by refreshing your own page.
+            if (Auth::check() && (string) $currentUserId !== (string) $user->id) {
+                \App\Services\EngagementService::award(Auth::user(), 'profile_visit', $user);
+            }
+
             // Return profile view instead of JSON
             return view('profile.show', compact('user', 'videos'));
             
@@ -431,6 +437,13 @@ class FeedController extends Controller
             ->value('views_count');
 
         \Log::info('Current views count: ' . $currentViews);
+
+        // Watching is the one thing a casual scroller does, so it has to be worth
+        // something -- otherwise the whole progression system is invisible to the
+        // majority of the audience. Capped at 15/day inside the service.
+        if (Auth::check()) {
+            \App\Services\EngagementService::award(Auth::user(), 'video_watch');
+        }
 
         return response()->json([
             'success' => true,

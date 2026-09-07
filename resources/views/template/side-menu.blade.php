@@ -87,6 +87,19 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a href="{{route('engagement.hub')}}" class="nav-link {{Route::currentRouteName() == 'engagement.hub' ? 'active' : ''}} h-pill h-pill-primary d-flex justify-content-between">
+                    <div class="d-flex justify-content-center align-items-center">
+                        <div class="icon-wrapper d-flex justify-content-center align-items-center">
+                            @include('elements.icon',['icon'=>'gift-outline','variant'=>'large'])
+                        </div>
+                        <span class="d-none d-md-block d-xl-block d-lg-block ml-2 text-truncate side-menu-label">{{__('Rewards')}}</span>
+                    </div>
+                    @if(($gmRewardsBadge ?? 0) > 0)
+                        <span class="badge badge-pill badge-danger align-self-center">{{ $gmRewardsBadge }}</span>
+                    @endif
+                </a>
+            </li>
+            <li class="nav-item">
                 <a href="{{route('gamification.achievements')}}" class="nav-link {{Route::currentRouteName() == 'gamification.achievements' ? 'active' : ''}} h-pill h-pill-primary d-flex justify-content-between">
                     <div class="d-flex justify-content-center align-items-center">
                         <div class="icon-wrapper d-flex justify-content-center align-items-center">

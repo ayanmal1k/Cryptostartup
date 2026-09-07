@@ -1299,6 +1299,22 @@
             background: rgba(255, 255, 255, 0.28);
         }
 
+        /* Count of quests ready to claim plus drops waiting to be opened. */
+        .home-streak-pill__badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 17px;
+            height: 17px;
+            padding: 0 5px;
+            border-radius: 99px;
+            background: #e6295b;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
         body.comments-open .home-streak-pill {
             opacity: 0;
             pointer-events: none;
@@ -2073,11 +2089,16 @@
             <i class="fas fa-bars"></i>
         </button>
         @auth
-            {{-- Gamification: level + daily streak, links to achievements --}}
-            <a href="{{ route('gamification.achievements') }}" class="home-streak-pill" aria-label="{{ __('Achievements') }}">
+            {{-- Gamification: level + daily streak. Points at the rewards hub, which is
+                 where there is actually something to do, rather than the badge wall. --}}
+            <a href="{{ route('engagement.hub') }}" class="home-streak-pill" aria-label="{{ __('Rewards') }}">
                 <span>🔥 {{ Auth::user()->streak_count ?? 0 }}</span>
                 <span class="home-streak-pill__sep" aria-hidden="true"></span>
                 <span>Lv {{ Auth::user()->level ?? 1 }}</span>
+                @if(($gmRewardsBadge ?? 0) > 0)
+                    <span class="home-streak-pill__sep" aria-hidden="true"></span>
+                    <span class="home-streak-pill__badge">{{ $gmRewardsBadge }}</span>
+                @endif
             </a>
         @endauth
         <button id="search-btn" class="search-btn">

@@ -13,6 +13,7 @@ use App\Model\UserMessage;
 use App\Model\UserVerify;
 use App\Model\Withdrawal;
 use App\Observers\AttachmentsObserver;
+use App\Observers\EngagementObserver;
 use App\Observers\PaymentRequestsObserver;
 use App\Observers\PostApprovalObserver;
 use App\Observers\StreamsObserver;
@@ -121,6 +122,26 @@ class AppServiceProvider extends ServiceProvider
         Subscription::observe(SubscriptionsObserver::class);
         User::observe(UsersObserver::class);
         Stream::observe(StreamsObserver::class);
+
+        // Engagement: one observer across every model that represents "a user did
+        // something worth rewarding". Referenced by name and guarded by class_exists so
+        // that a model this install does not have (the crypto layer is optional) cannot
+        // stop the application booting.
+        foreach ([
+            \App\Model\Post::class,
+            \App\Model\PostComment::class,
+            \App\Model\Reaction::class,
+            \App\Model\Stream::class,
+            \App\Model\Transaction::class,
+            \App\Models\Video::class,
+            \App\Models\VideoComment::class,
+            \App\Models\CustomRequest::class,
+            \App\Models\NFT::class,
+        ] as $engagementModel) {
+            if (class_exists($engagementModel)) {
+                $engagementModel::observe(EngagementObserver::class);
+            }
+        }
         if(getSetting('security.enforce_app_ssl')){
             \URL::forceScheme('https');
         }

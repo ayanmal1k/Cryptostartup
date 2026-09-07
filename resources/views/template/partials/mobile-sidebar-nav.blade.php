@@ -153,6 +153,16 @@
                 <div style="font-size:.72rem;opacity:.9;margin-top:4px;">{{ $gamiXpProgress }}/100 {{ __('XP to next level') }}</div>
             </div>
 
+            <a href="{{ route('engagement.hub') }}" class="mobile-sidebar__link {{ $route === 'engagement.hub' ? 'is-active' : '' }}">
+                <span class="mobile-sidebar__icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8S13 3 16.5 3a2.5 2.5 0 0 1 0 5"/></svg>
+                </span>
+                <span>{{ __('Rewards') }}</span>
+                @if(($gmRewardsBadge ?? 0) > 0)
+                    <span class="badge badge-pill badge-danger ml-auto">{{ $gmRewardsBadge }}</span>
+                @endif
+            </a>
+
             <a href="{{ route('gamification.achievements') }}" class="mobile-sidebar__link {{ $route === 'gamification.achievements' ? 'is-active' : '' }}">
                 <span class="mobile-sidebar__icon">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3"/><path d="M7 5H4v2a3 3 0 0 0 3 3"/></svg>
