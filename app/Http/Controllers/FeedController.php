@@ -96,32 +96,20 @@ class FeedController extends Controller
     /**
      * Display user profile page with their videos
      */
+    /**
+     * Legacy /profile/{username} route.
+     *
+     * This returned view('profile.show'), which does not exist -- there is no
+     * resources/views/profile directory at all -- so every request here answered
+     * 500 ("View [profile.show] not found"), logged in or not. Nothing in the app
+     * links to it; the real profile page is ProfileController@index at /{username}.
+     *
+     * Redirecting rather than deleting the route, so any bookmark or external link
+     * already pointing here lands on the working page instead of an error.
+     */
     public function userProfile(Request $request, $username)
     {
-        try {
-            $user = Feed::getUserByUsername($username);
-            
-            if (!$user) {
-                return abort(404, 'User not found');
-            }
-
-            $currentUserId = Auth::id();
-            $videos = Feed::getUserVideos($user->id, $currentUserId);
-
-            // Reward exploring other creators, but never your own profile -- otherwise
-            // the quest completes by refreshing your own page.
-            if (Auth::check() && (string) $currentUserId !== (string) $user->id) {
-                \App\Services\EngagementService::award(Auth::user(), 'profile_visit', $user);
-            }
-
-            // Return profile view instead of JSON
-            return view('profile.show', compact('user', 'videos'));
-            
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => $e->getMessage()
-            ], 500, [], JSON_PRETTY_PRINT);
-        }
+        return redirect()->route('profile', ['username' => $username], 301);
     }
 
     /**

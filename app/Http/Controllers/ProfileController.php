@@ -64,6 +64,13 @@ class ProfileController extends Controller
             abort(403, __('Profile access is denied.'));
         }
 
+        // Reward exploring other creators, but never your own profile -- otherwise the
+        // quest completes by refreshing your own page. Placed after the access checks so
+        // a blocked or hidden profile cannot be farmed for XP.
+        if (Auth::check() && (string) Auth::id() !== (string) $this->user->id) {
+            \App\Services\EngagementService::award(Auth::user(), 'profile_visit', $this->user);
+        }
+
         $data['showLoginDialog'] = false;
         $errors = session()->get('errors', app(ViewErrorBag::class));
         if ($errors->getBag('default')->has('email') || $errors->getBag('default')->has('name') || $errors->getBag('default')->has('password')) {

@@ -201,6 +201,22 @@ class QuestService
                 $user->level = $locked->level;
                 $user->sparks = $locked->sparks;
 
+                // Claim rewards have to reach the ledger like every other award, or
+                // "XP today" silently under-reports them -- a cleared board is one of
+                // the biggest single payouts there is, so the omission is very visible.
+                try {
+                    \App\Models\XpEvent::create([
+                        'user_id' => $user->id,
+                        'action' => 'quest_claim',
+                        'xp' => (int) $def['xp'],
+                        'sparks' => (int) $def['sparks'],
+                        'subject_type' => 'quest',
+                        'subject_id' => $quest->quest_key,
+                    ]);
+                } catch (\Throwable $e) {
+                    // xp_events missing — the claim itself still stands
+                }
+
                 return [
                     'xp' => (int) $def['xp'],
                     'sparks' => (int) $def['sparks'],
