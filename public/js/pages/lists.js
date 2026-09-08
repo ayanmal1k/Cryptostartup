@@ -221,7 +221,7 @@ var Lists = {
                 }
 
                 if(!showMessages){
-                    window.reload();
+                    window.location.reload();
                 }
 
             },
@@ -438,7 +438,7 @@ var Lists = {
             success: function (result) {
                 // eslint-disable-next-line no-undef
                 $('.manage-follows-text').text(result.text);
-                window.reload();
+                window.location.reload();
             }
         });
     }

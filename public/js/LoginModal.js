@@ -5,8 +5,18 @@
 /* global app, trans, launchToast */
 
 $(function () {
-    // eslint-disable-next-line no-undef
-    if(showLoginDialog){
+    // Read it off window rather than as a bare identifier.
+    //
+    // showLoginDialog is only published (via JavaScript::put) by
+    // ProfileController@index, but this file is loaded by layouts/generic for all 66
+    // views that extend it. On every one of those a bare `showLoginDialog` threw
+    // "ReferenceError: showLoginDialog is not defined", which aborted the rest of
+    // this callback -- so the form handlers below never bound and the login,
+    // register and forgot forms fell back to a plain non-AJAX submit.
+    //
+    // A property lookup on window is undefined rather than a throw, so the guard
+    // holds whether or not the page published the variable.
+    if (window.showLoginDialog) {
         LoginModal.launchModal();
     }
     $('.login-section form, .register-section form, .forgot-section form').on('submit',function () {
