@@ -21,19 +21,23 @@
 <style>
     /* Fallback for the first paint, before the measurement below runs. Roughly the
        nav's height plus its bottom offset on a phone. */
-    .reels-container { --reels-nav-space: 78px; }
+    .reels-container {
+        --reels-nav-space: 78px;
+        --seek-rest: 4px;      /* visible track height at rest   */
+        --seek-active: 9px;    /* ...and while hovered/dragging  */
+    }
 
     /* Scoped one level deeper than the page's own rules so include order cannot
        matter, and so this can never leak into a page without a reels container. */
     .reels-container .progress-bar {
         position: absolute;
         bottom: var(--reels-nav-space);
-        left: 0;
-        right: 0;
-        height: 3px;
-        /* Padding gives a ~19px touch target while the visible bar stays thin. */
-        padding: 8px 0;
-        margin-bottom: -8px;
+        left: 12px;
+        right: 12px;
+        /* Padding is the touch target: ~14px of grab area above and below a bar that
+           stays visually thin. Thumbs are about 10mm; a 4px hit area is unusable. */
+        padding: 14px 0;
+        margin-bottom: -14px;
         background: transparent;
         z-index: 16;
         pointer-events: auto;
@@ -44,21 +48,40 @@
 
     .reels-container .progress-bar__track {
         position: relative;
-        height: 3px;
-        border-radius: 2px;
-        background: rgba(255, 255, 255, 0.3);
-        transition: height 0.15s ease;
+        height: var(--seek-rest);
+        border-radius: 99px;
+        /* Video is arbitrary content, so the track needs to read on both a white
+           beach and a black night shot: a translucent white over a dark inner
+           shadow holds contrast either way. */
+        background: rgba(255, 255, 255, 0.26);
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.16);
+        overflow: hidden;
+        transition: height .18s cubic-bezier(.2,.8,.2,1);
     }
 
     .reels-container .progress-bar:hover .progress-bar__track,
+    .reels-container .progress-bar:focus-visible .progress-bar__track,
     .reels-container .progress-bar.is-scrubbing .progress-bar__track {
-        height: 6px;
+        height: var(--seek-active);
+    }
+
+    /* How much is downloaded, behind the played fill. Without it a video that is
+       still buffering looks identical to one that has stalled. */
+    .reels-container .progress-bar__buffer {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 0%;
+        border-radius: 99px;
+        background: rgba(255, 255, 255, 0.34);
+        transition: width .25s ease;
     }
 
     .reels-container .progress {
+        position: relative;
         height: 100%;
-        border-radius: 2px;
-        background: linear-gradient(90deg, #cb0c9f, #ff8a80);
+        border-radius: 99px;
+        background: linear-gradient(90deg, #ff4d9d 0%, #cb0c9f 55%, #ff8a80 100%);
+        box-shadow: 0 0 10px rgba(255, 77, 157, 0.55);
         width: 0%;
         transition: width 0.1s linear;
     }
@@ -72,42 +95,79 @@
         position: absolute;
         top: 50%;
         left: 0;
-        width: 13px;
-        height: 13px;
-        margin-left: -6.5px;
+        width: 16px;
+        height: 16px;
+        margin-left: -8px;
         border-radius: 50%;
         background: #fff;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, .45);
+        /* Ring rather than a plain dot, so it stays visible over a white frame. */
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, .22), 0 2px 8px rgba(0, 0, 0, .5);
         transform: translateY(-50%) scale(0);
-        transition: transform 0.15s ease;
+        transition: transform .18s cubic-bezier(.2,1.4,.4,1);
         pointer-events: none;
+        z-index: 2;
     }
 
     .reels-container .progress-bar:hover .progress-bar__handle,
+    .reels-container .progress-bar:focus-visible .progress-bar__handle,
     .reels-container .progress-bar.is-scrubbing .progress-bar__handle {
         transform: translateY(-50%) scale(1);
     }
 
-    /* Time readout, only while scrubbing. */
+    .reels-container .progress-bar.is-scrubbing .progress-bar__handle {
+        transform: translateY(-50%) scale(1.28);
+    }
+
+    /* Keyboard users get the same affordance as a pointer, and no default outline
+       on a control that is a thin bar. */
+    .reels-container .progress-bar:focus { outline: none; }
+    .reels-container .progress-bar:focus-visible .progress-bar__track {
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .16), 0 0 0 2px rgba(255, 255, 255, .75);
+    }
+
+    /* Time readout while scrubbing. Shows position AND duration -- knowing you are
+       at 0:12 is not much use without knowing whether the clip is 0:15 or 3:00. */
     .reels-container .progress-bar__time {
         position: absolute;
-        bottom: 18px;
-        transform: translateX(-50%);
-        padding: 3px 8px;
-        border-radius: 6px;
-        background: rgba(0, 0, 0, .78);
+        bottom: 26px;
+        transform: translateX(-50%) translateY(4px);
+        padding: 5px 10px;
+        border-radius: 8px;
+        background: rgba(10, 10, 16, .86);
+        border: 1px solid rgba(255, 255, 255, .14);
+        backdrop-filter: blur(8px);
         color: #fff;
         font-size: 12px;
         font-weight: 600;
         font-variant-numeric: tabular-nums;
+        letter-spacing: .01em;
         white-space: nowrap;
         opacity: 0;
         pointer-events: none;
-        transition: opacity 0.15s ease;
+        transition: opacity .15s ease, transform .15s ease;
+    }
+
+    .reels-container .progress-bar__time b {
+        font-weight: 700;
+    }
+
+    .reels-container .progress-bar__time span {
+        opacity: .6;
+        font-weight: 500;
     }
 
     .reels-container .progress-bar.is-scrubbing .progress-bar__time {
         opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .reels-container .progress-bar__track,
+        .reels-container .progress-bar__handle,
+        .reels-container .progress-bar__time,
+        .reels-container .progress-bar__buffer {
+            transition: none;
+        }
     }
 
     /* The caption gradient has to clear the raised bar, or it covers the control. */
@@ -158,41 +218,57 @@
         return m + ':' + (s < 10 ? '0' : '') + s;
     }
 
-    /* Upgrade the older read-only markup in place, so a page that still ships
-       `<div class="progress-bar"><div class="progress"></div></div>` gets the
-       track, handle and time readout without its Blade having to change. */
+    /* Bring any bar up to the full structure, whichever markup the page shipped.
+       home.blade.php renders the track/handle/time itself; feed.blade.php still
+       ships `<div class="progress-bar"><div class="progress"></div></div>`. Both
+       end up identical here, so neither Blade has to know about the other. */
     function ensureMarkup(bar) {
-        if (bar.querySelector('.progress-bar__track')) return;
-
+        var track = bar.querySelector('.progress-bar__track');
         var fill = bar.querySelector('.progress');
-        var track = document.createElement('div');
-        track.className = 'progress-bar__track';
 
-        if (fill) {
-            bar.insertBefore(track, fill);
-            track.appendChild(fill);
-        } else {
-            bar.appendChild(track);
+        if (!track) {
+            track = document.createElement('div');
+            track.className = 'progress-bar__track';
+            if (fill) {
+                bar.insertBefore(track, fill);
+                track.appendChild(fill);
+            } else {
+                bar.appendChild(track);
+            }
+        }
+
+        if (!fill) {
             fill = document.createElement('div');
             fill.className = 'progress';
             track.appendChild(fill);
         }
 
-        var handle = document.createElement('div');
-        handle.className = 'progress-bar__handle';
-        track.appendChild(handle);
+        // Buffered range sits behind the played fill, so insert it first.
+        if (!bar.querySelector('.progress-bar__buffer')) {
+            var buffer = document.createElement('div');
+            buffer.className = 'progress-bar__buffer';
+            track.insertBefore(buffer, track.firstChild);
+        }
 
-        var label = document.createElement('span');
-        label.className = 'progress-bar__time';
-        label.textContent = '0:00';
-        bar.appendChild(label);
+        if (!bar.querySelector('.progress-bar__handle')) {
+            var handle = document.createElement('div');
+            handle.className = 'progress-bar__handle';
+            track.appendChild(handle);
+        }
+
+        if (!bar.querySelector('.progress-bar__time')) {
+            var label = document.createElement('span');
+            label.className = 'progress-bar__time';
+            label.innerHTML = '<b>0:00</b>';
+            bar.appendChild(label);
+        }
 
         bar.setAttribute('role', 'slider');
-        bar.setAttribute('tabindex', '0');
-        bar.setAttribute('aria-label', 'Seek');
+        if (!bar.hasAttribute('tabindex')) bar.setAttribute('tabindex', '0');
+        if (!bar.hasAttribute('aria-label')) bar.setAttribute('aria-label', 'Seek');
         bar.setAttribute('aria-valuemin', '0');
         bar.setAttribute('aria-valuemax', '100');
-        bar.setAttribute('aria-valuenow', '0');
+        if (!bar.hasAttribute('aria-valuenow')) bar.setAttribute('aria-valuenow', '0');
     }
 
     function initSeekBar(bar) {
@@ -206,13 +282,17 @@
         ensureMarkup(bar);
 
         var fill = bar.querySelector('.progress');
+        var buffer = bar.querySelector('.progress-bar__buffer');
         var handle = bar.querySelector('.progress-bar__handle');
         var label = bar.querySelector('.progress-bar__time');
         var scrubbing = false;
         var wasPlaying = false;
 
         function ratioFromEvent(e) {
-            var rect = bar.getBoundingClientRect();
+            // Measure against the track, not the bar: the bar's padding is grab area
+            // and counting it would offset every seek by the padding width.
+            var target = bar.querySelector('.progress-bar__track') || bar;
+            var rect = target.getBoundingClientRect();
             var x = (e.clientX !== undefined ? e.clientX : 0) - rect.left;
             return Math.max(0, Math.min(1, rect.width ? x / rect.width : 0));
         }
@@ -223,10 +303,31 @@
             if (handle) handle.style.left = pct + '%';
             bar.setAttribute('aria-valuenow', Math.round(pct));
             if (label) {
-                label.textContent = formatTime(time);
+                // Position without the duration is not much use -- 0:12 reads very
+                // differently on a 15 second clip than on a three minute one.
+                label.innerHTML = '<b>' + formatTime(time) + '</b>' +
+                    (isFinite(video.duration) && video.duration > 0
+                        ? ' <span>/ ' + formatTime(video.duration) + '</span>'
+                        : '');
                 label.style.left = pct + '%';
             }
         }
+
+        // How much has downloaded. Without this a still-buffering video looks
+        // exactly like a stalled one.
+        function paintBuffer() {
+            if (!buffer || !isFinite(video.duration) || video.duration <= 0) return;
+            try {
+                if (!video.buffered || !video.buffered.length) return;
+                var end = video.buffered.end(video.buffered.length - 1);
+                buffer.style.width = Math.min(100, end / video.duration * 100) + '%';
+            } catch (e) {
+                // buffered can throw on some browsers before metadata is ready
+            }
+        }
+
+        video.addEventListener('progress', paintBuffer);
+        video.addEventListener('loadedmetadata', paintBuffer);
 
         function seekTo(ratio) {
             if (!isFinite(video.duration) || video.duration <= 0) return;
@@ -291,7 +392,15 @@
         video.addEventListener('timeupdate', function () {
             if (scrubbing || !isFinite(video.duration) || video.duration <= 0) return;
             paint(video.currentTime / video.duration, video.currentTime);
+            paintBuffer();
         });
+
+        // Metadata may already be loaded by the time this runs (the observer wires up
+        // bars that were appended after the video started), so do one pass now.
+        paintBuffer();
+        if (isFinite(video.duration) && video.duration > 0) {
+            paint(video.currentTime / video.duration, video.currentTime);
+        }
     }
 
     function scan() {
