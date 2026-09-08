@@ -261,19 +261,12 @@ const observer = new IntersectionObserver((entries) => {
                 }
             }
             
-            function startProgressBar(video, progressBar) {
-                const updateProgress = () => {
-                    if (!video.paused && video.duration > 0) {
-                        const progress = (video.currentTime / video.duration) * 100;
-                        progressBar.style.width = progress + '%';
-                        
-                        if (progress < 100 && !video.paused) {
-                            requestAnimationFrame(updateProgress);
-                        }
-                    }
-                };
-                requestAnimationFrame(updateProgress);
-            }
+            // The seek bar keeps itself in sync from the video's own timeupdate event
+            // (elements/reels-scrubber). This used to drive the fill width directly from
+            // a requestAnimationFrame loop, which moved the fill but not the drag handle,
+            // so the two would drift apart during playback. Kept as a no-op so the three
+            // existing call sites do not need to change.
+            function startProgressBar() {}
             
             // Add sound control buttons
             videoPlayers.forEach(video => {
@@ -2283,22 +2276,7 @@ function incrementVideoViews(videoId) {
             white-space: nowrap;
         }
         
-        .progress-bar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: rgba(255, 255, 255, 0.3);
-            z-index: 15;
-        }
-        
-        .progress {
-            height: 100%;
-            background: linear-gradient(90deg, #ff6b6b, #ff8a80);
-            width: 0%;
-            transition: width 0.1s linear;
-        }
+        {{-- Seek bar styles now live in elements/reels-scrubber --}}
         
         /* Comments Bottom Sheet — Instagram style */
         .comments-overlay {
@@ -3142,4 +3120,5 @@ function incrementVideoViews(videoId) {
         });
         
     </style>
+@include('elements.reels-scrubber')
 @stop
