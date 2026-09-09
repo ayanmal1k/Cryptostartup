@@ -1806,83 +1806,13 @@
         }
         
         /* Bottom Navigation Bar */
-        .bottom-nav {
-            position: fixed;
-            bottom: calc(8px + env(safe-area-inset-bottom));
-            left: 10px;
-            right: 10px;
-            background:
-                radial-gradient(circle at 15% 0%, rgba(236, 72, 153, 0.2) 0%, transparent 35%),
-                radial-gradient(circle at 85% 100%, rgba(56, 189, 248, 0.15) 0%, transparent 40%),
-                linear-gradient(180deg, rgba(13, 14, 24, 0.94) 0%, rgba(6, 7, 14, 0.95) 100%);
-            backdrop-filter: blur(22px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 18px;
-            padding: 8px;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            z-index: 1001;
-            pointer-events: auto;
-            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-        }
         
-        .bottom-nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            color: rgba(226, 232, 240, 0.72);
-            transition: all 0.25s ease;
-            padding: 9px 8px 7px;
-            border-radius: 12px;
-            flex: 1;
-            max-width: 120px;
-            background: transparent !important;
-            position: relative;
-            overflow: hidden;
-        }
         
-        .bottom-nav-item.active {
-            color: #fff;
-            background: linear-gradient(135deg, rgba(244, 114, 182, 0.24), rgba(56, 189, 248, 0.14)) !important;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 8px 24px rgba(236, 72, 153, 0.28);
-        }
 
-        .bottom-nav-item.active::after {
-            content: '';
-            position: absolute;
-            left: 18%;
-            right: 18%;
-            bottom: 0;
-            height: 2px;
-            border-radius: 999px;
-            background: linear-gradient(90deg, rgba(244, 114, 182, 0.9), rgba(56, 189, 248, 0.9));
-        }
         
-        .bottom-nav-item:hover {
-            color: #fff;
-            transform: translateY(-1px) scale(1.01);
-            background: transparent !important;
-        }
         
-        .bottom-nav-item:active {
-            background: transparent !important;
-        }
         
-        .bottom-nav-icon {
-            font-size: 14px;
-            margin-bottom: 4px;
-            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.1));
-        }
         
-        .bottom-nav-text {
-            font-size: 9px;
-            font-weight: 600;
-            letter-spacing: 0.03em;
-            text-transform: uppercase;
-        }
         
         /* Mobile adjustments */
         @media (max-width: 768px) {
@@ -1923,27 +1853,9 @@
                 font-size: 16px;
             }
             
-            .bottom-nav {
-                left: 6px;
-                right: 6px;
-                bottom: calc(6px + env(safe-area-inset-bottom));
-                border-radius: 16px;
-                padding: 7px 6px;
-            }
 
-            .bottom-nav-item {
-                padding: 8px 4px 6px;
-                border-radius: 12px;
-            }
             
-            .bottom-nav-icon {
-                font-size: 13px;
-                margin-bottom: 3px;
-            }
             
-            .bottom-nav-text {
-                font-size: 8px;
-            }
             
             /* Mobile Menu Modal Fixes */
             .header-modal {
@@ -2229,44 +2141,7 @@
     </div>
 
     <!-- Bottom Navigation Bar -->
-    <nav class="bottom-nav">
-        <a href="/" class="bottom-nav-item active">
-            <i class="fas fa-home bottom-nav-icon"></i>
-            <span class="bottom-nav-text">Home</span>
-        </a>
-
-        @auth
-            <a href="{{ route('videos.create') }}" class="bottom-nav-item">
-                <i class="fas fa-video bottom-nav-icon"></i>
-                <span class="bottom-nav-text">Create</span>
-            </a>
-            <a href="{{ route('cryptocurrency.wallet') }}" class="bottom-nav-item">
-                <i class="fas fa-wallet bottom-nav-icon"></i>
-                <span class="bottom-nav-text">Wallet</span>
-            </a>
-            <a href="{{ route('cryptocurrency.marketplace') }}" class="bottom-nav-item">
-                <i class="fas fa-store bottom-nav-icon"></i>
-                <span class="bottom-nav-text">Market</span>
-            </a>
-            <a href="{{ route('profile', ['username' => Auth::user()->username ?? Auth::user()->id]) }}" class="bottom-nav-item">
-                <i class="fas fa-user bottom-nav-icon"></i>
-                <span class="bottom-nav-text">Profile</span>
-            </a>
-        @else
-            <a href="{{ route('login') }}" class="bottom-nav-item">
-                <i class="fas fa-sign-in-alt bottom-nav-icon"></i>
-                <span class="bottom-nav-text">Login</span>
-            </a>
-            <a href="{{ route('register') }}" class="bottom-nav-item">
-                <i class="fas fa-user-plus bottom-nav-icon"></i>
-                <span class="bottom-nav-text">Register</span>
-            </a>
-            <a href="{{ route('cryptocurrency.marketplace') }}" class="bottom-nav-item">
-                <i class="fas fa-store bottom-nav-icon"></i>
-                <span class="bottom-nav-text">Market</span>
-            </a>
-        @endauth
-    </nav>
+    @include('elements.reels-bottom-nav')
 @stop
 
 @section('scripts')

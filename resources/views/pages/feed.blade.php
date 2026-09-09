@@ -1292,37 +1292,7 @@ function incrementVideoViews(videoId) {
     </div>
 
     <!-- Bottom Navigation Bar -->
-    <nav class="bottom-nav">
-        <a href="/feed" class="bottom-nav-item active">
-            <i class="fas fa-home bottom-nav-icon"></i>
-            <span class="bottom-nav-text">Home</span>
-        </a>
-
-        <a href="/posts/create" class="bottom-nav-item">
-            <i class="fas fa-video bottom-nav-icon"></i>
-            <span class="bottom-nav-text">Video</span>
-        </a>
-        <a href="{{ route('cryptocurrency.wallet') }}" class="bottom-nav-item">
-            <i class="fas fa-wallet bottom-nav-icon"></i>
-            <span class="bottom-nav-text">Wallet</span>
-        </a>
-        <a href="{{ route('cryptocurrency.marketplace') }}" class="bottom-nav-item">
-            <i class="fas fa-store bottom-nav-icon"></i>
-            <span class="bottom-nav-text">Marketplace</span>
-        </a>
-
-        @auth
-        <a href="{{ route('profile', ['username' => Auth::user()->username ?? Auth::user()->id]) }}" class="bottom-nav-item">
-            <i class="fas fa-user bottom-nav-icon"></i>
-            <span class="bottom-nav-text">Profile</span>
-        </a>
-        @else
-        <a href="{{ route('login') }}" class="bottom-nav-item">
-            <i class="fas fa-user bottom-nav-icon"></i>
-            <span class="bottom-nav-text">Profile</span>
-        </a>
-        @endauth
-    </nav>
+    @include('elements.reels-bottom-nav')
 
     <!-- Enhanced Reels Styles -->
     <style>
@@ -3017,103 +2987,6 @@ function incrementVideoViews(videoId) {
                 padding: 12px 16px;
             }
         }
-        
-        /* Bottom Navigation Bar */
-        .bottom-nav {
-            position: fixed;
-            bottom: calc(8px + env(safe-area-inset-bottom));
-            left: 10px;
-            right: 10px;
-            background:
-                radial-gradient(circle at 15% 0%, rgba(236, 72, 153, 0.2) 0%, transparent 35%),
-                radial-gradient(circle at 85% 100%, rgba(56, 189, 248, 0.15) 0%, transparent 40%),
-                linear-gradient(180deg, rgba(13, 14, 24, 0.94) 0%, rgba(6, 7, 14, 0.95) 100%);
-            backdrop-filter: blur(22px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 18px;
-            padding: 8px;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            z-index: 1000;
-            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-        }
-        
-        .bottom-nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            color: rgba(226, 232, 240, 0.72);
-            transition: all 0.25s ease;
-            padding: 9px 8px 7px;
-            border-radius: 12px;
-            flex: 1;
-            max-width: 120px;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .bottom-nav-item.active {
-            color: #fff;
-            background: linear-gradient(135deg, rgba(244, 114, 182, 0.24), rgba(56, 189, 248, 0.14));
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 8px 24px rgba(236, 72, 153, 0.28);
-        }
-
-        .bottom-nav-item.active::after {
-            content: '';
-            position: absolute;
-            left: 18%;
-            right: 18%;
-            bottom: 0;
-            height: 2px;
-            border-radius: 999px;
-            background: linear-gradient(90deg, rgba(244, 114, 182, 0.9), rgba(56, 189, 248, 0.9));
-        }
-        
-        .bottom-nav-item:hover {
-            color: #fff;
-            transform: translateY(-1px) scale(1.01);
-        }
-        
-        .bottom-nav-icon {
-            font-size: 14px;
-            margin-bottom: 4px;
-            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.1));
-        }
-        
-        .bottom-nav-text {
-            font-size: 9px;
-            font-weight: 600;
-            letter-spacing: 0.03em;
-            text-transform: uppercase;
-        }
-        
-        
-        /* Ensure bottom navigation is visible */
-        .bottom-nav {
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            pointer-events: auto !important;
-        }
-        
-        /* JavaScript for Bottom Navigation */
-        document.addEventListener('DOMContentLoaded', function() {
-            // Handle bottom navigation active state
-            const currentPath = window.location.pathname;
-            const bottomNavItems = document.querySelectorAll('.bottom-nav-item');
-            
-            bottomNavItems.forEach(item => {
-                item.classList.remove('active');
-                const href = item.getAttribute('href');
-                
-                if (currentPath === href || (href === '/feed' && currentPath === '/')) {
-                    item.classList.add('active');
-                }
-            });
-        });
         
     </style>
 @include('elements.reels-scrubber')
