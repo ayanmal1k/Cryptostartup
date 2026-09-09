@@ -1,6 +1,8 @@
 @extends('layouts.generic')
 
 @section('content')
+{{-- Installed first: play()/pause() must be made race-safe before any script below calls them --}}
+@include('elements.reels-playback')
 <div class="reels-container">
     <div class="video-feed">
         @foreach($videos as $index => $video)

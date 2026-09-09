@@ -1995,6 +1995,8 @@
 @stop
 
 @section('content')
+{{-- Installed first: play()/pause() must be made race-safe before any script below calls them --}}
+@include('elements.reels-playback')
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
