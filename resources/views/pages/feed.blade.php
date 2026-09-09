@@ -16,7 +16,7 @@
     !!}
     
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    {{-- Font Awesome 6.4.0 is already loaded globally by template/head --}}
 @stop
 
 {{-- Page specific JS --}}
@@ -185,7 +185,6 @@ const observer = new IntersectionObserver((entries) => {
                             }, 100);
                         }
                     } else {
-                        console.log(`Video with ID ${videoId} not found`);
                     }
                 }
             }
@@ -723,9 +722,7 @@ const observer = new IntersectionObserver((entries) => {
                         text: `See amazing videos from ${userName}`,
                         url: profileUrl
                     }).then(() => {
-                        console.log('Profile shared successfully');
                     }).catch(err => {
-                        console.log('Error sharing profile:', err);
                         fallbackShareProfile(profileUrl, userName);
                     });
                 } else {
@@ -770,7 +767,6 @@ const observer = new IntersectionObserver((entries) => {
             
 // 🔥 ADD THIS NEW FUNCTION FOR VIEWS TRACKING
 function incrementVideoViews(videoId) {
-    console.log('📈 Incrementing views for video:', videoId);
     
     fetch(`/videos/${videoId}/views`, {
         method: 'POST',
@@ -782,8 +778,6 @@ function incrementVideoViews(videoId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            console.log('✅ Views incremented successfully:', data.views_count);
-            console.log('📊 Response data:', data);
         } else {
             console.error('❌ Views increment failed:', data);
         }
@@ -3123,4 +3117,5 @@ function incrementVideoViews(videoId) {
         
     </style>
 @include('elements.reels-scrubber')
+@include('elements.reels-hud')
 @stop

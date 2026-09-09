@@ -158,7 +158,6 @@
             const targetVideoElement = document.querySelector(`[data-video-id="${targetVideoId}"]`);
             if (targetVideoElement) {
                 targetVideoIndex = Array.from(videoItems).indexOf(targetVideoElement);
-                console.log(`Target video found at index: ${targetVideoIndex}`);
             }
         }
         
@@ -170,14 +169,12 @@
         // Safe request function with loop prevention
         function safeRequest(key, requestFn, cooldownMs = COOLDOWN_MS) {
             if (activeRequests.has(key)) {
-                console.log(`Request ${key} already active, skipping`);
                 return Promise.resolve();
             }
             
             const lastRequest = requestCooldowns.get(key);
             const now = Date.now();
             if (lastRequest && (now - lastRequest) < cooldownMs) {
-                console.log(`Request ${key} in cooldown, skipping`);
                 return Promise.resolve();
             }
             
@@ -203,7 +200,6 @@
                 });
                 
                 if (response.status === 429) {
-                    console.log('Rate limited, skipping request');
                     return { ok: false, status: 429 };
                 }
                 
@@ -213,7 +209,6 @@
                 
                 return response;
             } catch (error) {
-                console.log('Request failed:', error);
                 return { ok: false, error };
             }
         }
@@ -248,7 +243,6 @@
             
             // Add event listeners for better control
             video.addEventListener('loadedmetadata', function() {
-                console.log(`Video ${index} metadata loaded`);
                 // Force dimensions after metadata loads
                 this.style.width = '100%';
                 this.style.height = '100%';
@@ -263,7 +257,6 @@
             });
             
             video.addEventListener('canplay', function() {
-                console.log(`Video ${index} can play`);
                 // Only auto-play if this is the target video or first video when no target specified
                 if ((targetVideoId && index === targetVideoIndex && !isInitialized) || 
                     (!targetVideoId && index === 0 && !isInitialized)) {
@@ -304,20 +297,16 @@
                 // Try to play with sound first
                 try {
                     await video.play();
-                    console.log('Video started playing with sound');
                 } catch (autoplayError) {
                     // If autoplay with sound fails, try muted
-                    console.log('Autoplay with sound failed, trying muted');
                     video.muted = true;
                     await video.play();
-                    console.log('Video started playing muted');
                 }
                 
                 // Add sound control overlay after video starts
                 addSoundControl(video);
                 
             } catch (error) {
-                console.log('Video play failed completely:', error);
                 
                 // If all autoplay attempts fail, add a play button overlay
                 if (error.name === 'NotAllowedError') {
@@ -433,7 +422,6 @@
                         this.style.display = 'none';
                         addSoundControl(video); // Add sound control after manual play
                     }).catch(err => {
-                        console.log('Manual play with sound failed, trying muted');
                         video.muted = true;
                         video.play().then(() => {
                             this.style.display = 'none';
@@ -548,7 +536,6 @@
         // Scroll to target video if specified in URL
         if (targetVideoId && targetVideoIndex > 0) {
             setTimeout(() => {
-                console.log(`Scrolling to target video at index: ${targetVideoIndex}`);
                 videoItems[targetVideoIndex].scrollIntoView({ 
                     behavior: 'smooth',
                     block: 'center'
@@ -762,10 +749,8 @@
                             return response.json();
                         })
                         .then(data => {
-                            console.log('Like successful:', data);
                         })
                         .catch(err => {
-                            console.log('Like request failed:', err);
                             // Revert the like state if request failed
                             this.classList.toggle('liked');
                             showToast('❌ Failed to like video');
@@ -801,7 +786,6 @@
                 const currentUrl = new URL(window.location.href);
                 const shareUrl = `${currentUrl.protocol}//${currentUrl.host}/videos/reels?video=${videoId}`;
                 
-                console.log('Sharing URL:', shareUrl); // Debug log
                 
                 // Check if Web Share API is supported
                 if (navigator.share) {
@@ -814,7 +798,6 @@
                         trackShareEvent(videoId, 'native');
                     }).catch(err => {
                         if (err.name !== 'AbortError') {
-                            console.log('Native share failed:', err);
                             // Fallback to custom share dialog
                             showCustomShareDialog(shareUrl, videoId);
                         }
@@ -933,7 +916,6 @@
                     showToast('🔗 Link copied to clipboard!');
                     trackShareEvent(videoId, 'clipboard');
                 }).catch(err => {
-                    console.log('Clipboard copy failed:', err);
                     fallbackCopy(text, videoId);
                 });
             } else {
@@ -962,7 +944,6 @@
                     promptCopy(text);
                 }
             } catch (err) {
-                console.log('Fallback copy failed:', err);
                 promptCopy(text);
             } finally {
                 document.body.removeChild(textArea);
@@ -1048,7 +1029,6 @@
                     }
                 })
                 .catch(err => {
-                    console.log('Failed to load comments:', err);
                     commentsList.innerHTML = '<div class="no-comments"><p>Failed to load comments.</p></div>';
                 });
         }
@@ -1108,7 +1088,6 @@
                 }
             })
             .catch(err => {
-                console.log('Failed to post comment:', err);
                 showToast('Failed to post comment');
             })
             .finally(() => {
@@ -2481,4 +2460,6 @@
 </style>
 @endpush
 
+@include('elements.reels-scrubber')
+@include('elements.reels-hud')
 @endsection

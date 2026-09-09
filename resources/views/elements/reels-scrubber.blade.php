@@ -19,12 +19,12 @@
         nothing. It is a real control now.
 --}}
 <style>
-    /* Fallback for the first paint, before the measurement below runs. Roughly the
-       nav's height plus its bottom offset on a phone. */
     .reels-container {
         --reels-nav-space: 78px;
-        --seek-rest: 4px;      /* visible track height at rest   */
-        --seek-active: 9px;    /* ...and while hovered/dragging  */
+        --seek-rest: 3px;      /* visible track height at rest  */
+        --seek-active: 7px;    /* ...and while hovered/dragging */
+        --seek-knob: 12px;     /* knob at rest                  */
+        --seek-knob-active: 17px;
     }
 
     /* Scoped one level deeper than the page's own rules so include order cannot
@@ -32,12 +32,10 @@
     .reels-container .progress-bar {
         position: absolute;
         bottom: var(--reels-nav-space);
-        left: 12px;
-        right: 12px;
-        /* Padding is the touch target: ~14px of grab area above and below a bar that
-           stays visually thin. Thumbs are about 10mm; a 4px hit area is unusable. */
-        padding: 14px 0;
-        margin-bottom: -14px;
+        left: 5px;
+        right: 5px;
+        padding: 4px 0;
+        margin-bottom: -9px;
         background: transparent;
         z-index: 16;
         pointer-events: auto;
@@ -46,16 +44,27 @@
         -webkit-tap-highlight-color: transparent;
     }
 
+    /* The bar above is 11px tall including its padding. A thumb is about 10mm, so
+       that is not a grabbable target -- this extends the hit area well past the
+       visible bar without changing how it looks or where it sits. */
+    .reels-container .progress-bar::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: -13px;
+        bottom: -13px;
+    }
+
     .reels-container .progress-bar__track {
         position: relative;
         height: var(--seek-rest);
         border-radius: 99px;
-        /* Video is arbitrary content, so the track needs to read on both a white
-           beach and a black night shot: a translucent white over a dark inner
-           shadow holds contrast either way. */
-        background: rgba(255, 255, 255, 0.26);
-        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.16);
-        overflow: hidden;
+        /* Video is arbitrary content, so the track has to read on both a white beach
+           and a black night shot: translucent white over a dark inner shadow holds
+           contrast either way. */
+        background: rgba(255, 255, 255, 0.28);
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
         transition: height .18s cubic-bezier(.2,.8,.2,1);
     }
 
@@ -65,7 +74,7 @@
         height: var(--seek-active);
     }
 
-    /* How much is downloaded, behind the played fill. Without it a video that is
+    /* How much has downloaded, behind the played fill. Without it a video that is
        still buffering looks identical to one that has stalled. */
     .reels-container .progress-bar__buffer {
         position: absolute;
@@ -81,7 +90,7 @@
         height: 100%;
         border-radius: 99px;
         background: linear-gradient(90deg, #ff4d9d 0%, #cb0c9f 55%, #ff8a80 100%);
-        box-shadow: 0 0 10px rgba(255, 77, 157, 0.55);
+        box-shadow: 0 0 10px rgba(255, 77, 157, 0.5);
         width: 0%;
         transition: width 0.1s linear;
     }
@@ -91,45 +100,58 @@
         transition: none;
     }
 
+    /* The knob. Kept visible at rest, small and low-contrast: a bar with no handle
+       reads as a progress indicator, and nobody tries to drag it. */
     .reels-container .progress-bar__handle {
         position: absolute;
         top: 50%;
         left: 0;
-        width: 16px;
-        height: 16px;
-        margin-left: -8px;
+        width: var(--seek-knob);
+        height: var(--seek-knob);
+        margin-left: calc(var(--seek-knob) / -2);
         border-radius: 50%;
         background: #fff;
-        /* Ring rather than a plain dot, so it stays visible over a white frame. */
-        box-shadow: 0 0 0 2px rgba(0, 0, 0, .22), 0 2px 8px rgba(0, 0, 0, .5);
-        transform: translateY(-50%) scale(0);
-        transition: transform .18s cubic-bezier(.2,1.4,.4,1);
+        /* Ring rather than a bare dot, so it survives a white frame behind it. */
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, .25), 0 2px 8px rgba(0, 0, 0, .5);
+        transform: translateY(-50%) scale(.82);
+        opacity: .9;
+        transition: transform .18s cubic-bezier(.2,1.4,.4,1), opacity .18s ease,
+                    width .18s ease, height .18s ease;
         pointer-events: none;
         z-index: 2;
     }
 
     .reels-container .progress-bar:hover .progress-bar__handle,
-    .reels-container .progress-bar:focus-visible .progress-bar__handle,
-    .reels-container .progress-bar.is-scrubbing .progress-bar__handle {
+    .reels-container .progress-bar:focus-visible .progress-bar__handle {
         transform: translateY(-50%) scale(1);
+        opacity: 1;
     }
 
+    /* While dragging: bigger, fully opaque, with a halo so it stays findable under
+       a fingertip that is covering it. */
     .reels-container .progress-bar.is-scrubbing .progress-bar__handle {
-        transform: translateY(-50%) scale(1.28);
+        width: var(--seek-knob-active);
+        height: var(--seek-knob-active);
+        margin-left: calc(var(--seek-knob-active) / -2);
+        transform: translateY(-50%) scale(1);
+        opacity: 1;
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, .25),
+                    0 0 0 7px rgba(255, 77, 157, .28),
+                    0 3px 12px rgba(0, 0, 0, .55);
     }
 
     /* Keyboard users get the same affordance as a pointer, and no default outline
        on a control that is a thin bar. */
     .reels-container .progress-bar:focus { outline: none; }
     .reels-container .progress-bar:focus-visible .progress-bar__track {
-        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .16), 0 0 0 2px rgba(255, 255, 255, .75);
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .18), 0 0 0 2px rgba(255, 255, 255, .75);
     }
 
-    /* Time readout while scrubbing. Shows position AND duration -- knowing you are
-       at 0:12 is not much use without knowing whether the clip is 0:15 or 3:00. */
+    /* Time readout while scrubbing. Shows position AND duration -- 0:12 reads very
+       differently on a fifteen second clip than on a three minute one. */
     .reels-container .progress-bar__time {
         position: absolute;
-        bottom: 26px;
+        bottom: 22px;
         transform: translateX(-50%) translateY(4px);
         padding: 5px 10px;
         border-radius: 8px;
@@ -140,32 +162,53 @@
         font-size: 12px;
         font-weight: 600;
         font-variant-numeric: tabular-nums;
-        letter-spacing: .01em;
         white-space: nowrap;
         opacity: 0;
         pointer-events: none;
         transition: opacity .15s ease, transform .15s ease;
     }
 
-    .reels-container .progress-bar__time b {
-        font-weight: 700;
-    }
-
-    .reels-container .progress-bar__time span {
-        opacity: .6;
-        font-weight: 500;
-    }
+    .reels-container .progress-bar__time b { font-weight: 700; }
+    .reels-container .progress-bar__time span { opacity: .6; font-weight: 500; }
 
     .reels-container .progress-bar.is-scrubbing .progress-bar__time {
         opacity: 1;
         transform: translateX(-50%) translateY(0);
     }
 
+    /* --- responsive ------------------------------------------------------- */
+
+    /* Phones: a slightly chunkier track and knob, since the pointer is a fingertip
+       rather than a 1px cursor. */
+    @media (max-width: 768px) {
+        .reels-container {
+            --seek-rest: 4px;
+            --seek-active: 8px;
+            --seek-knob: 13px;
+            --seek-knob-active: 19px;
+        }
+        .reels-container .progress-bar::before { top: -15px; bottom: -15px; }
+        .reels-container .progress-bar__time { font-size: 11px; padding: 4px 9px; }
+    }
+
+    /* Desktop: a hairline bar that grows on hover reads as more precise, and the
+       cursor does not need the extra grab area. */
+    @media (min-width: 1024px) {
+        .reels-container {
+            --seek-rest: 3px;
+            --seek-active: 7px;
+            --seek-knob: 11px;
+            --seek-knob-active: 15px;
+        }
+        .reels-container .progress-bar::before { top: -9px; bottom: -9px; }
+    }
+
     @media (prefers-reduced-motion: reduce) {
         .reels-container .progress-bar__track,
         .reels-container .progress-bar__handle,
         .reels-container .progress-bar__time,
-        .reels-container .progress-bar__buffer {
+        .reels-container .progress-bar__buffer,
+        .reels-container .progress {
             transition: none;
         }
     }

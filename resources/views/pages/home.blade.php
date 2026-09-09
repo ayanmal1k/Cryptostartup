@@ -21,7 +21,7 @@
     !!}
     
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    {{-- Font Awesome 6.4.0 is already loaded globally by template/head --}}
     
     <style>
         * {
@@ -2274,7 +2274,6 @@
     
     <!-- Reels JavaScript -->
     <script>
-        console.log('Home page video JavaScript loaded successfully');
         
         // Global variables
         let currentVideoIndex = 0;
@@ -2337,14 +2336,11 @@
         };
         
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM Content Loaded - Initializing video page');
             const videoItems = document.querySelectorAll('.video-item');
             const videoPlayers = document.querySelectorAll('.video-player');
             const videoFeed = document.querySelector('.video-feed');
             let isScrolling = false;
             
-            console.log('Found', videoItems.length, 'video items');
-            console.log('Found', videoPlayers.length, 'video players');
             
             // Initialize all videos
             videoPlayers.forEach((video, index) => {
@@ -2451,7 +2447,6 @@
                 const btn = e.target.closest('.like-btn');
                 if (!btn) return;
                 
-                console.log('Like button clicked:', btn);
                 e.preventDefault();
                 e.stopPropagation();
                 
@@ -2502,7 +2497,6 @@
                     credentials: 'same-origin'
                 })
                 .then(response => {
-                    console.log('Like response status:', response.status);
                     if (response.status === 401) {
                         // Redirect to login if not authenticated
                         if (confirm('Please login to like videos')) {
@@ -2516,7 +2510,6 @@
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Like response data:', data);
                     if (data.success) {
                         // Update with real data from server
                         countSpan.textContent = data.likes_count || countSpan.textContent;
@@ -2621,7 +2614,6 @@
                 const btn = e.target.closest('.comment-btn');
                 if (!btn) return;
                 
-                console.log('Comment button clicked:', btn);
                 e.preventDefault();
                 e.stopPropagation();
                 openComments();
@@ -2654,7 +2646,6 @@
                 const btn = e.target.closest('.share-btn');
                 if (!btn) return;
                 
-                console.log('Share button clicked:', btn);
                 e.preventDefault();
                 e.stopPropagation();
                 
@@ -2694,7 +2685,6 @@
                 const btn = e.target.closest('.repost-btn');
                 if (!btn) return;
                 
-                console.log('Repost button clicked:', btn);
                 e.preventDefault();
                 e.stopPropagation();
                 
@@ -2825,7 +2815,6 @@
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Comments API Response:', data);
                     
                     if (data.success !== false) {
                         let comments = data.comments || data.data?.comments || [];
@@ -2944,7 +2933,6 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        console.log('Views incremented:', data.views_count);
                     }
                 })
                 .catch(error => console.error('Error incrementing views:', error));
@@ -3289,4 +3277,5 @@
         });
     </script>
 @include('elements.reels-scrubber')
+@include('elements.reels-hud')
 @stop
