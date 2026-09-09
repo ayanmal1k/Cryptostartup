@@ -231,9 +231,20 @@ echo "Verifying..."
 # Capture the status separately from curl's exit code: on a non-zero exit the old
 # `$(curl ... || echo 000)` form concatenated BOTH outputs ("200" + "000" = "200000")
 # and reported a healthy deploy as failed.
-code=$(curl -s -o /dev/null -w '%{http_code}' -m 45 https://xtrafreaky.com/) || code=000
-[ -n "$code" ] || code=000
+#
+# Retried, because a single probe is not evidence. curl on Git Bash uses the Windows
+# schannel TLS backend, which intermittently drops this connection and returns 000 --
+# a transport failure on this machine, not a fault on the server. Reporting that as
+# "deploy failed" is worse than useless: it invites a rollback of a perfectly healthy
+# deploy. Three tries, and only a consistent failure counts.
+code=000
+for attempt in 1 2 3; do
+    code=$(curl -s -o /dev/null -w '%{http_code}' -m 45 https://xtrafreaky.com/) || code=000
+    [ -n "$code" ] || code=000
+    [ "$code" = "200" ] && break
+    [ "$attempt" -lt 3 ] && { log "attempt $attempt => HTTP $code, retrying..."; sleep 3; }
+done
 log "https://xtrafreaky.com/ => HTTP $code"
-[ "$code" = "200" ] || fail "site did not return 200 after deploy"
+[ "$code" = "200" ] || fail "site did not return 200 after deploy (3 attempts)"
 
 echo "Deploy complete."
