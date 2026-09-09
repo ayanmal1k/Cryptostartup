@@ -2991,4 +2991,5 @@ function incrementVideoViews(videoId) {
     </style>
 @include('elements.reels-scrubber')
 @include('elements.reels-hud')
+@include('elements.reels-prefetch')
 @stop

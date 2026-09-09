@@ -1981,7 +1981,7 @@
                                 loop
                                 muted
                                 playsinline
-                                preload="auto"
+                                preload="metadata"
                                 class="video-player"
                                 webkit-playsinline
                                 @if(!empty($video->poster_url)) poster="{{ $video->poster_url }}" @endif
@@ -3153,4 +3153,5 @@
     </script>
 @include('elements.reels-scrubber')
 @include('elements.reels-hud')
+@include('elements.reels-prefetch')
 @stop

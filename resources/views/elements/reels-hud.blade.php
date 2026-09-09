@@ -161,8 +161,9 @@
             video.load();
         }
 
-        // Only fetch bytes for a clip once it is actually wanted.
-        video.preload = slow ? 'none' : 'metadata';
+        // preload is deliberately NOT set here. elements/reels-prefetch owns it, and
+        // two systems writing the same attribute would undo each other's decisions --
+        // this one runs per video, that one reasons about the whole feed.
     }
 
     function buildHud(item, video) {
