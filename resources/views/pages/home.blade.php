@@ -1120,7 +1120,9 @@
             left: 0;
             right: 0;
             z-index: 1002;
-            padding: 15px 20px;
+            /* No inset: the buttons are 46px hit areas that carry their own spacing,
+               so padding here only pushed them away from the edge twice over. */
+            padding: 0;
             background: linear-gradient(rgba(0, 0, 0, 0.6), transparent);
             display: flex;
             justify-content: space-between;
@@ -1843,7 +1845,7 @@
             }
             
             .top-header {
-                padding: 12px 15px;
+                padding: 0;
             }
             
             .header-menu-btn,

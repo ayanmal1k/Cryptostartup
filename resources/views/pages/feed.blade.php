@@ -1336,7 +1336,8 @@ function incrementVideoViews(videoId) {
             left: 0;
             right: 0;
             z-index: 1002;
-            padding: 15px 20px;
+            /* No inset: the buttons are 46px hit areas that carry their own spacing. */
+            padding: 0;
             background: linear-gradient(rgba(0, 0, 0, 0.55), transparent);
             display: flex;
             justify-content: space-between;

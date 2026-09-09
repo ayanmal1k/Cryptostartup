@@ -64,30 +64,31 @@
 <style>
     .bottom-nav {
         position: fixed;
-        bottom: calc(10px + env(safe-area-inset-bottom));
-        left: 10px;
-        right: 10px;
-        /* Match the video column. The feed is capped at 692px on desktop while this
-           bar used to run the full viewport width, so on a wide screen it read as a
-           browser chrome bar rather than as part of the app. */
-        max-width: 692px;
-        margin: 0 auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        max-width: none;
+        margin: 0;
+        border-radius: 0;
 
         display: flex;
         align-items: stretch;
-        gap: 2px;
-        padding: 6px;
-        border-radius: 22px;
+        gap: 0;
+        /* The safe-area inset moves from the bottom offset into the padding. The bar
+           is flush now, so without this the buttons sit under the home indicator on a
+           gesture-bar phone -- that inset is clearance, not margin. */
+        padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
         z-index: 1001;
         pointer-events: auto;
 
-        background: rgba(16, 16, 24, .72);
+        background: rgba(16, 16, 24, .82);
         backdrop-filter: blur(20px) saturate(160%);
         -webkit-backdrop-filter: blur(20px) saturate(160%);
-        border: 1px solid rgba(255, 255, 255, .09);
-        box-shadow:
-            0 8px 32px rgba(0, 0, 0, .45),
-            inset 0 1px 0 rgba(255, 255, 255, .07);
+        /* A hairline instead of a full outline: the bar meets the video along one
+           edge now, so that is the only edge that needs defining. */
+        border: 0;
+        border-top: 1px solid rgba(255, 255, 255, .08);
+        box-shadow: 0 -6px 24px rgba(0, 0, 0, .38);
     }
 
     .bottom-nav-item {
@@ -102,7 +103,6 @@
         justify-content: center;
         gap: 3px;
         padding: 7px 4px;
-        border-radius: 16px;
         text-decoration: none;
         color: rgba(233, 236, 245, .62);
         background: transparent;
@@ -128,7 +128,9 @@
 
     .bottom-nav-item.is-active {
         color: #fff;
-        background: rgba(255, 77, 157, .16);
+        /* A soft vertical wash rather than a flat block: with the corners squared
+           off, a solid tint reads as a hard rectangle stuck to the bar. */
+        background: linear-gradient(180deg, rgba(255, 77, 157, .04), rgba(255, 77, 157, .20));
     }
 
     /* A short bar under the active item, rather than the old full-height gradient
@@ -136,7 +138,7 @@
     .bottom-nav-item.is-active::after {
         content: '';
         position: absolute;
-        bottom: 5px;
+        bottom: 0;
         left: 50%;
         transform: translateX(-50%);
         width: 16px;
@@ -176,13 +178,9 @@
 
     @media (max-width: 480px) {
         .bottom-nav {
-            left: 8px;
-            right: 8px;
-            bottom: calc(8px + env(safe-area-inset-bottom));
-            padding: 5px;
-            border-radius: 20px;
+            padding: 5px 2px calc(5px + env(safe-area-inset-bottom));
         }
-        .bottom-nav-item { padding: 6px 2px; border-radius: 14px; }
+        .bottom-nav-item { padding: 6px 2px; }
         .bottom-nav-icon { font-size: 16px; }
         .bottom-nav-text { font-size: 9px; }
     }
@@ -193,11 +191,11 @@
         .bottom-nav-text { display: none; }
         .bottom-nav-item { min-height: 44px; }
         .bottom-nav-icon { font-size: 18px; }
-        .bottom-nav-item.is-active::after { bottom: 3px; }
+        .bottom-nav-item.is-active::after { bottom: 0; }
     }
 
     @media (min-width: 769px) {
-        .bottom-nav { bottom: 14px; padding: 7px; }
+        .bottom-nav { padding: 7px 6px; }
         .bottom-nav-item { min-height: 50px; }
         .bottom-nav-icon { font-size: 18px; }
         .bottom-nav-text { font-size: 11px; }
@@ -211,6 +209,6 @@
     /* Backdrop-filter is not universal; without it the translucent background
        leaves the labels sitting on raw video. */
     @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-        .bottom-nav { background: rgba(12, 12, 18, .93); }
+        .bottom-nav { background: rgba(12, 12, 18, .96); }
     }
 </style>
