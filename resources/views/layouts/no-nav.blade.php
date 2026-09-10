@@ -1,5 +1,5 @@
 <!doctype html>
-<html dir="{{GenericHelper::getSiteDirection()}}" lang="{{session('locale')}}">
+<html dir="{{GenericHelper::getSiteDirection()}}" lang="{{session('locale')}}" data-theme="{{ GenericHelper::getSiteTheme() == 'dark' ? 'dark' : 'light' }}">
 <head>
     @include('template.head')
 </head>

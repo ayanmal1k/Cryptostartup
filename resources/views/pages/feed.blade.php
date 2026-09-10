@@ -549,78 +549,74 @@ const observer = new IntersectionObserver((entries) => {
                     const wasReposted = this.classList.contains('reposted');
                     
                     if (!wasReposted) {
-                        if (confirm('Repost this video to your profile?')) {
-                            this.classList.add('reposted');
-                            this.style.color = '#17bf63';
-                            countSpan.textContent = count + 1;
-                            
-                            // Make API call
-                            fetch(`/videos/${videoId}/repost`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                                }
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    countSpan.textContent = data.reposts_count;
-                                    showNotification('Video reposted successfully!');
-                                } else {
-                                    // Revert on error
-                                    this.classList.remove('reposted');
-                                    this.style.color = '#fff';
-                                    countSpan.textContent = count;
-                                    showNotification(data.message || 'Failed to repost video');
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error:', error);
+                        this.classList.add('reposted');
+                        this.style.color = '#17bf63';
+                        countSpan.textContent = count + 1;
+                        
+                        // Make API call
+                        fetch(`/videos/${videoId}/repost`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                countSpan.textContent = data.reposts_count;
+                                showNotification('Video reposted successfully!');
+                            } else {
                                 // Revert on error
                                 this.classList.remove('reposted');
                                 this.style.color = '#fff';
                                 countSpan.textContent = count;
-                                showNotification('Failed to repost video');
-                            });
-                        }
-                    } else {
-                        // Undo repost
-                        if (confirm('Remove this repost?')) {
+                                showNotification(data.message || 'Failed to repost video');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            // Revert on error
                             this.classList.remove('reposted');
                             this.style.color = '#fff';
-                            countSpan.textContent = count - 1;
-                            
-                            // Make API call to undo repost
-                            fetch(`/videos/${videoId}/unrepost`, {
-                                method: 'DELETE',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                                }
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    countSpan.textContent = data.reposts_count;
-                                    showNotification('Repost removed successfully!');
-                                } else {
-                                    // Revert on error
-                                    this.classList.add('reposted');
-                                    this.style.color = '#17bf63';
-                                    countSpan.textContent = count;
-                                    showNotification(data.message || 'Failed to remove repost');
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error:', error);
+                            countSpan.textContent = count;
+                            showNotification('Failed to repost video');
+                        });
+                    } else {
+                        // Undo repost
+                        this.classList.remove('reposted');
+                        this.style.color = '#fff';
+                        countSpan.textContent = count - 1;
+                        
+                        // Make API call to undo repost
+                        fetch(`/videos/${videoId}/unrepost`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                countSpan.textContent = data.reposts_count;
+                                showNotification('Repost removed successfully!');
+                            } else {
                                 // Revert on error
                                 this.classList.add('reposted');
                                 this.style.color = '#17bf63';
                                 countSpan.textContent = count;
-                                showNotification('Failed to remove repost');
-                            });
-                        }
+                                showNotification(data.message || 'Failed to remove repost');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            // Revert on error
+                            this.classList.add('reposted');
+                            this.style.color = '#17bf63';
+                            countSpan.textContent = count;
+                            showNotification('Failed to remove repost');
+                        });
                     }
                 });
             });
@@ -1631,198 +1627,7 @@ function incrementVideoViews(videoId) {
             margin: 0;
             font-size: 13px;
             color: #666;
-        }
-        
-        /* Profile Modal — neutral flat dark */
-        .profile-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 1003;
-            background: rgba(0, 0, 0, 0.55);
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.25s ease, visibility 0.25s ease;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-        }
-
-        .profile-modal.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .profile-modal .profile-modal-content {
-            background: #1c1c1e !important;
-            border-radius: 20px 20px 0 0 !important;
-            padding: 0 !important;
-            width: 100%;
-            max-width: 480px;
-            max-height: 70vh;
-            overflow: hidden;
-            transform: translateY(100%);
-            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-bottom: none;
-            box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
-        }
-
-        .profile-modal.active .profile-modal-content {
-            transform: translateY(0);
-        }
-
-        .profile-grabber {
-            width: 40px;
-            height: 4px;
-            border-radius: 3px;
-            background: rgba(255, 255, 255, 0.25);
-            margin: 10px auto 0;
-            flex-shrink: 0;
-        }
-
-        .profile-modal .profile-modal-header {
-            padding: 14px 16px 14px !important;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: transparent !important;
-            position: relative;
-        }
-
-        .profile-modal .profile-modal-header::before {
-            display: none !important;
-        }
-
-        .profile-modal .profile-modal-header h3 {
-            margin: 0;
-            color: #f5f5f7 !important;
-            font-size: 16px;
-            font-weight: 700;
-        }
-
-        .profile-modal .profile-modal-close {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(255, 255, 255, 0.08) !important;
-            border: none;
-            cursor: pointer;
-            color: #f5f5f7 !important;
-            padding: 0;
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s ease;
-        }
-
-        .profile-modal .profile-modal-close:hover {
-            background: rgba(255, 255, 255, 0.14) !important;
-            color: #fff !important;
-            transform: translateY(-50%);
-        }
-
-        .profile-info {
-            padding: 28px 20px 24px;
-            background: transparent;
-            text-align: center;
-        }
-
-        .profile-avatar {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 16px;
-        }
-
-        .profile-avatar-initials {
-            width: 88px;
-            height: 88px;
-            border-radius: 50%;
-            border: 2px solid rgba(203, 12, 159, 0.45);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 28px;
-            color: white;
-            box-shadow: none;
-            letter-spacing: 0.02em;
-        }
-
-        .profile-details h3 {
-            margin: 0 0 6px 0;
-            font-size: 20px;
-            font-weight: 700;
-            color: #f5f5f7;
-            letter-spacing: -0.01em;
-        }
-
-        .profile-details p {
-            margin: 0;
-            font-size: 14px;
-            color: #8e8e93;
-            font-weight: 500;
-        }
-
-        .profile-actions {
-            padding: 0 16px calc(20px + env(safe-area-inset-bottom));
-            background: transparent;
-            display: flex;
-            gap: 10px;
-        }
-
-        .profile-action-btn {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 14px 16px;
-            border: none;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s ease, opacity 0.2s ease;
-            text-decoration: none;
-            box-shadow: none !important;
-        }
-
-        .profile-action-btn svg {
-            flex-shrink: 0;
-        }
-
-        .view-profile-btn {
-            background: #cb0c9f !important;
-            color: #fff !important;
-        }
-
-        .view-profile-btn:hover {
-            background: #830866 !important;
-            transform: none;
-            box-shadow: none !important;
-        }
-
-        .share-profile-btn {
-            background: rgba(255, 255, 255, 0.08) !important;
-            color: #f5f5f7 !important;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-        }
-
-        .share-profile-btn:hover {
-            background: rgba(255, 255, 255, 0.14) !important;
-            transform: none;
-            box-shadow: none !important;
-        }
-
-        .profile-action-btn i {
-            font-size: 16px;
-        }
-        
+        }        
         /* Notification Styles */
         .notification,
         .share-notification {
@@ -2244,312 +2049,12 @@ function incrementVideoViews(videoId) {
         }
         
         {{-- Seek bar styles now live in elements/reels-scrubber --}}
-        
-        /* Comments Bottom Sheet — Instagram style */
-        .comments-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.45);
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease;
-        }
-
-        .comments-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .comments-sidebar {
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            height: 72vh;
-            max-height: 760px;
-            background: #1c1c1e;
-            border-radius: 20px 20px 0 0;
-            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-            z-index: 1001;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
-            transform: translateY(100%);
-            overflow: hidden;
-            overscroll-behavior: contain;
-        }
-
-        .comments-sidebar.active {
-            transform: translateY(0);
-        }
-
-        .comments-grabber {
-            width: 40px;
-            height: 4px;
-            border-radius: 3px;
-            background: rgba(255, 255, 255, 0.25);
-            margin: 10px auto 4px;
-            flex-shrink: 0;
-            cursor: grab;
-            touch-action: none;
-        }
-
-        .comments-header {
-            padding: 8px 16px 14px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            flex-shrink: 0;
-            cursor: grab;
-            touch-action: none;
-        }
-
-        .comments-sidebar.dragging {
-            transition: none !important;
-        }
-
-        .comments-sidebar.dragging .comments-grabber,
-        .comments-sidebar.dragging .comments-header {
-            cursor: grabbing;
-        }
-
-        /* Keep the close button clickable, not a drag handle */
-        .comments-header .close-comments {
-            cursor: pointer;
-            touch-action: auto;
-        }
-
-        .comments-header h3 {
-            margin: 0;
-            color: #fff;
-            font-size: 16px;
-            font-weight: 700;
-        }
-
-        .close-comments {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            color: #fff;
-            padding: 6px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s ease;
-        }
-
-        .close-comments:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .comments-list {
-            flex: 1;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            overscroll-behavior: contain;
-            padding: 12px 16px 8px;
-            min-height: 0;
-        }
-
         .no-comments,
         .loading {
             text-align: center;
             color: #8e8e93;
             padding: 48px 20px;
             font-size: 14px;
-        }
-
-        .comment-item {
-            display: flex;
-            margin-bottom: 20px;
-            gap: 12px;
-            align-items: flex-start;
-        }
-
-        .comment-item.is-reply {
-            margin-left: 44px;
-        }
-
-        .comment-avatar-initials {
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 13px;
-            color: white;
-            flex-shrink: 0;
-        }
-
-        .comment-content {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .comment-head {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .comment-content strong {
-            color: #f5f5f7;
-            font-size: 13px;
-            font-weight: 600;
-        }
-
-        .comment-time {
-            color: #8e8e93;
-            font-size: 12px;
-        }
-
-        .comment-content p {
-            margin: 3px 0 0;
-            color: #e5e5ea;
-            font-size: 14px;
-            line-height: 1.4;
-            word-wrap: break-word;
-        }
-
-        .comment-actions {
-            display: flex;
-            gap: 16px;
-            margin-top: 6px;
-        }
-
-        .comment-actions span {
-            color: #8e8e93;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .comment-like {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 3px;
-            color: #8e8e93;
-            flex-shrink: 0;
-            cursor: pointer;
-            padding-top: 4px;
-        }
-
-        .comment-like svg {
-            width: 16px;
-            height: 16px;
-        }
-
-        .comment-like.liked {
-            color: #ff3040;
-        }
-
-        .comment-like span {
-            font-size: 11px;
-        }
-
-        /* Emoji quick reactions */
-        .comment-reactions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 18px;
-            gap: 4px;
-            flex-shrink: 0;
-        }
-
-        .reaction-emoji {
-            background: transparent;
-            border: none;
-            font-size: 24px;
-            line-height: 1;
-            cursor: pointer;
-            padding: 2px;
-            transition: transform 0.15s ease;
-        }
-
-        .reaction-emoji:hover {
-            transform: scale(1.25);
-        }
-
-        /* Composer */
-        .comment-form {
-            padding: 8px 12px calc(12px + env(safe-area-inset-bottom));
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            background: #1c1c1e;
-            flex-shrink: 0;
-        }
-
-        .comment-form__avatar {
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 14px;
-            color: #fff;
-            background: linear-gradient(135deg, #cb0c9f, #830866);
-        }
-
-        .comment-form input {
-            flex: 1;
-            padding: 11px 16px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 22px;
-            font-size: 14px;
-            outline: none;
-            transition: border-color 0.2s ease;
-            background: #2c2c2e;
-            color: #fff;
-        }
-
-        .comment-form input::placeholder {
-            color: #8e8e93;
-        }
-
-        .comment-form input:focus {
-            border-color: rgba(203, 12, 159, 0.6);
-        }
-
-        .comment-form button {
-            background: #cb0c9f;
-            color: #fff;
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            flex-shrink: 0;
-            transition: background 0.2s ease, opacity 0.2s ease;
-        }
-
-        .comment-form button:hover:not(:disabled) {
-            background: #830866;
-        }
-
-        .comment-form button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
         }
 
         /* Hide top header & bottom nav while comments are open */
@@ -2742,13 +2247,7 @@ function incrementVideoViews(videoId) {
                 font-size: 18px;
                 top: 15px;
                 right: 15px;
-            }
-            
-            .comments-sidebar {
-                height: 82vh;
-                max-height: none;
-            }
-            
+            }            
             .video-overlay {
                 padding: 15px;
                 justify-content: space-between !important;
@@ -2842,55 +2341,10 @@ function incrementVideoViews(videoId) {
                 font-size: 16px;
                 top: 70px;
                 right: 15px;
-            }
-            
-            .profile-avatar-initials {
-                width: 70px;
-                height: 70px;
-                font-size: 20px;
-            }
-            
-            .profile-details h3 {
-                font-size: 18px;
-            }
-            
-            .profile-action-btn {
-                font-size: 13px;
-                padding: 12px 14px;
-            }
-            
-            .profile-action-btn i {
-                font-size: 16px;
-            }
-            
+            }            
             .upload-first-video-btn {
                 font-size: 14px;
                 padding: 14px 28px;
-            }
-        }
-        
-        /* Tablet responsive */
-        @media (min-width: 769px) and (max-width: 1024px) {
-            .comments-sidebar {
-                left: 50%;
-                right: auto;
-                width: 480px;
-                transform: translate(-50%, 100%);
-            }
-            .comments-sidebar.active {
-                transform: translate(-50%, 0);
-            }
-        }
-
-        @media (min-width: 1025px) {
-            .comments-sidebar {
-                left: 50%;
-                right: auto;
-                width: 500px;
-                transform: translate(-50%, 100%);
-            }
-            .comments-sidebar.active {
-                transform: translate(-50%, 0);
             }
         }
         
@@ -2967,29 +2421,10 @@ function incrementVideoViews(videoId) {
             
             .sound-control-btn {
                 top: 50px;
-            }
-            
-            .profile-modal-content {
-                max-height: 80vh;
-            }
-            
-            .profile-avatar-initials {
-                width: 60px;
-                height: 60px;
-                font-size: 18px;
-            }
-            
-            .profile-details h3 {
-                font-size: 18px;
-            }
-            
-            .profile-action-btn {
-                font-size: 14px;
-                padding: 12px 16px;
-            }
-        }
+            }        }
         
     </style>
+@include('elements.reels-sheets')
 @include('elements.reels-scrubber')
 @include('elements.reels-hud')
 @include('elements.reels-prefetch')

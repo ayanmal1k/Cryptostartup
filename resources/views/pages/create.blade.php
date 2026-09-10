@@ -373,14 +373,6 @@
                     </h1>
                     <p class="page-subtitle">{{__('Share your thoughts, upload media, and connect with your audience')}}</p>
                 </div>
-                <div class="header-actions">
-                    @if(Route::currentRouteName() == 'posts.create')
-                        <button class="btn-clear-draft">
-                            <i class="fas fa-trash-alt"></i>
-                            {{__('Clear Draft')}}
-                        </button>
-                    @endif
-                </div>
             </div>
         </div>
 
@@ -557,27 +549,7 @@
     align-items: center;
 }
 
-.btn-clear-draft {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    border-radius: 12px;
-    font-weight: 500;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    cursor: pointer;
-}
 
-.btn-clear-draft:hover {
-    background: rgba(239, 68, 68, 0.15);
-    transform: translateY(-1px);
-    text-decoration: none;
-    color: #ef4444;
-}
 
 /* Warning Cards */
 .warning-card,
@@ -1057,23 +1029,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Initial count
         currentCount.textContent = textarea.value.length;
-    }
-    
-    // Clear draft button
-    const clearDraftBtn = document.querySelector('.btn-clear-draft');
-    if (clearDraftBtn) {
-        clearDraftBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            if (confirm('Are you sure you want to clear the draft? This action cannot be undone.')) {
-                textarea.value = '';
-                currentCount.textContent = '0';
-                // Clear any file previews
-                const previews = document.querySelector('.dropzone-previews');
-                if (previews) {
-                    previews.innerHTML = '';
-                }
-            }
-        });
     }
     
     // Enhanced upload button interactions
