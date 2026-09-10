@@ -1593,9 +1593,12 @@
 
     <!-- Top Left Menu Button -->
     <div class="top-header">
-        <button id="header-menu-btn" class="header-menu-btn">
-            <i class="fas fa-bars"></i>
-        </button>
+        <div class="top-header__left">
+            <button id="header-menu-btn" class="header-menu-btn">
+                <i class="fas fa-bars"></i>
+            </button>
+            @include('elements.reels-live-button')
+        </div>
         @auth
             {{-- Gamification: level + daily streak. Points at the rewards hub, which is
                  where there is actually something to do, rather than the badge wall. --}}

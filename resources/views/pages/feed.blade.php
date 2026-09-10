@@ -1096,9 +1096,12 @@ function incrementVideoViews(videoId) {
     
     <!-- Top overlay controls (mobile sidebar + search) -->
     <div class="top-header">
-        <button id="header-menu-btn" class="header-menu-btn" type="button" aria-label="{{ __('Menu') }}">
-            <i class="fas fa-bars"></i>
-        </button>
+        <div class="top-header__left">
+            <button id="header-menu-btn" class="header-menu-btn" type="button" aria-label="{{ __('Menu') }}">
+                <i class="fas fa-bars"></i>
+            </button>
+            @include('elements.reels-live-button')
+        </div>
         <button id="search-btn" class="search-btn" type="button" aria-label="{{ __('Search') }}">
             <i class="fas fa-search"></i>
         </button>

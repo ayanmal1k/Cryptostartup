@@ -11,8 +11,16 @@ class Stream extends Model
 {
     /**
      * Streaming is currently playing.
+     *
+     * This is 'live', not 'in-progress', because that is what the column accepts:
+     * streams.status is enum('pending','live','ended'). With 'in-progress' the value
+     * could never be written -- MySQL rejects it outright in strict mode -- so going
+     * live failed, and every read that filtered on it (browse-live, the watch page,
+     * the ending/expiring stream crons) matched nothing by construction.
+     *
+     * App\Models\Stream, an unused parallel copy of this model, already had it right.
      */
-    public const IN_PROGRESS_STATUS = 'in-progress';
+    public const IN_PROGRESS_STATUS = 'live';
 
     /**
      * Streaming ended.
@@ -21,6 +29,9 @@ class Stream extends Model
 
     /**
      * Stream deleted.
+     *
+     * Added to the column's enum by migration; it was previously unwritable for the
+     * same reason as above.
      */
     public const DELETED_STATUS = 'deleted';
 
