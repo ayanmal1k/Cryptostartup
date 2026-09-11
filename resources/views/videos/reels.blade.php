@@ -315,79 +315,20 @@
             }
         }
 
-        // Add sound control button to video
-        function addSoundControl(video) {
-            const videoWrapper = video.closest('.video-wrapper');
-            let soundButton = videoWrapper.querySelector('.sound-control-btn');
-            
-            if (!soundButton) {
-                soundButton = document.createElement('button');
-                soundButton.className = 'sound-control-btn';
-                soundButton.title = 'Toggle sound';
-                
-                soundButton.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    toggleSound(video, this);
-                });
-                
-                videoWrapper.appendChild(soundButton);
-            }
-            
-            // Update button state based on current mute status
-            updateSoundButton(video, soundButton);
-        }
+        // The sound button is injected by elements/reels-sound, which owns the
+        // setting for the whole feed and persists it. Kept as a no-op so the existing
+        // call sites do not need to change.
+        function addSoundControl() {}
 
         // Toggle sound on/off (only affects current session, not page reload)
-        function toggleSound(video, button) {
-            if (video.muted) {
-                video.muted = false;
-                video.volume = 1.0;
-                button.innerHTML = '<i class="fas fa-volume-up"></i>';
-                button.title = 'Tap to mute';
-                button.classList.remove('muted');
-                button.classList.add('unmuted');
-                
-                // Apply to all videos for consistent experience (session only)
-                videoPlayers.forEach(v => {
-                    if (v !== video) {
-                        v.muted = false;
-                        v.volume = 1.0;
-                        const otherButton = v.closest('.video-wrapper').querySelector('.sound-control-btn');
-                        if (otherButton) {
-                            updateSoundButton(v, otherButton);
-                        }
-                    }
-                });
-                
-                showToast('Sound enabled');
-            } else {
-                video.muted = true;
-                button.innerHTML = '<i class="fas fa-volume-mute"></i>';
-                button.title = 'Tap to unmute';
-                button.classList.add('muted');
-                button.classList.remove('unmuted');
-                
-                // Apply to all videos (session only)
-                videoPlayers.forEach(v => {
-                    v.muted = true;
-                    const otherButton = v.closest('.video-wrapper').querySelector('.sound-control-btn');
-                    if (otherButton) {
-                        updateSoundButton(v, otherButton);
-                    }
-                });
-                
-                showToast('Sound muted');
-            }
+        // Delegates to elements/reels-sound, which owns one setting for the whole
+        // feed and persists it. This version kept state per element and per session,
+        // so scrolling to the next clip silently re-muted it.
+        function toggleSound() {
+            if (window.reelsToggleSound) window.reelsToggleSound();
         }
 
-        // Update sound button appearance
-        function updateSoundButton(video, button) {
-            if (video.muted) {
-                button.innerHTML = '<i class="fas fa-volume-mute"></i>';
-                button.title = 'Tap to unmute';
-                button.classList.add('muted');
-                button.classList.remove('unmuted');
-            } else {
+        function updateSoundButton() {}
                 button.innerHTML = '<i class="fas fa-volume-up"></i>';
                 button.title = 'Tap to mute';
                 button.classList.remove('muted');
@@ -524,10 +465,7 @@
                 } else if (clickCount === 2) {
                     // Double click - toggle sound
                     clearTimeout(clickTimer);
-                    const soundButton = this.closest('.video-wrapper').querySelector('.sound-control-btn');
-                    if (soundButton) {
-                        toggleSound(this, soundButton);
-                    }
+                    toggleSound();
                     clickCount = 0;
                 }
             });
@@ -1300,58 +1238,7 @@
     
     .manual-play-btn i {
         margin-left: 4px; /* Adjust play icon position */
-    }
-    
-    /* Sound control button */
-    .sound-control-btn {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        background: linear-gradient(135deg, #4CAF50, #45a049);
-        border: 2px solid #4CAF50;
-        color: #fff;
-        font-size: 18px;
-        cursor: pointer;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        z-index: 15;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
-    }
-    
-    .sound-control-btn:hover {
-        background: linear-gradient(135deg, #45a049, #3d8b40);
-        transform: scale(1.1);
-        box-shadow: 0 6px 16px rgba(76, 175, 80, 0.5);
-        border-color: #45a049;
-    }
-    
-    .sound-control-btn:active {
-        transform: scale(0.95);
-    }
-    
-    .sound-control-btn.muted {
-        background: rgba(0, 0, 0, 0.6);
-        border-color: rgba(255, 255, 255, 0.8);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-    
-    .sound-control-btn.muted:hover {
-        background: rgba(0, 0, 0, 0.8);
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-        border-color: #fff;
-    }
-    
-    .sound-control-btn i {
-        font-size: 20px;
-        line-height: 1;
-    }
-    
+    }    
     .video-overlay {
         position: absolute;
         bottom: 0;
@@ -1906,20 +1793,7 @@
             width: 80px;
             height: 80px;
             font-size: 36px;
-        }
-        
-        .sound-control-btn {
-            width: 44px;
-            height: 44px;
-            font-size: 16px;
-            top: 15px;
-            right: 15px;
-        }
-        
-        .sound-control-btn i {
-            font-size: 18px;
-        }
-        
+        }        
         .video-overlay {
             padding: 15px;
             border-radius: 0;
@@ -2024,20 +1898,7 @@
             width: 70px;
             height: 70px;
             font-size: 28px;
-        }
-        
-        .sound-control-btn {
-            width: 40px;
-            height: 40px;
-            font-size: 14px;
-            top: 12px;
-            right: 12px;
-        }
-        
-        .sound-control-btn i {
-            font-size: 16px;
-        }
-        
+        }        
         .user-avatar,
         .user-avatar-initials {
             width: 36px;
@@ -2451,5 +2312,6 @@
 
 @include('elements.reels-scrubber')
 @include('elements.reels-hud')
+@include('elements.reels-sound')
 @include('elements.reels-prefetch')
 @endsection

@@ -1902,7 +1902,9 @@
             videoPlayers.forEach((video, index) => {
                 video.setAttribute('playsinline', '');
                 video.setAttribute('webkit-playsinline', '');
-                video.muted = true; // Start muted for autoplay
+                // Mute state is owned by elements/reels-sound, which persists the
+                // viewer's choice. Forcing it true here made the home feed permanently
+                // silent with no control to change it.
                 video.load();
                 
                 // Click to play/pause
@@ -2835,5 +2837,6 @@
 @include('elements.reels-sheets')
 @include('elements.reels-scrubber')
 @include('elements.reels-hud')
+@include('elements.reels-sound')
 @include('elements.reels-prefetch')
 @stop

@@ -250,14 +250,11 @@ const observer = new IntersectionObserver((entries) => {
                 });
             }
             
-            function toggleSound(video) {
-                video.muted = !video.muted;
-                const soundBtn = video.closest('.video-wrapper').querySelector('.sound-control-btn');
-                if (soundBtn) {
-                    soundBtn.innerHTML = video.muted ? 
-                        '<i class="fas fa-volume-mute"></i>' : 
-                        '<i class="fas fa-volume-up"></i>';
-                }
+            // Sound is owned by elements/reels-sound, which keeps one setting for the
+            // whole feed and remembers it. This tracked mute per element, so unmuting
+            // one clip and scrolling to the next gave silence again.
+            function toggleSound() {
+                if (window.reelsToggleSound) window.reelsToggleSound();
             }
             
             // The seek bar keeps itself in sync from the video's own timeupdate event
@@ -267,15 +264,6 @@ const observer = new IntersectionObserver((entries) => {
             // existing call sites do not need to change.
             function startProgressBar() {}
             
-            // Add sound control buttons
-            videoPlayers.forEach(video => {
-                const wrapper = video.closest('.video-wrapper');
-                const soundBtn = document.createElement('button');
-                soundBtn.className = 'sound-control-btn';
-                soundBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
-                soundBtn.onclick = () => toggleSound(video);
-                wrapper.appendChild(soundBtn);
-            });
             
             // Like button functionality with API call
             document.querySelectorAll('.like-btn').forEach(btn => {
@@ -1736,57 +1724,7 @@ function incrementVideoViews(videoId) {
             object-position: center;
             cursor: pointer;
             background: #000;
-        }
-        
-        .sound-control-btn {
-            position: absolute;
-            top: 80px;
-            right: 20px;
-            background: transparent;
-            border: none;
-            color: #fff;
-            font-size: 18px;
-            cursor: pointer;
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 15;
-            transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), filter 0.25s ease;
-            backdrop-filter: none;
-            -webkit-backdrop-filter: none;
-            box-shadow: none;
-            overflow: visible;
-        }
-
-        .sound-control-btn::before {
-            display: none;
-        }
-
-        .sound-control-btn i,
-        .sound-control-btn svg {
-            position: relative;
-            z-index: 1;
-            filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.55));
-        }
-        
-        .sound-control-btn:hover {
-            background: transparent;
-            transform: scale(1.1);
-            box-shadow: none;
-        }
-
-        .sound-control-btn:hover i,
-        .sound-control-btn:hover svg {
-            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.35)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.55));
-        }
-
-        .sound-control-btn:active {
-            transform: scale(0.94);
-        }
-        
+        }        
         .video-overlay {
             position: absolute;
             bottom: 0;
@@ -2062,7 +2000,7 @@ function incrementVideoViews(videoId) {
         body.comments-open .top-header,
         body.comments-open .transparent-header,
         body.comments-open .video-actions,
-        body.comments-open .sound-control-btn {
+        body.comments-open .reels-sound {
             opacity: 0 !important;
             pointer-events: none !important;
         }
@@ -2334,16 +2272,7 @@ function incrementVideoViews(videoId) {
             
             .action-count {
                 font-size: 12px;
-            }
-            
-            .sound-control-btn {
-                width: 44px;
-                height: 44px;
-                font-size: 16px;
-                top: 70px;
-                right: 15px;
-            }            
-            .upload-first-video-btn {
+            }            .upload-first-video-btn {
                 font-size: 14px;
                 padding: 14px 28px;
             }
@@ -2418,15 +2347,12 @@ function incrementVideoViews(videoId) {
             .user-details h4,
             .user-details p {
                 text-align: left !important;
-            }
-            
-            .sound-control-btn {
-                top: 50px;
-            }        }
+            }}
         
     </style>
 @include('elements.reels-sheets')
 @include('elements.reels-scrubber')
 @include('elements.reels-hud')
+@include('elements.reels-sound')
 @include('elements.reels-prefetch')
 @stop
