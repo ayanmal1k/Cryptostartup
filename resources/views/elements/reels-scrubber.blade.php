@@ -44,6 +44,33 @@
         height: 100%;
     }
 
+    /* Desktop: a centred 9:16 column, the shape a short actually is.
+
+       Derived from the feed's height rather than set to a fixed width, so it stays
+       9:16 at any window size -- a fixed width only matches one window height and is
+       wrong everywhere else. The item is what gets sized, not the wrapper, so the
+       action rail, caption and seek bar sit against the column's edges instead of
+       the screen's. The scroller stays full width so the wheel still works anywhere
+       on the page. */
+    @media (min-width: 769px) {
+        .reels-container .video-item {
+            /* Width from the measured feed height, not aspect-ratio: the item is a
+               block-level box with width:auto, which stretches to fill its parent, and
+               aspect-ratio does not override that. --reels-feed-h is set from the
+               scroller's real height, so this is a true 9:16 at any window size. */
+            width: min(100%, calc(var(--reels-feed-h, 100vh) * 9 / 16));
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Radius on the wrapper, not the item: the item must not clip, or it would
+           cut the seek knob in half at the bottom edge. */
+        .reels-container .video-wrapper {
+            border-radius: 14px;
+            overflow: hidden;
+        }
+    }
+
     /* Scoped one level deeper than the page's own rules so include order cannot
        matter, and so this can never leak into a page without a reels container. */
     .reels-container .progress-bar {
@@ -264,6 +291,7 @@
         if (!nav) {
             // A reels feed with no nav (videos/reels) gets the whole viewport.
             container.style.setProperty('--reels-nav-h', '0px');
+            measureFeed(container);
             return;
         }
 
@@ -274,6 +302,19 @@
         if (!h) return;
 
         container.style.setProperty('--reels-nav-h', Math.round(h) + 'px');
+        measureFeed(container);
+    }
+
+    /* The scroller's own height, published so the desktop column can be sized from
+       it. Read after the nav height is applied, since that is what determines it. */
+    function measureFeed(container) {
+        var feed = (container || document).querySelector('.video-feed');
+        if (!feed) return;
+        var h = feed.clientHeight;
+        if (h) {
+            (container || document.querySelector('.reels-container'))
+                .style.setProperty('--reels-feed-h', Math.round(h) + 'px');
+        }
     }
 
     function formatTime(seconds) {

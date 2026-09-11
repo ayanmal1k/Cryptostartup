@@ -672,24 +672,9 @@
             }
         }
         
-        /* Desktop - Centered like TikTok */
-        @media (min-width: 769px) {
-            .video-feed {
-                max-width: 692px;
-            }
-            
-            .video-item {
-                max-width: 692px;
-            }
-            
-            .video-wrapper {
-                max-width: 692px;
-            }
-            
-            .video-player {
-                max-width: 692px;
-            }
-        }
+        /* Desktop sizing lives in elements/reels-scrubber, which derives the column
+           from the feed height so it is a true 9:16 short rather than a fixed 692px
+           slab that changed shape with the window. */
         
         /* Mobile Optimizations - Full Screen */
         @media (max-width: 768px) {
