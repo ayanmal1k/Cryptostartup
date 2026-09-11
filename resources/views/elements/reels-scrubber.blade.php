@@ -20,18 +20,35 @@
 --}}
 <style>
     .reels-container {
-        --reels-nav-space: 78px;
+        /* Height of the bottom nav. The scroller is shortened by exactly this, so the
+           feed ends where the nav begins instead of running underneath it. */
+        --reels-nav-h: 56px;
         --seek-rest: 3px;      /* visible track height at rest  */
         --seek-active: 7px;    /* ...and while hovered/dragging */
         --seek-knob: 12px;     /* knob at rest                  */
         --seek-knob-active: 17px;
     }
 
+    /* The feed is the viewport minus the nav. This is the whole fix for both the
+       gap under the bar and the next reel peeking through: previously the item was
+       the full viewport height with the nav floating over its bottom, so the video
+       continued behind the nav and the seam between items landed in view, and the
+       bar had to be pushed up by a measured offset that could only ever be
+       approximately right. Now the scroller ends at the nav, one item fills it
+       exactly, and the bar sits at the item's own bottom edge -- no arithmetic. */
+    .reels-container .video-feed {
+        height: calc(100% - var(--reels-nav-h));
+    }
+
+    .reels-container .video-item {
+        height: 100%;
+    }
+
     /* Scoped one level deeper than the page's own rules so include order cannot
        matter, and so this can never leak into a page without a reels container. */
     .reels-container .progress-bar {
         position: absolute;
-        bottom: var(--reels-nav-space);
+        bottom: 0;
         left: 5px;
         right: 5px;
         /* Padding on the top edge only, and no negative margin: the box's bottom edge
@@ -220,11 +237,12 @@
 
     /* The caption gradient has to clear the raised bar, or it covers the control. */
     .reels-container .video-overlay {
-        bottom: calc(var(--reels-nav-space) + 14px);
+        bottom: 14px;
     }
 
-    /* With the comments sheet open the nav is hidden, so the bar can drop back down. */
-    body.comments-open .reels-container { --reels-nav-space: 10px; }
+    /* With the comments sheet open the nav is hidden, so the feed can use the
+       full height. */
+    body.comments-open .reels-container { --reels-nav-h: 0px; }
 </style>
 
 <script>
@@ -244,19 +262,18 @@
 
         var nav = document.querySelector('.bottom-nav');
         if (!nav) {
-            // Pages with a reels feed but no floating nav (videos/reels) want the
-            // bar at the bottom edge, where it belongs.
-            container.style.setProperty('--reels-nav-space', '10px');
+            // A reels feed with no nav (videos/reels) gets the whole viewport.
+            container.style.setProperty('--reels-nav-h', '0px');
             return;
         }
 
-        var rect = nav.getBoundingClientRect();
-        if (!rect.height) return;
+        // The nav's own height, including the safe-area padding it carries. Measuring
+        // the element rather than a distance from the viewport bottom means the value
+        // cannot drift with scroll position or a collapsing URL bar.
+        var h = nav.getBoundingClientRect().height;
+        if (!h) return;
 
-        // Distance from the viewport bottom to the top of the nav, exactly -- the bar
-        // sits flush on the nav rather than floating above it.
-        var space = Math.max(0, window.innerHeight - rect.top);
-        container.style.setProperty('--reels-nav-space', Math.round(space) + 'px');
+        container.style.setProperty('--reels-nav-h', Math.round(h) + 'px');
     }
 
     function formatTime(seconds) {
