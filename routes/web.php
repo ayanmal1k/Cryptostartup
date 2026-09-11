@@ -1122,6 +1122,16 @@ Route::get('/storage/{path}', function ($path) {
     ]);
 })->where('path', '.*')->name('storage.public');
 
+// Clear every cache the app keeps.
+//
+// Must be declared BEFORE /{username} below, or "c" is read as a profile slug and
+// this never runs. Admin-gated inside the controller: clearing is not destructive,
+// but rebuilding is expensive -- each hit discards the compiled Blade views and
+// makes the next requests recompile them, which left open is a denial of service
+// anyone can trigger by holding down refresh.
+Route::get('/c', [App\Http\Controllers\GenericController::class, 'clearAllCaches'])
+    ->middleware(['web', 'auth'])->name('cache.clear.all');
+
 // Public profile - MOVED TO END TO AVOID CONFLICTS
 Route::get('/{username}', ['uses' => 'ProfileController@index', 'as'   => 'profile']);
 Route::get('/{username}/posts', ['uses' => 'ProfileController@getUserPosts', 'as'   => 'profile.posts']);

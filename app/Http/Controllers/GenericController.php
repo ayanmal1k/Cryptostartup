@@ -218,6 +218,75 @@ class GenericController extends Controller
         return response()->json(['success' => true, 'message' => __("Application cache cleared successfully")], 200);
     }
 
+    /**
+     * Clear every cache the app keeps, from /c.
+     *
+     * Admin only, and not because clearing is destructive -- it is not. It is that
+     * rebuilding is expensive: every hit throws away the compiled Blade views and
+     * forces the next requests to recompile them. Left open, that is a denial of
+     * service anyone can trigger with a refresh, which is the same shape as the
+     * debug routes that were removed from this app earlier.
+     *
+     * Sessions are deliberately NOT cleared. `session:clear` would sign out every
+     * logged-in user, which is not what "clear the cache" should ever mean.
+     */
+    public function clearAllCaches(Request $request)
+    {
+        if (!Auth::check() || (int) Auth::user()->role_id !== 1) {
+            abort(403, __('Administrators only.'));
+        }
+
+        $steps = [];
+
+        // Each step is reported separately so one failure cannot hide the rest --
+        // config:clear in particular fails on some hosts and would otherwise mask
+        // everything after it.
+        $commands = [
+            'cache:clear'    => __('Application cache'),
+            'view:clear'     => __('Compiled Blade views'),
+            'route:clear'    => __('Route cache'),
+            'config:clear'   => __('Config cache'),
+            'clear-compiled' => __('Compiled services file'),
+        ];
+
+        foreach ($commands as $command => $label) {
+            try {
+                Artisan::call($command);
+                $steps[] = ['label' => $label, 'command' => $command, 'ok' => true, 'detail' => trim(Artisan::output())];
+            } catch (\Throwable $e) {
+                $steps[] = ['label' => $label, 'command' => $command, 'ok' => false, 'detail' => $e->getMessage()];
+            }
+        }
+
+        // The one that actually bites on this host: PHP keeps compiled bytecode, so
+        // an edited .php file can keep serving its old version until opcache lets go.
+        if (function_exists('opcache_reset')) {
+            $reset = @opcache_reset();
+            $steps[] = [
+                'label' => __('PHP OPcache'),
+                'command' => 'opcache_reset()',
+                'ok' => (bool) $reset,
+                'detail' => $reset ? __('Reset') : __('Refused (disabled, or restricted to CLI)'),
+            ];
+        } else {
+            $steps[] = [
+                'label' => __('PHP OPcache'),
+                'command' => 'opcache_reset()',
+                'ok' => true,
+                'detail' => __('Not enabled on this server — nothing to reset'),
+            ];
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => !collect($steps)->contains(fn ($s) => !$s['ok']),
+                'steps' => $steps,
+            ]);
+        }
+
+        return response()->view('pages.cache-cleared', ['steps' => $steps]);
+    }
+
     public function markBannerAsSeen(Request $request) {
         $id = $request->get('id');
         Cookie::queue('dismissed_banner_'.$id, true, 356, null, null, null, false, false, null);
