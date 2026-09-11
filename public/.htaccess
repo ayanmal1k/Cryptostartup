@@ -1,9 +1,74 @@
 # public/.htaccess
-php_value upload_max_filesize 100M
-php_value post_max_size 100M
-php_value max_execution_time 300
-php_value max_input_time 300
-php_value memory_limit 256M
+#
+# NOTE ON php_value: these only work when PHP runs as an Apache module. On the
+# production host PHP runs under FPM, where an unguarded php_value in .htaccess is a
+# fatal config error and returns 500 for the entire site -- which is why the copy on
+# the server had them removed. Guarded, they still apply locally (XAMPP, mod_php) and
+# are simply ignored in production, where the limits come from the PHP config instead.
+<IfModule mod_php.c>
+    php_value upload_max_filesize 100M
+    php_value post_max_size 100M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    php_value memory_limit 256M
+</IfModule>
+<IfModule mod_php7.c>
+    php_value upload_max_filesize 100M
+    php_value post_max_size 100M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    php_value memory_limit 256M
+</IfModule>
+
+# ---------------------------------------------------------------------------
+# Static asset caching.
+#
+# Every static file was served with an ETag and no Cache-Control, so the browser
+# revalidated all of them on every page load. A conditional request still costs a
+# full round trip, and this host takes 1.4-3.9s to first byte even for a 2KB file
+# that needs no work -- so ~16 asset revalidations dominated the page load.
+#
+# TTLs are set by how the URL is versioned, so a deploy is never invisible:
+#   /dist/** bundles    content-hashed filenames -> a change is a new URL -> 1 year
+#   images/fonts/media  rarely change -> 30 days
+#   all other css/js    -> 1 hour, because files like /js/LoginModal.js carry no
+#                          version string, so a longer pin would hide a deploy from
+#                          anyone who had already loaded the page
+# ---------------------------------------------------------------------------
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css                  "access plus 1 hour"
+    ExpiresByType application/javascript    "access plus 1 hour"
+    ExpiresByType text/javascript           "access plus 1 hour"
+    ExpiresByType image/jpeg                "access plus 30 days"
+    ExpiresByType image/png                 "access plus 30 days"
+    ExpiresByType image/gif                 "access plus 30 days"
+    ExpiresByType image/webp                "access plus 30 days"
+    ExpiresByType image/avif                "access plus 30 days"
+    ExpiresByType image/svg+xml             "access plus 30 days"
+    ExpiresByType image/x-icon              "access plus 30 days"
+    ExpiresByType font/woff2                "access plus 30 days"
+    ExpiresByType font/woff                 "access plus 30 days"
+    ExpiresByType application/font-woff     "access plus 30 days"
+    ExpiresByType video/mp4                 "access plus 30 days"
+</IfModule>
+
+<IfModule mod_headers.c>
+    # Content-hashed bundles from Minify: the filename is a digest of the contents, so
+    # a change is a different URL and these can be pinned hard and never revalidated.
+    # Matched on the filename shape rather than with an <If> block on the path, because
+    # <If> is Apache 2.4-only and a directive this host rejects would 500 the site.
+    <FilesMatch "^[0-9a-f]{30,}\.(css|js)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css
+    AddOutputFilterByType DEFLATE application/javascript text/javascript
+    AddOutputFilterByType DEFLATE application/json application/xml
+    AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
 
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
