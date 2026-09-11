@@ -1688,19 +1688,19 @@ function incrementVideoViews(videoId) {
         
         .reels-container {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            height: 100dvh;
+            /* One source of truth for the viewport height. Container, scroller and
+               item each resolved 100dvh independently, and dvh changes as the mobile
+               URL bar collapses -- so they did not have to agree at the same instant,
+               and a sliver of the next reel showed through. The fixed container is
+               the box; everything inside takes 100% of it. */
+            inset: 0;
             background: #000;
             z-index: 1000;
         }
         
         .video-feed {
             width: 100%;
-            height: 100vh;
-            height: 100dvh;
+            height: 100%;
             overflow-y: scroll;
             scroll-snap-type: y mandatory;
             scrollbar-width: none;
@@ -1713,8 +1713,7 @@ function incrementVideoViews(videoId) {
         
         .video-item {
             width: 100%;
-            height: 100vh;
-            height: 100dvh;
+            height: 100%;
             position: relative;
             scroll-snap-align: start;
             scroll-snap-stop: always;

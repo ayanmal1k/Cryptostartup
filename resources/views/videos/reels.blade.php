@@ -1223,8 +1223,7 @@
     
     .video-feed {
         width: 100%;
-        height: 100vh;
-        height: 100dvh;
+        height: 100%;
         overflow-y: scroll;
         scroll-snap-type: y mandatory;
         position: relative;
@@ -1239,8 +1238,7 @@
     }
     
     .video-item {
-        height: 100vh;
-        height: 100dvh;
+        height: 100%;
         width: 100%;
         position: relative;
         scroll-snap-align: start;
@@ -1877,20 +1875,17 @@
     
     /* Mobile Optimizations */
     @media (max-width: 768px) {
+        /* Heights are inherited from .reels-container, not re-derived from dvh here.
+           Restating 100dvh on each element is what let them disagree while the URL
+           bar collapsed, showing a strip of the next reel. */
         .reels-container {
             height: 100vh;
             height: 100dvh;
         }
         
-        .video-feed {
-            height: 100vh;
-            height: 100dvh;
-        }
+        .video-feed { height: 100%; }
         
-        .video-item {
-            height: 100vh;
-            height: 100dvh;
-        }
+        .video-item { height: 100%; }
         
         .video-wrapper {
             width: 100%;
@@ -1900,15 +1895,11 @@
         }
         
         .video-player {
-            width: 100vw;
-            height: 100vh;
-            height: 100dvh;
+            width: 100%;
+            height: 100%;
             object-fit: cover;
             object-position: center;
             border-radius: 0;
-            min-width: 100vw;
-            min-height: 100vh;
-            min-height: 100dvh;
         }
         
         .manual-play-btn {
@@ -2002,14 +1993,13 @@
         }
         
         .video-player {
-            width: 100vw;
-            height: 100vh;
-            height: 100dvh;
+            /* 100% of the item, not the viewport. A min-height in viewport units made
+               the player taller than the item it sits in, so it overflowed and the
+               next reel showed at the seam. object-fit already handles the crop. */
+            width: 100%;
+            height: 100%;
             object-fit: cover;
             object-position: center;
-            min-width: 100vw;
-            min-height: 100vh;
-            min-height: 100dvh;
         }
         
         .video-overlay {
@@ -2168,14 +2158,13 @@
         }
         
         .video-player {
-            width: 100vw;
-            height: 100vh;
-            height: 100dvh;
+            /* 100% of the item, not the viewport. A min-height in viewport units made
+               the player taller than the item it sits in, so it overflowed and the
+               next reel showed at the seam. object-fit already handles the crop. */
+            width: 100%;
+            height: 100%;
             object-fit: cover;
             object-position: center;
-            min-width: 100vw;
-            min-height: 100vh;
-            min-height: 100dvh;
         }
         
         .video-overlay {
