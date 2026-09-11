@@ -34,8 +34,12 @@
         bottom: var(--reels-nav-space);
         left: 5px;
         right: 5px;
-        padding: 4px 0;
-        margin-bottom: -9px;
+        /* Padding on the top edge only, and no negative margin: the box's bottom edge
+           is then the track's bottom edge, so setting `bottom` to the nav height puts
+           the bar flush against it with no arithmetic. The grab area is the ::before
+           below, which is what the padding used to be for. */
+        padding: 4px 0 0;
+        margin-bottom: 0;
         background: transparent;
         z-index: 16;
         pointer-events: auto;
@@ -44,16 +48,17 @@
         -webkit-tap-highlight-color: transparent;
     }
 
-    /* The bar above is 11px tall including its padding. A thumb is about 10mm, so
-       that is not a grabbable target -- this extends the hit area well past the
-       visible bar without changing how it looks or where it sits. */
+    /* The visible bar is 7px tall. A thumb is about 10mm, so that is not a grabbable
+       target -- this extends the hit area without changing how the bar looks.
+       Upward only: below the bar is the nav, which sits at a higher z-index and would
+       take those taps anyway, so reaching down there would buy nothing. */
     .reels-container .progress-bar::before {
         content: '';
         position: absolute;
         left: 0;
         right: 0;
-        top: -13px;
-        bottom: -13px;
+        top: -24px;
+        bottom: 0;
     }
 
     .reels-container .progress-bar__track {
@@ -187,7 +192,7 @@
             --seek-knob: 13px;
             --seek-knob-active: 19px;
         }
-        .reels-container .progress-bar::before { top: -15px; bottom: -15px; }
+        .reels-container .progress-bar::before { top: -28px; bottom: 0; }
         .reels-container .progress-bar__time { font-size: 11px; padding: 4px 9px; }
     }
 
@@ -200,7 +205,7 @@
             --seek-knob: 11px;
             --seek-knob-active: 15px;
         }
-        .reels-container .progress-bar::before { top: -9px; bottom: -9px; }
+        .reels-container .progress-bar::before { top: -18px; bottom: 0; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -248,9 +253,9 @@
         var rect = nav.getBoundingClientRect();
         if (!rect.height) return;
 
-        // Distance from the viewport bottom to the top of the nav, plus a small gap
-        // so the touch targets do not butt up against each other.
-        var space = Math.max(0, window.innerHeight - rect.top) + 8;
+        // Distance from the viewport bottom to the top of the nav, exactly -- the bar
+        // sits flush on the nav rather than floating above it.
+        var space = Math.max(0, window.innerHeight - rect.top);
         container.style.setProperty('--reels-nav-space', Math.round(space) + 'px');
     }
 

@@ -1309,11 +1309,10 @@ function incrementVideoViews(videoId) {
             -webkit-touch-callout: none;
         }
         
-        /* Video container padding for bottom navigation */
-        .video-container,
-        .reels-container {
-            padding-bottom: 80px;
-        }
+        /* No bottom padding here. .reels-container is position:fixed at 100dvh and
+           box-sizing is border-box globally, so padding-bottom shortened the video
+           area by 80px and left a black band above the nav. The nav is fixed and
+           overlays the feed; it does not need room reserved for it. */
         
         /* Ensure full height for reels */
         html, body {
