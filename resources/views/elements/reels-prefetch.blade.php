@@ -105,8 +105,14 @@
 
             setPreload(video, 'auto');
 
-            // The current clip is playing (or about to). Never call load() on it.
             if (delta > 0) {
+                warm(video);
+            } else if (delta === 0 && video.paused && video.readyState === 0) {
+                // The clips now ship preload="none", so the browser fetches nothing
+                // until asked. The page's own observer normally starts the active one,
+                // but if it has not yet, kick it here -- otherwise the first reel can
+                // sit on a black frame waiting for a play() that already happened.
+                // Only while paused: load() on a playing element restarts it.
                 warm(video);
             }
         }

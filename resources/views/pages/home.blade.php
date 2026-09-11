@@ -1647,7 +1647,7 @@
                                 loop
                                 muted
                                 playsinline
-                                preload="metadata"
+                                preload="none"
                                 class="video-player"
                                 webkit-playsinline
                                 @if(!empty($video->poster_url)) poster="{{ $video->poster_url }}" @endif

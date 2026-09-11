@@ -1159,7 +1159,7 @@ function incrementVideoViews(videoId) {
                                 loop
                                 muted
                                 playsinline
-                                preload="metadata"
+                                preload="none"
                                 class="video-player"
                                 webkit-playsinline
                             ></video>

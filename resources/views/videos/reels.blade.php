@@ -14,7 +14,7 @@
                     loop
                     muted
                     playsinline
-                    preload="metadata"
+                    preload="none"
                     class="video-player"
                     id="video-{{ $video->id }}"
                     webkit-playsinline
