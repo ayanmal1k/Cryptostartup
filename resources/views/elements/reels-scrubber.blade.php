@@ -27,10 +27,10 @@
            invisible and untappable, unless the JS measurement landed first. The script
            still refines this; it is no longer required for the bar to be reachable. */
         --reels-nav-h: calc(60px + env(safe-area-inset-bottom));
-        --seek-rest: 3px;      /* visible track height at rest  */
-        --seek-active: 7px;    /* ...and while hovered/dragging */
-        --seek-knob: 12px;     /* knob at rest                  */
-        --seek-knob-active: 17px;
+        --seek-rest: 5px;      /* visible track height at rest  */
+        --seek-active: 10px;   /* ...and while hovered/dragging */
+        --seek-knob: 14px;     /* knob at rest                  */
+        --seek-knob-active: 20px;
     }
 
     /* The feed is the viewport minus the nav. This is the whole fix for both the
@@ -147,11 +147,20 @@
         height: var(--seek-rest);
         border-radius: 99px;
         /* Video is arbitrary content, so the track has to read on both a white beach
-           and a black night shot: translucent white over a dark inner shadow holds
-           contrast either way. */
-        background: rgba(255, 255, 255, 0.28);
-        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
-        transition: height .18s cubic-bezier(.2,.8,.2,1);
+           and a black night shot: a translucent white body, a dark hairline inside it,
+           and a soft drop shadow underneath. The shadow is what keeps it visible on a
+           pale frame, where the translucent fill alone disappears. */
+        background: rgba(255, 255, 255, 0.26);
+        box-shadow:
+            inset 0 0 0 1px rgba(0, 0, 0, 0.22),
+            0 1px 4px rgba(0, 0, 0, 0.45);
+        transition: height .2s cubic-bezier(.2,.8,.2,1),
+                    background-color .2s ease;
+    }
+
+    .reels-container .progress-bar:hover .progress-bar__track,
+    .reels-container .progress-bar.is-scrubbing .progress-bar__track {
+        background: rgba(255, 255, 255, 0.34);
     }
 
     .reels-container .progress-bar:hover .progress-bar__track,
@@ -167,7 +176,7 @@
         inset: 0 auto 0 0;
         width: 0%;
         border-radius: 99px;
-        background: rgba(255, 255, 255, 0.34);
+        background: rgba(255, 255, 255, 0.42);
         transition: width .25s ease;
     }
 
@@ -175,8 +184,12 @@
         position: relative;
         height: 100%;
         border-radius: 99px;
-        background: linear-gradient(90deg, #ff4d9d 0%, #cb0c9f 55%, #ff8a80 100%);
-        box-shadow: 0 0 10px rgba(255, 77, 157, 0.5);
+        background: linear-gradient(90deg, #ff2d78 0%, #ff4d9d 45%, #ff9a7b 100%);
+        /* Outer glow separates it from the video; the inset highlight along the top
+           gives the fill a little dimension instead of reading as flat paint. */
+        box-shadow:
+            0 0 12px rgba(255, 45, 120, 0.55),
+            inset 0 1px 0 rgba(255, 255, 255, 0.35);
         width: 0%;
         transition: width 0.1s linear;
     }
@@ -198,9 +211,11 @@
         border-radius: 50%;
         background: #fff;
         /* Ring rather than a bare dot, so it survives a white frame behind it. */
-        box-shadow: 0 0 0 2px rgba(0, 0, 0, .25), 0 2px 8px rgba(0, 0, 0, .5);
-        transform: translateY(-50%) scale(.82);
-        opacity: .9;
+        box-shadow:
+            0 0 0 1.5px rgba(0, 0, 0, .28),
+            0 2px 7px rgba(0, 0, 0, .5);
+        transform: translateY(-50%) scale(.86);
+        opacity: .95;
         transition: transform .18s cubic-bezier(.2,1.4,.4,1), opacity .18s ease,
                     width .18s ease, height .18s ease;
         pointer-events: none;
@@ -221,9 +236,10 @@
         margin-left: calc(var(--seek-knob-active) / -2);
         transform: translateY(-50%) scale(1);
         opacity: 1;
-        box-shadow: 0 0 0 2px rgba(0, 0, 0, .25),
-                    0 0 0 7px rgba(255, 77, 157, .28),
-                    0 3px 12px rgba(0, 0, 0, .55);
+        box-shadow:
+            0 0 0 1.5px rgba(0, 0, 0, .28),
+            0 0 0 9px rgba(255, 45, 120, .24),
+            0 3px 14px rgba(0, 0, 0, .55);
     }
 
     /* Keyboard users get the same affordance as a pointer, and no default outline
@@ -283,10 +299,10 @@
 
     @media (max-width: 768px) {
         .reels-container {
-            --seek-rest: 4px;
-            --seek-active: 8px;
-            --seek-knob: 13px;
-            --seek-knob-active: 19px;
+            --seek-rest: 6px;
+            --seek-active: 11px;
+            --seek-knob: 15px;
+            --seek-knob-active: 22px;
         }
         .reels-container .progress-bar::before { top: -28px; bottom: 0; }
         .reels-container .progress-bar__time { font-size: 11px; padding: 4px 9px; }
@@ -296,10 +312,10 @@
        cursor does not need the extra grab area. */
     @media (min-width: 1024px) {
         .reels-container {
-            --seek-rest: 3px;
-            --seek-active: 7px;
-            --seek-knob: 11px;
-            --seek-knob-active: 15px;
+            --seek-rest: 4px;
+            --seek-active: 9px;
+            --seek-knob: 13px;
+            --seek-knob-active: 18px;
         }
         .reels-container .progress-bar::before { top: -18px; bottom: 0; }
     }

@@ -111,11 +111,18 @@
 
     /* Persisted across visits, so a viewer who turns sound on does not have to do it
        again for every clip, or every session. */
+    /* Sound is ON unless the viewer has turned it off.
+
+       Only an explicit '0' means muted, so a first-time visitor is opted in. This is
+       the preference, not the state: a browser still refuses to start a video with
+       sound before the page has had a real user gesture, so playback begins muted
+       regardless and this is what decides what happens the instant the viewer
+       touches anything. */
     function wanted() {
         try {
-            return localStorage.getItem(KEY) === '1';
+            return localStorage.getItem(KEY) !== '0';
         } catch (e) {
-            return false;   // private mode, blocked storage -- default to silent
+            return true;    // storage blocked (private mode) -- still default to on
         }
     }
 
@@ -227,7 +234,7 @@
 
         var hint = document.createElement('span');
         hint.className = 'reels-sound__hint';
-        hint.textContent = 'Tap for sound';
+        hint.textContent = 'Tap anywhere for sound';
         // Appended beside the button rather than inside it: the button's innerHTML is
         // rewritten every time the icon changes, which would wipe a child out.
         btn.insertAdjacentElement('afterend', hint);
@@ -253,13 +260,21 @@
         // If sound was on last time, restore it at the first gesture anywhere -- that
         // gesture is what the autoplay policy is waiting for.
         if (wanted()) {
+            // The earliest moment the autoplay policy will allow sound is the first
+            // real gesture, so listen for every kind and unmute on whichever lands
+            // first. touchstart is included for older Safari, which does not fire
+            // pointer events. Capture phase, so a handler that stops propagation
+            // cannot swallow it.
+            var events = ['pointerdown', 'touchstart', 'mousedown', 'keydown'];
             var restore = function () {
-                document.removeEventListener('pointerdown', restore, true);
-                document.removeEventListener('keydown', restore, true);
+                events.forEach(function (e) {
+                    document.removeEventListener(e, restore, true);
+                });
                 setSound(true, true);
             };
-            document.addEventListener('pointerdown', restore, true);
-            document.addEventListener('keydown', restore, true);
+            events.forEach(function (e) {
+                document.addEventListener(e, restore, true);
+            });
         }
     }
 
