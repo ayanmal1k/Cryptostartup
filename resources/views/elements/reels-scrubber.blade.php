@@ -20,9 +20,13 @@
 --}}
 <style>
     .reels-container {
-        /* Height of the bottom nav. The scroller is shortened by exactly this, so the
-           feed ends where the nav begins instead of running underneath it. */
-        --reels-nav-h: 56px;
+        /* Height of the bottom nav, from the nav's own box: 48px min-height on the
+           items plus 6px padding top and bottom, plus the safe-area inset it carries.
+           Computed rather than guessed, because the old flat 56px was smaller than the
+           real nav on a gesture-bar phone -- which put the seek bar *behind* the menu,
+           invisible and untappable, unless the JS measurement landed first. The script
+           still refines this; it is no longer required for the bar to be reachable. */
+        --reels-nav-h: calc(60px + env(safe-area-inset-bottom));
         --seek-rest: 3px;      /* visible track height at rest  */
         --seek-active: 7px;    /* ...and while hovered/dragging */
         --seek-knob: 12px;     /* knob at rest                  */
@@ -73,11 +77,22 @@
 
     /* Scoped one level deeper than the page's own rules so include order cannot
        matter, and so this can never leak into a page without a reels container. */
+    /* Fixed to the viewport, not absolute inside the video.
+
+       The bar lives inside .video-wrapper, which is overflow:hidden -- so anything
+       that overhangs the track, the drag knob in particular, was being clipped away.
+       Positioning against the viewport takes it out of that box entirely and pins it
+       directly above the nav, with no dependency on the feed's height arithmetic
+       being right. Only the active reel's bar is shown; the rest stay hidden so the
+       eleven of them do not stack on the same spot. */
     .reels-container .progress-bar {
-        position: absolute;
-        bottom: 0;
+        position: fixed;
+        bottom: var(--reels-nav-h);
         left: 5px;
         right: 5px;
+        display: none;
+        /* Above the nav's 1001 so it is never the thing that loses. */
+        z-index: 1002;
         /* Padding on the top edge only, and no negative margin: the box's bottom edge
            is then the track's bottom edge, so setting `bottom` to the nav height puts
            the bar flush against it with no arithmetic. The grab area is the ::before
@@ -85,11 +100,33 @@
         padding: 4px 0 0;
         margin-bottom: 0;
         background: transparent;
-        z-index: 16;
         pointer-events: auto;
         cursor: pointer;
         touch-action: none;
         -webkit-tap-highlight-color: transparent;
+    }
+
+    .reels-container .video-item.is-active .progress-bar {
+        display: block;
+    }
+
+    /* If the script never marks anything active -- it failed, or has not run yet --
+       fall back to the first reel's bar rather than showing none at all. Drops out
+       the moment a real active item exists, so the two cannot both be on screen. */
+    .reels-container:not(:has(.video-item.is-active)) .video-item:first-child .progress-bar {
+        display: block;
+    }
+
+    /* Declared after the base rule on purpose: both are (0,2,0) and a media query
+       adds no specificity, so source order is what decides. Sitting above, this was
+       being overridden by the left/right insets below it. */
+    @media (min-width: 769px) {
+        .reels-container .progress-bar {
+            left: 50%;
+            right: auto;
+            transform: translateX(-50%);
+            width: min(calc(100% - 10px), calc(var(--reels-feed-h, 100vh) * 9 / 16));
+        }
     }
 
     /* The visible bar is 7px tall. A thumb is about 10mm, so that is not a grabbable
@@ -229,6 +266,21 @@
 
     /* Phones: a slightly chunkier track and knob, since the pointer is a fingertip
        rather than a 1px cursor. */
+    /* The nav's box changes at these widths, so the reserved height has to follow.
+       Kept in step with elements/reels-bottom-nav: item min-height plus the bar's
+       vertical padding, plus the safe-area inset it carries on a phone. */
+    @media (max-width: 480px) {
+        .reels-container { --reels-nav-h: calc(58px + env(safe-area-inset-bottom)); }
+    }
+
+    @media (max-width: 340px) {
+        .reels-container { --reels-nav-h: calc(54px + env(safe-area-inset-bottom)); }
+    }
+
+    @media (min-width: 769px) {
+        .reels-container { --reels-nav-h: 64px; }
+    }
+
     @media (max-width: 768px) {
         .reels-container {
             --seek-rest: 4px;
@@ -513,9 +565,57 @@
         document.querySelectorAll('.progress-bar:not([data-seek-ready])').forEach(initSeekBar);
     }
 
+    /* Mark which reel is on screen.
+
+       The bar is one fixed element per item now, all stacked at the same place, so
+       exactly one must be visible. Nothing in the page marked an active item, so this
+       observes them directly rather than reaching into the three different autoplay
+       observers the reels views each have. */
+    function trackActive() {
+        var items = Array.prototype.slice.call(document.querySelectorAll('.video-item'));
+        if (!items.length) return;
+
+        function setActive(el) {
+            items.forEach(function (i) { i.classList.toggle('is-active', i === el); });
+        }
+
+        // Something must be active before the observer first fires, or the opening
+        // reel has no bar at all.
+        setActive(items[0]);
+
+        if (!window.IntersectionObserver) {
+            return;
+        }
+
+        var io = new IntersectionObserver(function (entries) {
+            var best = null;
+            entries.forEach(function (e) {
+                if (e.isIntersecting && (!best || e.intersectionRatio > best.intersectionRatio)) {
+                    best = e;
+                }
+            });
+            if (best) setActive(best.target);
+        }, { threshold: [0.6] });
+
+        items.forEach(function (i) { io.observe(i); });
+
+        // Infinite scroll appends more; observe and re-evaluate those too.
+        if (window.MutationObserver) {
+            new MutationObserver(function () {
+                document.querySelectorAll('.video-item:not([data-active-watched])')
+                    .forEach(function (i) {
+                        i.dataset.activeWatched = '1';
+                        items.push(i);
+                        io.observe(i);
+                    });
+            }).observe(document.body, { childList: true, subtree: true });
+        }
+    }
+
     function start() {
         measureNavSpace();
         scan();
+        trackActive();
 
         // Feed items are appended by infinite scroll, so wire new bars up too.
         if (window.MutationObserver) {
