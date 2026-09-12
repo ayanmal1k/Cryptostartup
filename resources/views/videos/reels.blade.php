@@ -14,7 +14,7 @@
                     loop
                     muted
                     playsinline
-                    preload="none"
+                    preload="{{ $index === 0 ? 'auto' : 'none' }}"
                     class="video-player"
                     id="video-{{ $video->id }}"
                     webkit-playsinline

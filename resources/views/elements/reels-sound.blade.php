@@ -135,9 +135,21 @@
         return Array.prototype.slice.call(document.querySelectorAll('.video-item video'));
     }
 
+    /* Writes only when the state actually changed.
+       This is load-bearing, not an optimisation. paint() is reached from scan(),
+       which is driven by a MutationObserver watching childList on the whole body --
+       so an unconditional `btn.innerHTML = ...` mutated the DOM, woke the observer,
+       called scan again, and painted again, forever. That loop pegged the CPU from
+       first paint, which is what made the page look broken before the videos
+       appeared and left the sound button unresponsive.
+       The observer does not watch attributes, so the dataset guard below is safe to
+       write every time; it is the innerHTML that must be conditional. */
     function paint() {
         var on = unlocked && wanted();
+        var want = on ? 'on' : 'off';
         document.querySelectorAll('.reels-sound').forEach(function (btn) {
+            if (btn.dataset.soundState === want) return;
+            btn.dataset.soundState = want;
             btn.classList.toggle('is-muted', !on);
             btn.innerHTML = on ? LOUD_SVG : MUTED_SVG;
             btn.setAttribute('aria-label', on ? 'Mute' : 'Unmute');
@@ -188,6 +200,7 @@
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'reels-sound is-muted';
+        btn.dataset.soundState = 'off';
         btn.innerHTML = MUTED_SVG;
 
         btn.addEventListener('click', function (e) {

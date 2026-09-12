@@ -461,13 +461,21 @@
             if (handle) handle.style.left = pct + '%';
             bar.setAttribute('aria-valuenow', Math.round(pct));
             if (label) {
-                // Position without the duration is not much use -- 0:12 reads very
-                // differently on a 15 second clip than on a three minute one.
-                label.innerHTML = '<b>' + formatTime(time) + '</b>' +
-                    (isFinite(video.duration) && video.duration > 0
-                        ? ' <span>/ ' + formatTime(video.duration) + '</span>'
-                        : '');
                 label.style.left = pct + '%';
+
+                // Only rewrite the text while it is actually on screen. paint() runs on
+                // every timeupdate -- roughly four times a second -- and each innerHTML
+                // write wakes three body-wide MutationObservers that then re-query the
+                // document for nothing. The label is invisible except while scrubbing,
+                // so the rest of the time that is pure cost on a phone.
+                if (scrubbing) {
+                    // Position without the duration is not much use -- 0:12 reads very
+                    // differently on a 15 second clip than on a three minute one.
+                    label.innerHTML = '<b>' + formatTime(time) + '</b>' +
+                        (isFinite(video.duration) && video.duration > 0
+                            ? ' <span>/ ' + formatTime(video.duration) + '</span>'
+                            : '');
+                }
             }
         }
 

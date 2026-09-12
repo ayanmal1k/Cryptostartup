@@ -1159,7 +1159,7 @@ function incrementVideoViews(videoId) {
                                 loop
                                 muted
                                 playsinline
-                                preload="none"
+                                preload="{{ $loop->first ? 'auto' : 'none' }}"
                                 class="video-player"
                                 webkit-playsinline
                             ></video>
