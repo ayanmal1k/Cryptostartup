@@ -1,5 +1,12 @@
 @extends('layouts.generic')
 
+{{-- Seek bar CSS goes in the head: .progress-bar is emitted a few dozen lines
+     into the feed below, and shipping its styles with the scripts at the end of
+     the body left it rendering as an unpositioned block on first paint. --}}
+@section('styles')
+    @include('elements.reels-scrubber-style')
+@stop
+
 @section('content')
 {{-- Installed first: play()/pause() must be made race-safe before any script below calls them --}}
 @include('elements.reels-playback')

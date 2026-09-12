@@ -142,6 +142,21 @@
         color: var(--sheet-text);
     }
 
+    /* Thread size, next to the title. Without it the only way to know whether a
+       thread is 3 comments or 300 is to scroll to the end of it. */
+    .comments-count {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 1px 8px;
+        border-radius: 99px;
+        background: var(--sheet-accent-soft);
+        color: var(--sheet-accent);
+        font-size: 12px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        vertical-align: 1px;
+    }
+
     .close-comments,
     .profile-modal-close {
         display: grid;
@@ -163,6 +178,24 @@
     .close-comments:active,
     .profile-modal-close:active { transform: scale(.92); }
 
+    /* These icons are <line>/<polyline>, which paint nothing without a stroke. The
+       markup sets one, but nothing here did -- so a page that shipped a bare <svg>
+       rendered an empty circle, which is exactly how the close button looked. */
+    .close-comments svg,
+    .profile-modal-close svg,
+    #post-comment svg {
+        width: 20px;
+        height: 20px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2.2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        pointer-events: none;
+    }
+
+    .close-comments svg { width: 19px; height: 19px; }
+
     /* -------------------------------------------------------------- comment list */
 
     .comments-list {
@@ -178,9 +211,16 @@
         display: flex;
         align-items: flex-start;
         gap: 10px;
-        padding: 10px 2px;
+        padding: 10px 8px;
+        margin: 0 -6px;
+        border-radius: 14px;
         animation: sheet-comment-in .3s ease both;
+        transition: background-color .16s ease;
     }
+
+    /* Gives each row an edge to sit against on hover, so a long thread reads as a
+       list of separate comments rather than one block of running text. */
+    .comment-item:hover { background: var(--sheet-raised); }
 
     @keyframes sheet-comment-in {
         from { opacity: 0; transform: translateY(6px); }
@@ -240,6 +280,14 @@
     }
 
     .comment-reply {
+        /* A <button> now rather than a <span>, so it is focusable and announced --
+           but it has to lose the UA chrome to look the same. */
+        appearance: none;
+        -webkit-appearance: none;
+        border: 0;
+        background: none;
+        padding: 0;
+        font-family: inherit;
         font-size: 12px;
         font-weight: 600;
         color: var(--sheet-text-dim);
@@ -250,6 +298,12 @@
     .comment-reply:hover { color: var(--sheet-accent); }
 
     .comment-like {
+        appearance: none;
+        -webkit-appearance: none;
+        border: 0;
+        background: none;
+        padding: 0;
+        font-family: inherit;
         flex: 0 0 auto;
         display: flex;
         flex-direction: column;
@@ -274,6 +328,27 @@
     .comment-like.liked svg,
     .comment-like.active svg { fill: currentColor; }
 
+    /* A like is the smallest possible action in the sheet, so it gets the only
+       piece of motion -- otherwise tapping a 17px heart gives no feedback that
+       anything registered. */
+    .comment-like.is-bursting svg { animation: sheet-like-pop .32s cubic-bezier(.2, 1.5, .4, 1); }
+
+    @keyframes sheet-like-pop {
+        0%   { transform: scale(1); }
+        40%  { transform: scale(1.35); }
+        100% { transform: scale(1); }
+    }
+
+    .comment-like:focus-visible,
+    .comment-reply:focus-visible,
+    .reaction-emoji:focus-visible,
+    .close-comments:focus-visible,
+    #post-comment:focus-visible {
+        outline: 2px solid var(--sheet-accent);
+        outline-offset: 2px;
+        border-radius: 8px;
+    }
+
     /* Empty state. The old one was a bare sentence floating at the top of a large
        blank sheet, which reads as a page that failed to load. */
     .no-comments {
@@ -292,6 +367,8 @@
         font-size: 30px;
         opacity: .55;
     }
+
+    .no-comments__hint { color: var(--sheet-text-faint); font-size: 12.5px !important; }
 
     .no-comments p {
         margin: 0;
@@ -334,6 +411,16 @@
     .reaction-emoji:hover { background: var(--sheet-raised); transform: scale(1.18); }
     .reaction-emoji:active { transform: scale(.9); }
 
+    /* Confirms the tap landed. The emoji goes into the composer, which is below the
+       row and easy to miss on a phone. */
+    .reaction-emoji.is-popped { animation: sheet-emoji-pop .34s cubic-bezier(.2, 1.5, .4, 1); }
+
+    @keyframes sheet-emoji-pop {
+        0%   { transform: scale(1); }
+        45%  { transform: scale(1.42); }
+        100% { transform: scale(1); }
+    }
+
     /* ---------------------------------------------------------------- composer */
 
     .comment-form {
@@ -359,26 +446,36 @@
         background: var(--sheet-accent);
     }
 
+    /* Every one of these carries !important on purpose.
+       public/css/app.css has a blanket rule -- .form-control, input[type="text"],
+       select, ... -- that forces background #ffffff, colour #212529, a 1.5px grey
+       border and an 8px radius, all !important. It is written for a light page and
+       takes no notice of the theme, so without matching it here the composer is a
+       white box with dark text sitting in a dark sheet, and the pill shape is gone.
+       An ID beats that rule on specificity, but only once the flag matches. */
     .comment-form #comment-input,
     #comment-input {
         flex: 1 1 auto;
         min-width: 0;
         height: 40px;
-        padding: 0 15px;
-        border: 1px solid var(--sheet-border);
-        border-radius: 99px;
-        background: var(--sheet-raised);
-        color: var(--sheet-text);
-        font-size: 14px;
+        padding: 0 15px !important;
+        border: 1px solid var(--sheet-border) !important;
+        border-radius: 99px !important;
+        background-color: var(--sheet-raised) !important;
+        color: var(--sheet-text) !important;
+        font-size: 14px !important;
+        box-shadow: none !important;
         outline: none;
         transition: border-color .16s ease, background-color .16s ease;
     }
 
-    #comment-input::placeholder { color: var(--sheet-text-faint); }
+    #comment-input::placeholder { color: var(--sheet-text-faint) !important; opacity: 1; }
 
     #comment-input:focus {
-        border-color: var(--sheet-accent);
-        background: var(--sheet-surface);
+        border-color: var(--sheet-accent) !important;
+        background-color: var(--sheet-surface) !important;
+        color: var(--sheet-text) !important;
+        box-shadow: 0 0 0 3px var(--sheet-accent-soft) !important;
     }
 
     #post-comment {
@@ -398,6 +495,37 @@
 
     #post-comment:active { transform: scale(.9); }
     #post-comment:disabled { opacity: .45; cursor: default; }
+
+    /* While the POST is in flight. The old code swapped the button's text to
+       "Posting...", which deleted the icon inside it and never put it back. */
+    #post-comment.is-busy svg { opacity: 0; }
+
+    #post-comment.is-busy::after {
+        content: '';
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid currentColor;
+        border-top-color: transparent;
+        animation: sheet-send-spin .7s linear infinite;
+    }
+
+    #post-comment { position: relative; }
+
+    @keyframes sheet-send-spin { to { transform: rotate(360deg); } }
+
+    /* ------------------------------------------------------------ drag state */
+
+    /* While a finger is on the sheet it must track the finger exactly, so the
+       easing that makes the open/close slide feel good has to come off -- with it
+       on, the sheet lags behind the drag. The offset arrives as a custom property
+       rather than an inline transform so the desktop centring below survives. */
+    .comments-sidebar.dragging,
+    .profile-modal-content.dragging {
+        transition: none;
+        transform: translateY(var(--sheet-drag, 0px));
+    }
 
     /* ------------------------------------------------------------ profile sheet */
 
@@ -523,6 +651,12 @@
             transform: translate(-50%, 0);
         }
 
+        /* Keep the -50% while dragging, or the panel jumps to the left edge. */
+        .comments-sidebar.dragging,
+        .profile-modal-content.dragging {
+            transform: translate(-50%, var(--sheet-drag, 0px));
+        }
+
         .comments-sidebar { height: min(70vh, 640px); }
     }
 
@@ -538,5 +672,7 @@
         .comments-overlay,
         .profile-modal { transition-duration: .01ms; }
         .comment-item { animation: none; }
+        .comment-like.is-bursting svg,
+        .reaction-emoji.is-popped { animation: none; }
     }
 </style>

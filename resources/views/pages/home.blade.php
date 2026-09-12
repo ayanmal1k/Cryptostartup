@@ -1567,6 +1567,16 @@
             }
         }
     </style>
+    {{-- Reels chrome, in the head on purpose.
+
+         The comment sheet and the seek bar are both emitted inside the feed near
+         the top of the page, but their CSS used to ship with the scripts at the
+         very bottom of the body -- 66KB and 148KB further down the response.
+         Until it arrived the sheet had no position and no transform, so it painted
+         as a fully open panel in normal flow and then snapped shut, and the seek
+         bar rendered as a loose block. That is the flash on first load. --}}
+    @include('elements.reels-sheets')
+    @include('elements.reels-scrubber-style')
 @stop
 
 @section('content')
@@ -1777,23 +1787,39 @@
 
         <!-- Comments Overlay -->
         <div class="comments-overlay" id="comments-overlay"></div>
-        
+
         <!-- Comments bottom sheet -->
         <div class="comments-sidebar" id="comments-sidebar" role="dialog" aria-modal="true" aria-labelledby="comments-title">
-            <div class="comments-header">
-                <h3 id="comments-title">Comments</h3>
+            {{-- The grabber is the drag target, and the header drags too so the whole
+                 top edge dismisses -- a 4px line alone is not a real touch target. --}}
+            <div class="comments-grabber" data-comments-drag aria-hidden="true"></div>
+            <div class="comments-header" data-comments-drag>
+                <h3 id="comments-title">Comments <span class="comments-count" id="comments-count" hidden></span></h3>
                 <button type="button" class="close-comments" aria-label="Close comments">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    {{-- stroke has to be set here: these are <line> elements, and with no
+                         stroke they paint nothing, which left the button looking empty. --}}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
                 </button>
             </div>
-            
+
             <div class="comments-list" id="comments-list">
                 <div class="no-comments">
                     <p>No comments yet</p>
                     <p class="no-comments__hint">Start the conversation.</p>
                 </div>
             </div>
-            
+
+            <div class="comment-reactions" role="group" aria-label="Quick reactions">
+                <button type="button" class="reaction-emoji" data-emoji="❤️" aria-label="React ❤️">❤️</button>
+                <button type="button" class="reaction-emoji" data-emoji="🙌" aria-label="React 🙌">🙌</button>
+                <button type="button" class="reaction-emoji" data-emoji="🔥" aria-label="React 🔥">🔥</button>
+                <button type="button" class="reaction-emoji" data-emoji="👏" aria-label="React 👏">👏</button>
+                <button type="button" class="reaction-emoji" data-emoji="😢" aria-label="React 😢">😢</button>
+                <button type="button" class="reaction-emoji" data-emoji="😍" aria-label="React 😍">😍</button>
+                <button type="button" class="reaction-emoji" data-emoji="😮" aria-label="React 😮">😮</button>
+                <button type="button" class="reaction-emoji" data-emoji="😂" aria-label="React 😂">😂</button>
+            </div>
+
             <div class="comment-form">
                 @auth
                     <div class="comment-form__avatar" aria-hidden="true">{{ strtoupper(substr(Auth::user()->name ?? 'U', 0, 1)) }}</div>
@@ -1801,8 +1827,11 @@
                     <div class="comment-form__avatar" aria-hidden="true">?</div>
                 @endauth
                 <input type="text" id="comment-input" placeholder="Add a comment..." maxlength="500" autocomplete="off">
-                <button type="button" id="post-comment">Post</button>
+                <button type="button" id="post-comment" aria-label="Post comment" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="20" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/></svg>
+                </button>
             </div>
+        </div>
         </div>
     </div>
 
@@ -2290,6 +2319,7 @@
 
                 if (!comments || !comments.length) {
                     commentsList.innerHTML = '<div class="no-comments"><p>No comments yet</p><p class="no-comments__hint">Start the conversation.</p></div>';
+                    updateCommentCount(0);
                     return;
                 }
 
@@ -2300,22 +2330,63 @@
                     const commentContent = comment.content || '';
                     const createdAt = comment.created_at || 'Just now';
                     const label = userUsername ? '@' + userUsername : userName;
+                    const likes = parseInt(comment.likes_count, 10) || 0;
 
+                    // Comment bodies and display names are user input. They used to be
+                    // interpolated into innerHTML as-is, so any markup in a comment was
+                    // parsed as HTML -- escape everything that comes back from the API.
                     return `
-                        <div class="comment-item">
-                            <div class="comment-avatar-initials" style="background: ${getRandomColor()};">${getUserInitials(userName)}</div>
+                        <div class="comment-item" data-comment-id="${escapeHtml(String(comment.id || ''))}">
+                            <div class="comment-avatar-initials" style="background: ${getRandomColor()};">${escapeHtml(getUserInitials(userName))}</div>
                             <div class="comment-content">
-                                <div class="comment-content__row">
-                                    <strong>${label}</strong>
-                                    <p>${commentContent}</p>
+                                <div class="comment-head">
+                                    <strong>${escapeHtml(label)}</strong>
+                                    <span class="comment-time">${escapeHtml(formatCommentTime(createdAt))}</span>
                                 </div>
-                                <div class="comment-meta">
-                                    <span class="comment-time">${createdAt}</span>
+                                <p>${escapeHtml(commentContent)}</p>
+                                <div class="comment-actions">
+                                    <button type="button" class="comment-reply">Reply</button>
                                 </div>
                             </div>
+                            <button type="button" class="comment-like" aria-pressed="false" aria-label="Like comment">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>
+                                <span>${likes}</span>
+                            </button>
                         </div>
                     `;
                 }).join('');
+
+                updateCommentCount(comments.length);
+            }
+
+            /* The header count is the only thing that tells you how big the thread is
+               before you scroll it. Hidden rather than showing "0", which reads as a
+               failed load next to the empty state that already says the same thing. */
+            /* The API returns an ISO timestamp, which was being printed straight into
+               the row -- so comments were stamped '2024-01-01T10:00:00Z'. Anything that
+               does not parse as a date is passed through untouched, because some
+               callers already hand us a relative string like '2h'. */
+            function formatCommentTime(value) {
+                if (!value) return 'Just now';
+
+                const then = new Date(value);
+                if (isNaN(then.getTime())) return String(value);
+
+                const secs = Math.floor((Date.now() - then.getTime()) / 1000);
+                if (secs < 45) return 'Just now';
+                if (secs < 3600) return Math.floor(secs / 60) + 'm';
+                if (secs < 86400) return Math.floor(secs / 3600) + 'h';
+                if (secs < 604800) return Math.floor(secs / 86400) + 'd';
+                if (secs < 2592000) return Math.floor(secs / 604800) + 'w';
+
+                return then.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            }
+
+            function updateCommentCount(n) {
+                const el = document.getElementById('comments-count');
+                if (!el) return;
+                el.textContent = n > 0 ? n : '';
+                el.hidden = !(n > 0);
             }
 
             function getDemoComments(videoId) {
@@ -2390,8 +2461,10 @@
                 postCommentBtn.addEventListener('click', function() {
                     const comment = commentInput.value.trim();
                     if (comment && currentVideoIdForComments) {
+                        // The button holds an SVG now, so the old textContent swap
+                        // would have deleted the icon and never put it back.
                         postCommentBtn.disabled = true;
-                        postCommentBtn.textContent = 'Posting...';
+                        postCommentBtn.classList.add('is-busy');
                         
                         fetch(`/videos/${currentVideoIdForComments}/comments`, {
                             method: 'POST',
@@ -2419,12 +2492,18 @@
                         })
                         .catch(error => console.error('Error posting comment:', error))
                         .finally(() => {
-                            postCommentBtn.disabled = false;
-                            postCommentBtn.textContent = 'Post';
+                            postCommentBtn.classList.remove('is-busy');
+                            postCommentBtn.disabled = !commentInput.value.trim();
                         });
                     }
                 });
                 
+                // Send stays disabled until there is something to send, so the
+                // control says whether it will do anything before you press it.
+                const syncPostBtn = () => { postCommentBtn.disabled = !commentInput.value.trim(); };
+                commentInput.addEventListener('input', syncPostBtn);
+                syncPostBtn();
+
                 commentInput.addEventListener('keypress', function(e) {
                     if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
@@ -2819,7 +2898,7 @@
             });
         });
     </script>
-@include('elements.reels-sheets')
+@include('elements.reels-sheets-behaviour')
 @include('elements.reels-scrubber')
 @include('elements.reels-hud')
 @include('elements.reels-sound')

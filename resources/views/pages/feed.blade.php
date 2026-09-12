@@ -17,6 +17,16 @@
     
     <!-- Font Awesome -->
     {{-- Font Awesome 6.4.0 is already loaded globally by template/head --}}
+    {{-- Reels chrome, in the head on purpose.
+
+         The comment sheet and the seek bar are both emitted inside the feed near
+         the top of the page, but their CSS used to ship with the scripts at the
+         very bottom of the body -- 66KB and 148KB further down the response.
+         Until it arrived the sheet had no position and no transform, so it painted
+         as a fully open panel in normal flow and then snapped shut, and the seek
+         bar rendered as a loose block. That is the flash on first load. --}}
+    @include('elements.reels-sheets')
+    @include('elements.reels-scrubber-style')
 @stop
 
 {{-- Page specific JS --}}
@@ -28,7 +38,13 @@
             '/js/Post.js',
             '/js/SuggestionsSlider.js',
             '/js/pages/lists.js',
-            '/js/pages/feed.js',
+            {{-- /js/pages/feed.js is for the classic post feed, not this reels page. It
+                 reads a global initialPostIDs that this page never defines, so it threw
+                 'initialPostIDs is not defined' on every load -- and because that throw
+                 is on line 18 of its ready handler, everything it does after that point
+                 (Post.setActivePage, media module, suggestion sliders) has never run
+                 here anyway. It also logged 'Pagination failed to initialize.' first.
+                 pages/home dropped it for the same reason. --}}
             '/js/pages/checkout.js',
             '/libs/swiper/swiper-bundle.min.js',
             '/js/plugins/media/photoswipe.js',
@@ -404,76 +420,10 @@ const observer = new IntersectionObserver((entries) => {
                 }
             });
 
-            // Drag-to-close (Instagram-style) on the grabber / header
-            if (commentsSidebar) {
-                let dragStartY = 0;
-                let dragCurrentY = 0;
-                let isDragging = false;
-
-                const dragStart = function(e) {
-                    // Ignore drags that begin on the close button
-                    if (e.target.closest('.close-comments')) return;
-                    isDragging = true;
-                    dragStartY = e.touches ? e.touches[0].clientY : e.clientY;
-                    dragCurrentY = dragStartY;
-                    commentsSidebar.classList.add('dragging');
-                };
-
-                const dragMove = function(e) {
-                    if (!isDragging) return;
-                    const y = e.touches ? e.touches[0].clientY : e.clientY;
-                    dragCurrentY = y;
-                    const delta = Math.max(0, y - dragStartY); // only allow dragging down
-                    commentsSidebar.style.transform = 'translateY(' + delta + 'px)';
-                    if (e.cancelable) e.preventDefault();
-                };
-
-                const dragEnd = function() {
-                    if (!isDragging) return;
-                    isDragging = false;
-                    commentsSidebar.classList.remove('dragging');
-                    commentsSidebar.style.transform = '';
-
-                    const delta = dragCurrentY - dragStartY;
-                    const threshold = Math.min(140, commentsSidebar.offsetHeight * 0.25);
-                    if (delta > threshold) {
-                        closeComments();
-                    }
-                };
-
-                document.querySelectorAll('[data-comments-drag]').forEach(function(handle) {
-                    handle.addEventListener('mousedown', dragStart);
-                    handle.addEventListener('touchstart', dragStart, { passive: true });
-                });
-                document.addEventListener('mousemove', dragMove);
-                document.addEventListener('touchmove', dragMove, { passive: false });
-                document.addEventListener('mouseup', dragEnd);
-                document.addEventListener('touchend', dragEnd);
-                document.addEventListener('touchcancel', dragEnd);
-            }
-
-            // Quick emoji reactions -> prefill composer
-            document.querySelectorAll('.reaction-emoji').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const input = document.getElementById('comment-input');
-                    if (input) {
-                        input.value += this.getAttribute('data-emoji');
-                        input.focus();
-                    }
-                });
-            });
-
-            // Toggle like heart on individual comments (client-side only)
-            document.addEventListener('click', function(e) {
-                const like = e.target.closest('.comment-like');
-                if (!like) return;
-                like.classList.toggle('liked');
-                const countEl = like.querySelector('span');
-                if (countEl) {
-                    let n = parseInt(countEl.textContent) || 0;
-                    countEl.textContent = like.classList.contains('liked') ? n + 1 : Math.max(0, n - 1);
-                }
-            });
+            // Quick emoji reactions, comment likes and drag-to-dismiss are wired in
+            // elements/reels-sheets-behaviour, which both reels pages share. They were
+            // here and absent on the home feed, so the same sheet behaved differently
+            // depending on which page you opened it from.
             
             // Share button functionality
             document.querySelectorAll('.share-btn').forEach(btn => {
@@ -918,26 +868,28 @@ function incrementVideoViews(videoId) {
                     if (data.success && data.comments.length > 0) {
                         const commentsHtml = data.comments.map(comment => `
                             <div class="comment-item">
-                                <div class="comment-avatar-initials" style="background: ${getRandomColor()};">${getUserInitials(comment.user.name)}</div>
+                                <div class="comment-avatar-initials" style="background: ${getRandomColor()};">${escapeHtml(getUserInitials(comment.user.name))}</div>
                                 <div class="comment-content">
                                     <div class="comment-head">
-                                        <strong>${comment.user.name}</strong>
-                                        <span class="comment-time">${formatTime(comment.created_at)}</span>
+                                        <strong>${escapeHtml(comment.user.username ? '@' + comment.user.username : comment.user.name)}</strong>
+                                        <span class="comment-time">${escapeHtml(formatTime(comment.created_at))}</span>
                                     </div>
-                                    <p>${comment.content}</p>
+                                    <p>${escapeHtml(comment.content)}</p>
                                     <div class="comment-actions">
-                                        <span class="comment-reply">Reply</span>
+                                        <button type="button" class="comment-reply">Reply</button>
                                     </div>
                                 </div>
-                                <div class="comment-like">
+                                <button type="button" class="comment-like" aria-pressed="false" aria-label="Like comment">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>
                                     <span>0</span>
-                                </div>
+                                </button>
                             </div>
                         `).join('');
                         commentsList.innerHTML = commentsHtml;
+                        updateCommentCount(data.comments.length);
                     } else {
-                        commentsList.innerHTML = '<div class="no-comments"><p>No comments yet. Be the first to comment!</p></div>';
+                        commentsList.innerHTML = '<div class="no-comments"><p>No comments yet</p><p class="no-comments__hint">Start the conversation.</p></div>';
+                        updateCommentCount(0);
                     }
                 })
                 .catch(error => {
@@ -947,6 +899,25 @@ function incrementVideoViews(videoId) {
             }
             
             // Helper functions
+            /* Comment bodies and display names are user input, and they were being
+               interpolated straight into innerHTML below -- so markup inside a
+               comment was parsed as HTML. Everything from the API goes through this. */
+            /* The header count is the only thing that says how big the thread is
+               before you scroll it. Hidden at zero rather than showing "0", which reads
+               as a failed load next to an empty state that says the same thing. */
+            function updateCommentCount(n) {
+                const el = document.getElementById('comments-count');
+                if (!el) return;
+                el.textContent = n > 0 ? n : '';
+                el.hidden = !(n > 0);
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text == null ? '' : text;
+                return div.innerHTML;
+            }
+
             function getRandomColor() {
                 const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'];
                 return colors[Math.floor(Math.random() * colors.length)];
@@ -960,7 +931,13 @@ function incrementVideoViews(videoId) {
             }
             
             function formatTime(dateString) {
+                if (!dateString) return 'Just now';
+
                 const date = new Date(dateString);
+                // Callers sometimes pass an already-relative string ('2h'); an
+                // unparseable value used to come out as 'NaNm ago'.
+                if (isNaN(date.getTime())) return String(dateString);
+
                 const now = new Date();
                 const diff = now - date;
                 
@@ -968,7 +945,9 @@ function incrementVideoViews(videoId) {
                 const hours = Math.floor(diff / (1000 * 60 * 60));
                 const days = Math.floor(diff / (1000 * 60 * 60 * 24));
                 
-                if (minutes < 60) {
+                if (minutes < 1) {
+                    return 'Just now';
+                } else if (minutes < 60) {
                     return `${minutes}m ago`;
                 } else if (hours < 24) {
                     return `${hours}h ago`;
@@ -1015,21 +994,21 @@ function incrementVideoViews(videoId) {
                                 const newComment = document.createElement('div');
                                 newComment.className = 'comment-item';
                                 newComment.innerHTML = `
-                                    <div class="comment-avatar-initials" style="background: ${getRandomColor()};">${getUserInitials(data.comment.user.name)}</div>
+                                    <div class="comment-avatar-initials" style="background: ${getRandomColor()};">${escapeHtml(getUserInitials(data.comment.user.name))}</div>
                                     <div class="comment-content">
                                         <div class="comment-head">
-                                            <strong>${data.comment.user.name}</strong>
+                                            <strong>${escapeHtml(data.comment.user.username ? '@' + data.comment.user.username : data.comment.user.name)}</strong>
                                             <span class="comment-time">Just now</span>
                                         </div>
-                                        <p>${data.comment.content}</p>
+                                        <p>${escapeHtml(data.comment.content)}</p>
                                         <div class="comment-actions">
-                                            <span class="comment-reply">Reply</span>
+                                            <button type="button" class="comment-reply">Reply</button>
                                         </div>
                                     </div>
-                                    <div class="comment-like">
+                                    <button type="button" class="comment-like" aria-pressed="false" aria-label="Like comment">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>
                                         <span>0</span>
-                                    </div>
+                                    </button>
                                 `;
                                 
                                 // Remove "no comments" message if exists
@@ -1040,6 +1019,7 @@ function incrementVideoViews(videoId) {
                                 
                                 commentsList.insertBefore(newComment, commentsList.firstChild);
                                 commentInput.value = '';
+                                updateCommentCount(commentsList.querySelectorAll('.comment-item').length);
                                 
                                 // Update comment count in UI
                                 const currentVideo = document.querySelector(`.video-item[data-video-id="${currentVideoIdForComments}"]`);
@@ -1065,6 +1045,11 @@ function incrementVideoViews(videoId) {
                     }
                 });
                 
+                // Send stays disabled until there is something to send.
+                const syncPostBtn = () => { postCommentBtn.disabled = !commentInput.value.trim(); };
+                commentInput.addEventListener('input', syncPostBtn);
+                syncPostBtn();
+
                 commentInput.addEventListener('keypress', function(e) {
                     if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
@@ -1242,10 +1227,10 @@ function incrementVideoViews(videoId) {
 
         <!-- Comments Bottom Sheet -->
         <div class="comments-overlay" id="comments-overlay"></div>
-        <div class="comments-sidebar" id="comments-sidebar">
+        <div class="comments-sidebar" id="comments-sidebar" role="dialog" aria-modal="true" aria-labelledby="comments-title">
             <div class="comments-grabber" data-comments-drag></div>
             <div class="comments-header" data-comments-drag>
-                <h3>Comments</h3>
+                <h3 id="comments-title">Comments <span class="comments-count" id="comments-count" hidden></span></h3>
                 <button class="close-comments" aria-label="Close comments">
                     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
                 </button>
@@ -2350,7 +2335,7 @@ function incrementVideoViews(videoId) {
             }}
         
     </style>
-@include('elements.reels-sheets')
+@include('elements.reels-sheets-behaviour')
 @include('elements.reels-scrubber')
 @include('elements.reels-hud')
 @include('elements.reels-sound')

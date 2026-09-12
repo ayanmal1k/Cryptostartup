@@ -1052,7 +1052,14 @@
       if (windowClick) {
         var onWindowClick = function(evt) {
           var isIgnored = false;
-          var pathLen = evt.path.length;
+          // evt.path was a non-standard Chrome alias for composedPath() and was
+          // removed in Chrome 109, so this threw 'Cannot read properties of
+          // undefined (reading length)' on every click -- and because it threw
+          // before the dismiss below, click-anywhere-to-dismiss never worked.
+          var evtPath = typeof evt.composedPath === 'function'
+            ? evt.composedPath()
+            : (evt.path || []);
+          var pathLen = evtPath.length;
           var ignoredLen = ignoredClicks.length;
           for (var i = 0; i < pathLen; i++) {
             if (isIgnored) continue;
@@ -1060,7 +1067,7 @@
             for (var i2 = 0; i2 < ignoredLen; i2++) {
               if (isIgnored) continue;
 
-              isIgnored = util.hasClass(evt.path[i], ignoredClicks[i2]);
+              isIgnored = util.hasClass(evtPath[i], ignoredClicks[i2]);
             }
           }
 
