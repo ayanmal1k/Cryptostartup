@@ -809,10 +809,20 @@ public function show($id)
             $query->where('type', $type);
         }
         
+        // The header tiles count across every type, not just the filtered tab.
+        $mine = fn () => CryptoTransaction::where(fn ($q) => $q->where('buyer_user_id', Auth::id())
+            ->orWhere('seller_user_id', Auth::id()));
+        $stats = [
+            'total' => $mine()->count(),
+            'this_month' => $mine()->where('created_at', '>=', now()->startOfMonth())->count(),
+            'successful' => $mine()->where('status', 'completed')->count(),
+            'pending' => $mine()->where('status', 'pending')->count(),
+        ];
+
         $transactions = $query->orderBy('created_at', 'desc')
             ->paginate(20);
-            
-        return view('cryptocurrency.transactions', compact('transactions', 'type'));
+
+        return view('cryptocurrency.transactions', compact('transactions', 'type', 'stats'));
     }
 
     /**
