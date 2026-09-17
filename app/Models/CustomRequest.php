@@ -264,6 +264,32 @@ class CustomRequest extends Model
     }
 
     /**
+     * Public URL of the delivered video, or null when there is none or the file is not on
+     * disk. Rows can outlive their media (production lost its uploads once, and sample rows
+     * name files that only exist where they were seeded), and a path that 404s renders as
+     * a broken image or a dead player.
+     */
+    public function getDeliveryVideoUrlAttribute(): ?string
+    {
+        return $this->storageUrlIfPresent($this->delivery_video_path);
+    }
+
+    /** Public URL of the delivery thumbnail, or null when missing — see above. */
+    public function getDeliveryThumbnailUrlAttribute(): ?string
+    {
+        return $this->storageUrlIfPresent($this->delivery_thumbnail_path);
+    }
+
+    protected function storageUrlIfPresent(?string $path): ?string
+    {
+        if (!$path || !is_file(public_path('storage/' . $path))) {
+            return null;
+        }
+
+        return asset('storage/' . $path);
+    }
+
+    /**
      * Check if goal is reached
      */
     public function isGoalReached()

@@ -6,9 +6,11 @@
     $items = $requests->getCollection();
     $onFirstPage = $requests->currentPage() === 1;
 
-    // The newest delivered clip leads the Watch tab as a playing spotlight.
-    $spotlight = ($tab === 'watch' && $search === '' && $onFirstPage) ? $items->first() : null;
-    $wall = $spotlight ? $items->slice(1) : $items;
+    // The newest delivered clip whose video is actually on disk leads the Watch tab.
+    $spotlight = ($tab === 'watch' && $search === '' && $onFirstPage)
+        ? $items->first(fn ($cr) => $cr->delivery_video_url !== null)
+        : null;
+    $wall = $spotlight ? $items->reject(fn ($cr) => $cr->is($spotlight)) : $items;
 
     $tabUrl = fn ($key) => route('custom-requests.marketplace', $key === 'watch' ? [] : ['tab' => $key]);
 
@@ -47,14 +49,14 @@
         @if($spotlight)
             @php
                 $s = $spotlight;
-                $sThumb = $s->delivery_thumbnail_path ? asset('storage/' . $s->delivery_thumbnail_path) : null;
+                $sThumb = $s->delivery_thumbnail_url;
                 $sUrl = route('custom-requests.show', $s->id);
                 $sBackers = (int) ($s->backers_count ?? 0);
                 $sViews = (int) ($s->views_count ?? 0);
             @endphp
             <section class="ch-spot" data-dx-media aria-label="{{ __('Featured challenge') }}">
                 <a href="{{ $sUrl }}" class="ch-spot__media" tabindex="-1" aria-hidden="true">
-                    <video data-dx-autoplay data-src="{{ asset('storage/' . $s->delivery_video_path) }}"
+                    <video data-dx-autoplay data-src="{{ $s->delivery_video_url }}"
                            @if($sThumb) poster="{{ $sThumb }}" @endif
                            muted loop playsinline preload="none"></video>
                 </a>
@@ -177,7 +179,7 @@
                         @foreach($wall->values() as $i => $cr)
                             @php
                                 $rank = $requests->firstItem() + $i;
-                                $rThumb = $cr->delivery_thumbnail_path ? asset('storage/' . $cr->delivery_thumbnail_path) : null;
+                                $rThumb = $cr->delivery_thumbnail_url;
                                 $rGoal = (float) $cr->goal_amount;
                                 $rPct = $rGoal > 0 ? (int) min(100, round((float) $cr->current_amount / $rGoal * 100)) : 0;
                                 $rDone = $cr->status === 'completed';

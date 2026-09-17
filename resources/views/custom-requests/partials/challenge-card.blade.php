@@ -3,8 +3,10 @@
      * 9:16 tile for the challenge wall.
      * $cr - CustomRequest with `creator` loaded (and optionally `backers_count`)
      */
-    $hasVideo = !empty($cr->delivery_video_path);
-    $thumb = $cr->delivery_thumbnail_path ? asset('storage/' . $cr->delivery_thumbnail_path) : null;
+    // Both are null when the file is not on disk, so a missing upload becomes a text tile
+    // instead of a broken image.
+    $videoUrl = $cr->delivery_video_url;
+    $thumb = $cr->delivery_thumbnail_url;
     $goal = (float) ($cr->goal_amount ?? 0);
     $raised = (float) ($cr->current_amount ?? 0);
     $amount = $raised > 0 ? $raised : ($goal > 0 ? $goal : (float) $cr->price);
@@ -14,7 +16,7 @@
     $views = (int) ($cr->views_count ?? 0);
 @endphp
 <a href="{{ route('custom-requests.show', $cr->id) }}" class="ch-tile {{ $thumb ? '' : 'ch-tile--text' }}">
-    <div class="ch-tile__media" @if($hasVideo) data-dx-preview="{{ asset('storage/' . $cr->delivery_video_path) }}" @endif>
+    <div class="ch-tile__media" @if($videoUrl) data-dx-preview="{{ $videoUrl }}" @endif>
         @if($thumb)
             <img src="{{ $thumb }}" alt="" loading="lazy" decoding="async">
         @endif
