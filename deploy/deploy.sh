@@ -18,7 +18,11 @@
 #   XF_PASSPHRASE='...' ./deploy/deploy.sh --files a b c # deploy an explicit list
 #   XF_PASSPHRASE='...' ./deploy/deploy.sh --dry-run <ref>
 #
-# The passphrase is read from the environment and never written to disk.
+# XF_PASSPHRASE can be left unset: the script then reads `passphrase` from
+# .vscode/sftp.json, the VS Code SFTP extension config that already holds it on this
+# machine. That file is gitignored (/.vscode/) and the script refuses to use it if it
+# ever stops being ignored, so the secret can't be committed by way of this rule.
+# Nothing here writes the passphrase anywhere new.
 #
 set -euo pipefail
 
@@ -123,7 +127,15 @@ if [ "$DRY_RUN" -eq 1 ]; then echo "dry run — nothing sent"; exit 0; fi
 
 # --- Load the key once --------------------------------------------------------------
 [ -f "$KEY" ] || fail "ssh key not found at $KEY"
-[ -n "${XF_PASSPHRASE:-}" ] || fail "set XF_PASSPHRASE (not stored on disk)"
+SFTP_CONFIG=".vscode/sftp.json"
+if [ -z "${XF_PASSPHRASE:-}" ] && [ -f "$SFTP_CONFIG" ]; then
+    git check-ignore -q "$SFTP_CONFIG" \
+        || fail "$SFTP_CONFIG holds the key passphrase but is NOT gitignored — fix .gitignore first"
+    XF_PASSPHRASE=$(node -e "process.stdout.write(String(require('./$SFTP_CONFIG').passphrase || ''))" 2>/dev/null) \
+        || XF_PASSPHRASE=""
+    export XF_PASSPHRASE
+fi
+[ -n "${XF_PASSPHRASE:-}" ] || fail "no passphrase: set XF_PASSPHRASE, or add \"passphrase\" to $SFTP_CONFIG"
 
 mkdir -p "$TMP"
 chmod 700 "$TMP"
