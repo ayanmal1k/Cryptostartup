@@ -7,6 +7,8 @@ use App\Services\DropService;
 use App\Services\EngagementService;
 use App\Services\GamificationService;
 use App\Services\QuestService;
+use App\Services\PerkShopService;
+use App\Services\RewardGamesService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -42,7 +44,103 @@ class EngagementController extends Controller
             'pity' => DropService::pityRemaining($me),
             'pityThreshold' => DropService::PITY_THRESHOLD,
             'achievementCount' => $this->achievementCount($me),
+            'spin' => RewardGamesService::SPIN,
+            'spunToday' => RewardGamesService::spunToday($me),
+            'games' => RewardGamesService::GAMES,
+            'playsLeft' => collect(RewardGamesService::GAMES)->map(fn ($g, $key) => RewardGamesService::playsLeft($me, $key)),
+            'perks' => PerkShopService::PERKS,
+            'frames' => PerkShopService::FRAMES,
+            'credits' => (float) (optional($me->wallet)->total ?? 0),
         ]);
+    }
+
+    /** The free daily spin. Rolled server-side; the wheel animates to the result. */
+    public function spin(Request $request)
+    {
+        $me = Auth::user();
+        try {
+            $result = RewardGamesService::spin($me);
+        } catch (\Throwable $e) {
+            report($e);
+            $result = null;
+        }
+
+        if (!$result) {
+            return response()->json(['success' => false, 'message' => __('You have already spun today. Come back tomorrow.')], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'index' => $result['index'],
+            'reward' => $result['reward'],
+            'balance' => $this->balance($me),
+        ]);
+    }
+
+    /** Start a skill-game play (uses one of today's free plays). */
+    public function gameStart(Request $request, string $game)
+    {
+        $me = Auth::user();
+        $play = RewardGamesService::start($me, $game);
+        if (!$play) {
+            return response()->json(['success' => false, 'message' => __('No plays left today. They reset at midnight.')], 422);
+        }
+
+        return response()->json(['success' => true] + $play + ['left' => RewardGamesService::playsLeft($me, $game)]);
+    }
+
+    /** Finish a play; the server checks timing and score before paying out. */
+    public function gameFinish(Request $request, string $game)
+    {
+        $data = $request->validate([
+            'play' => 'required|integer',
+            'token' => 'required|string|max:64',
+            'result' => 'required|integer|min:0|max:1000',
+        ]);
+
+        $me = Auth::user();
+        $result = RewardGamesService::finish($me, $game, (int) $data['play'], $data['token'], (int) $data['result']);
+        if (is_string($result)) {
+            return response()->json(['success' => false, 'message' => __($result)], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'payout' => $result,
+            'left' => RewardGamesService::playsLeft($me, $game),
+            'balance' => $this->balance($me),
+        ]);
+    }
+
+    /** Buy a fixed-price perk with platform credits. */
+    public function buyPerk(Request $request, string $perk)
+    {
+        $me = Auth::user();
+        try {
+            $message = PerkShopService::buy($me, $perk);
+        } catch (\RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'credits' => (float) (optional($me->fresh()->wallet)->total ?? 0),
+            'balance' => $this->balance($me),
+        ]);
+    }
+
+    /** Wear a frame you own, or take it off. */
+    public function equipFrame(Request $request)
+    {
+        $frame = $request->input('frame');
+        try {
+            PerkShopService::equip(Auth::user(), $frame ?: null);
+        } catch (\RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['success' => true, 'frame' => $frame ?: null]);
     }
 
     /** Claim a finished quest. */

@@ -40,7 +40,8 @@
             '/libs/photoswipe/dist/default-skin/default-skin.css',
             '/css/pages/profile.css',
             '/css/pages/lists.css',
-            '/css/posts/post.css'
+            '/css/posts/post.css',
+            '/css/frames.css'
          ])->withFullUrl()
     !!}
     @if(getSetting('feed.post_box_max_height'))
@@ -77,7 +78,15 @@
                 {{-- is-online drives the presence dot, and is only set when DMs are genuinely
                      reachable for this viewer — not a decorative always-green badge. --}}
                 <div class="z-index-3 avatar-holder {{ ($hasSub || $viewerHasChatAccess) ? 'is-online' : '' }}">
-                    <img src="{{$user->avatar}}" class="rounded-circle">
+                    {{-- A frame from the rewards shop or a drop, when the user has one on. --}}
+                    @php
+                        $profileFrame = \App\Services\PerkShopService::frameClass($user);
+                    @endphp
+                    @if($profileFrame)
+                        <span class="{{ $profileFrame }}"><img src="{{$user->avatar}}" class="rounded-circle"></span>
+                    @else
+                        <img src="{{$user->avatar}}" class="rounded-circle">
+                    @endif
                 </div>
                 <div>
                     @if(!Auth::check() || Auth::user()->id !== $user->id)

@@ -10,6 +10,9 @@
      * $cta          - ['label', 'href' => ?string, 'onclick' => ?string]
      */
     $searchHidden = $searchHidden ?? [];
+    $search = $search ?? '';
+    $searchAction = $searchAction ?? null;
+    $searchLabel = $searchLabel ?? '';
     $searching = $search !== '';
 @endphp
 <nav class="dx-subnav {{ $searching ? 'is-searching' : '' }}" data-dx-subnav>
@@ -26,12 +29,14 @@
             @endforeach
         </div>
 
+        @if(!empty($searchAction))
         <button type="button" class="dx-icon-btn" data-dx-search-toggle
                 aria-expanded="{{ $searching ? 'true' : 'false' }}" aria-label="{{ __('Search') }}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
                 <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
             </svg>
         </button>
+        @endif
 
         @if(!empty($cta))
             @php($plus = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>')
@@ -43,6 +48,7 @@
         @endif
     </div>
 
+    @if(!empty($searchAction))
     <form class="dx-search" action="{{ $searchAction }}" method="GET" role="search">
         @foreach($searchHidden as $name => $value)
             <input type="hidden" name="{{ $name }}" value="{{ $value }}">
@@ -66,4 +72,5 @@
             @endif
         </div>
     </form>
+    @endif
 </nav>

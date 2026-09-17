@@ -1033,6 +1033,14 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/rewards/drops/{drop}/open', [App\Http\Controllers\EngagementController::class, 'openDrop'])
         ->whereNumber('drop')->name('engagement.drop.open');
     Route::post('/rewards/drops/buy', [App\Http\Controllers\EngagementController::class, 'buyDrop'])->name('engagement.drop.buy');
+    Route::post('/rewards/spin', [App\Http\Controllers\EngagementController::class, 'spin'])->name('engagement.spin');
+    Route::post('/rewards/games/{game}/start', [App\Http\Controllers\EngagementController::class, 'gameStart'])
+        ->whereIn('game', ['tap', 'memory'])->name('engagement.game.start');
+    Route::post('/rewards/games/{game}/finish', [App\Http\Controllers\EngagementController::class, 'gameFinish'])
+        ->whereIn('game', ['tap', 'memory'])->name('engagement.game.finish');
+    Route::post('/rewards/shop/{perk}/buy', [App\Http\Controllers\EngagementController::class, 'buyPerk'])
+        ->where('perk', '[a-z0-9_]+')->name('engagement.perk.buy');
+    Route::post('/rewards/frame', [App\Http\Controllers\EngagementController::class, 'equipFrame'])->name('engagement.frame.equip');
 });
 
 Route::get('/search', ['uses' => 'SearchController@index', 'as' => 'search.get']);
