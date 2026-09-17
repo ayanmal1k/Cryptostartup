@@ -16,7 +16,7 @@
 <div class="mp-container">
 
     <header class="mp-header">
-        <h1 class="mp-header__title">{{ __('Token Marketplace') }}</h1>
+        <h1 class="mp-header__title">{{ __('Coins') }}</h1>
         <p class="mp-header__sub">{{ __('Back the creators you believe in, early') }}</p>
     </header>
 
@@ -24,21 +24,21 @@
     <section class="mp-stats">
         <div class="mp-stat">
             <span class="mp-stat__value">{{ number_format($stats['tokens']) }}</span>
-            <span class="mp-stat__label">{{ __('Tokens') }}</span>
+            <span class="mp-stat__label">{{ __('Coins') }}</span>
         </div>
         <div class="mp-stat">
             <span class="mp-stat__value">${{ number_format($stats['volume24h'], 2) }}</span>
-            <span class="mp-stat__label">{{ __('24h Volume') }}</span>
+            <span class="mp-stat__label">{{ __('Traded today') }}</span>
         </div>
         <div class="mp-stat">
             <span class="mp-stat__value">{{ number_format($stats['holders']) }}</span>
-            <span class="mp-stat__label">{{ __('Holders') }}</span>
+            <span class="mp-stat__label">{{ __('Owners') }}</span>
         </div>
         <div class="mp-stat">
             <span class="mp-stat__value">
                 {{ $stats['marketCap'] > 0 ? '$' . number_format($stats['marketCap'], 0) : '—' }}
             </span>
-            <span class="mp-stat__label">{{ __('Market Cap') }}</span>
+            <span class="mp-stat__label">{{ __('Total value') }}</span>
         </div>
     </section>
 
@@ -58,10 +58,10 @@
                 class="mp-search__input"
                 type="text"
                 name="search"
-                placeholder="{{ __('Search tokens by name or symbol...') }}"
+                placeholder="{{ __('Search coins') }}"
                 value="{{ $search }}"
                 autocomplete="off"
-                aria-label="{{ __('Search tokens') }}"
+                aria-label="{{ __('Search coins') }}"
             >
             <button type="submit" class="mp-search__btn">{{ __('Search') }}</button>
         </form>
@@ -74,7 +74,7 @@
                 '' => __('All'),
                 'price_high' => __('Price: High'),
                 'price_low' => __('Price: Low'),
-                'market_cap' => __('Market Cap'),
+                'market_cap' => __('Total value'),
                 'newest' => __('Newest'),
             ] as $key => $label)
                 <a href="{{ route('cryptocurrency.marketplace', array_filter(['search' => $search, 'sort' => $key])) }}"
@@ -88,7 +88,7 @@
     <section class="mp-section">
         <div class="mp-section__head">
             <h2 class="mp-section__title">{{ __('Top Gainers') }}</h2>
-            <span class="mp-section__count">{{ __('last 24h') }}</span>
+            <span class="mp-section__count">{{ __('today') }}</span>
         </div>
         <div class="mp-grid">
             @foreach($gainers as $crypto)
@@ -102,7 +102,7 @@
     <section class="mp-section">
         <div class="mp-section__head">
             <h2 class="mp-section__title">{{ __('Trending Tokens') }}</h2>
-            <span class="mp-section__count">{{ __('by 24h volume') }}</span>
+            <span class="mp-section__count">{{ __('most traded today') }}</span>
         </div>
         <div class="mp-grid">
             @foreach($trending as $crypto)
@@ -138,7 +138,7 @@
                         <path d="M12 8v4m0 4h.01" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
                     </svg>
                 </span>
-                <h3>{{ __('No tokens found') }}</h3>
+                <h3>{{ __('No coins found') }}</h3>
                 <p>{{ $search !== '' ? __('Try a different search term') : __('Be the first to create a token!') }}</p>
                 @if($search !== '')
                     <a href="{{ route('cryptocurrency.marketplace') }}" class="mp-btn mp-btn--ghost">{{ __('Clear search') }}</a>
@@ -149,7 +149,7 @@
 
     <section class="mp-cta">
         <div class="mp-cta__text">
-            <h2>{{ __('Create Your Own Token') }}</h2>
+            <h2>{{ __('Launch your own coin') }}</h2>
             <p>{{ __('Launch your cryptocurrency and let your fans invest in your success') }}</p>
         </div>
         <a href="{{ route('cryptocurrency.create') }}" class="mp-btn mp-btn--primary">

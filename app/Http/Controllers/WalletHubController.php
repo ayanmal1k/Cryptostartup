@@ -8,6 +8,7 @@ use App\Models\CryptoTransaction;
 use App\Models\CryptoWallet;
 use App\Models\NFT;
 use App\Models\NFTTransaction;
+use App\Support\TokenMoney;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 
@@ -146,8 +147,10 @@ class WalletHubController extends Controller
             ->map(fn ($t) => [
                 'kind' => 'token',
                 'type' => $t->type,
-                'label' => ucfirst((string) $t->type) . ' ' . (optional($t->cryptocurrency)->symbol ?? ''),
-                'amount' => '$' . number_format((float) $t->total_price, 2),
+                // Dollars and names only, never a ticker or a unit count.
+                'label' => (['buy' => 'Bought', 'sell' => 'Sold', 'transfer' => 'Sent'][$t->type] ?? ucfirst((string) $t->type))
+                    . ' ' . (optional($t->cryptocurrency)->name ?? 'coins'),
+                'amount' => TokenMoney::format((float) $t->total_price),
                 'in' => $t->type === 'buy',
                 'at' => $t->created_at,
             ]);
@@ -160,8 +163,10 @@ class WalletHubController extends Controller
             ->map(fn ($t) => [
                 'kind' => 'coin',
                 'type' => $t->type,
-                'label' => ucfirst((string) $t->type) . ' ' . (optional($t->coin)->symbol ?? ''),
-                'amount' => $this->trimNumber((float) $t->points),
+                'label' => ucfirst((string) $t->type) . ' · ' . (optional($t->coin)->name ?? 'creator coin'),
+                'amount' => TokenMoney::format((float) $t->credits_amount > 0
+                    ? (float) $t->credits_amount
+                    : (float) $t->points * (float) optional($t->coin)->price_per_point),
                 'in' => $t->type !== CreatorCoinTransaction::TYPE_SPEND,
                 'at' => $t->created_at,
             ]);

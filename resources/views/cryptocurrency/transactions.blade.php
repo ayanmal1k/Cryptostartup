@@ -73,14 +73,9 @@
             @forelse($transactions as $transaction)
                 @php
                     $txnType = $transaction->type ?? 'other';
-                    $symbol = $transaction->cryptocurrency->symbol ?? 'USD';
-                    $hasCrypto = isset($transaction->cryptocurrency);
-                    $amountLabel = $hasCrypto
-                        ? rtrim(rtrim(number_format((float) $transaction->amount, 4), '0'), '.') . ' ' . $symbol
-                        : '$' . number_format((float) $transaction->amount, 2);
-                    $priceLabel = (isset($transaction->price_per_token) && $transaction->price_per_token > 0)
-                        ? '$' . number_format((float) $transaction->price_per_token, $transaction->price_per_token < 1 ? 6 : 2)
-                        : '—';
+                    // Dollars only: the coin's name and the dollar total, never a unit count.
+                    $coinName = $transaction->cryptocurrency->name ?? __('Wallet');
+                    $verb = ['buy' => __('Bought'), 'sell' => __('Sold'), 'deposit' => __('Added'), 'withdraw' => __('Cashed out'), 'transfer' => __('Sent')][$txnType] ?? ucfirst($txnType);
                 @endphp
                 <article class="txn-row">
                     <span class="txn-row__icon txn-row__icon--{{ $txnType }}" aria-hidden="true">
@@ -95,17 +90,11 @@
 
                     <div class="txn-row__main">
                         <div class="txn-row__top">
-                            <span class="txn-row__title">{{ ucfirst($txnType) }} · {{ $symbol }}</span>
+                            <span class="txn-row__title">{{ $verb }} · {{ $coinName }}</span>
                             <span class="txn-row__total">${{ number_format((float) $transaction->total_price, 2) }}</span>
                         </div>
                         <div class="txn-row__meta">
                             <span>{{ $transaction->created_at->format('M d, Y · H:i') }}</span>
-                            <span class="txn-row__dot" aria-hidden="true"></span>
-                            <span>{{ $amountLabel }}</span>
-                            @if($priceLabel !== '—')
-                                <span class="txn-row__dot" aria-hidden="true"></span>
-                                <span>{{ $priceLabel }}</span>
-                            @endif
                         </div>
                     </div>
 
@@ -127,7 +116,7 @@
                         @if($type !== 'all')
                             {{ __('No :type transactions yet. Try another filter.', ['type' => strtolower($filterTypes[$type] ?? $type)]) }}
                         @else
-                            {{ __('Your cryptocurrency transactions will appear here') }}
+                            {{ __('Everything you buy and sell will appear here') }}
                         @endif
                     </p>
                     @if($type !== 'all')

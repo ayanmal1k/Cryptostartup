@@ -24,9 +24,19 @@ class TransactionLimits
         }
 
         $user = Auth::user();
-        $amount = $request->input('amount', 0);
-        $pricePerToken = $request->input('price_per_token', 0);
-        $totalValue = $amount * $pricePerToken;
+        // Coin buy/sell forms post a dollar amount (amount_usd); older forms post units x price.
+        if ($request->input('sell_all') === '1' && $request->route('id')) {
+            // "Sell all" posts no amount: it is worth the whole holding at today's price.
+            $wallet = \App\Models\CryptoWallet::with('cryptocurrency')
+                ->where('user_id', $user->id)->where('cryptocurrency_id', $request->route('id'))->first();
+            $totalValue = $wallet && $wallet->cryptocurrency
+                ? (float) $wallet->balance * (float) $wallet->cryptocurrency->current_price
+                : 0;
+        } elseif ($request->filled('amount_usd')) {
+            $totalValue = (float) $request->input('amount_usd');
+        } else {
+            $totalValue = (float) $request->input('amount', 0) * (float) $request->input('price_per_token', 0);
+        }
 
         // Get user's KYC level and limits
         $kycLevel = $user->kyc_level ?? 0;
@@ -35,7 +45,7 @@ class TransactionLimits
         // Check per-transaction limit
         if ($totalValue > $limits['per_transaction']) {
             return $this->denyTransaction($request, 
-                "Transaction exceeds your per-transaction limit of \${$limits['per_transaction']}. " .
+                "Transaction exceeds your per-transaction limit of " . '$' . number_format((float) $limits['per_transaction'], 2) . ". " .
                 "Please upgrade your verification level or split into smaller transactions."
             );
         }
@@ -45,8 +55,8 @@ class TransactionLimits
         if (($dailyTotal + $totalValue) > $limits['daily']) {
             $remaining = max(0, $limits['daily'] - $dailyTotal);
             return $this->denyTransaction($request,
-                "This transaction would exceed your daily limit of \${$limits['daily']}. " .
-                "You have \${$remaining} remaining today."
+                "This transaction would exceed your daily limit of " . '$' . number_format((float) $limits['daily'], 2) . ". " .
+                "You have " . '$' . number_format((float) $remaining, 2) . " remaining today."
             );
         }
 
@@ -55,8 +65,8 @@ class TransactionLimits
         if (($monthlyTotal + $totalValue) > $limits['monthly']) {
             $remaining = max(0, $limits['monthly'] - $monthlyTotal);
             return $this->denyTransaction($request,
-                "This transaction would exceed your monthly limit of \${$limits['monthly']}. " .
-                "You have \${$remaining} remaining this month."
+                "This transaction would exceed your monthly limit of " . '$' . number_format((float) $limits['monthly'], 2) . ". " .
+                "You have " . '$' . number_format((float) $remaining, 2) . " remaining this month."
             );
         }
 

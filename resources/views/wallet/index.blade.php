@@ -50,7 +50,7 @@
 @endphp
 
 @section('styles')
-    <link rel="stylesheet" href="{{ asset('css/pages/wallet.css') }}?v=20260917a">
+    <link rel="stylesheet" href="{{ asset('css/pages/wallet.css') }}?v=20260917c">
     <link rel="stylesheet" href="{{ asset('css/pages/nft-marketplace.css') }}?v=20260917b">
 @endsection
 
@@ -86,7 +86,7 @@
             </span>
             <div class="wallet-hero__balance" data-balance="${{ number_format($totalBalance, 2) }}">${{ number_format($totalBalance, 2) }}</div>
         </div>
-        <p class="wallet-hero__hint">{{ __("Spendable credits plus your tokens at today's price") }}</p>
+        <p class="wallet-hero__hint">{{ __("Your spendable balance plus what your coins are worth today") }}</p>
 
         {{-- Deposit/withdraw route to the REAL payment flow (Stripe/PayPal via my.settings),
              not CryptocurrencyController's stub which records a "completed" deposit without
@@ -114,9 +114,9 @@
         </li>
         <li>
             <button type="button" class="wallet-breakdown__item" data-open-panel="tokens">
-                <span class="wallet-breakdown__label">{{ __('Tokens') }}</span>
+                <span class="wallet-breakdown__label">{{ __('Coins') }}</span>
                 <span class="wallet-breakdown__value is-money">${{ number_format($tokenValue, 2) }}</span>
-                <span class="wallet-breakdown__sub">{{ trans_choice('{0} None held|{1} :count token|[2,*] :count tokens', $tokenWallets->count(), ['count' => $tokenWallets->count()]) }}</span>
+                <span class="wallet-breakdown__sub">{{ trans_choice('{0} None held|{1} :count coin|[2,*] :count coins', $tokenWallets->count(), ['count' => $tokenWallets->count()]) }}</span>
             </button>
         </li>
         <li>
@@ -138,14 +138,22 @@
     {{-- ── Tabs ──────────────────────────────────────────────────────────────────── --}}
     <nav class="wallet-tabs" role="tablist" aria-label="{{ __('Wallet sections') }}">
         <button class="wallet-tab is-active" role="tab" aria-selected="true" data-panel="overview">{{ __('Overview') }}</button>
-        <button class="wallet-tab" role="tab" aria-selected="false" data-panel="tokens">{{ __('Tokens') }} <span class="wallet-tab__count">{{ $tokenWallets->count() }}</span></button>
+        <button class="wallet-tab" role="tab" aria-selected="false" data-panel="tokens">{{ __('Coins') }} <span class="wallet-tab__count">{{ $tokenWallets->count() }}</span></button>
         <button class="wallet-tab" role="tab" aria-selected="false" data-panel="nfts">{{ __('NFTs') }} <span class="wallet-tab__count">{{ $nftCount }}</span></button>
-        <button class="wallet-tab" role="tab" aria-selected="false" data-panel="coins">{{ __('Coins') }} <span class="wallet-tab__count">{{ $coinBalances->count() }}</span></button>
+        <button class="wallet-tab" role="tab" aria-selected="false" data-panel="coins">{{ __('Creator coins') }} <span class="wallet-tab__count">{{ $coinBalances->count() }}</span></button>
         <button class="wallet-tab" role="tab" aria-selected="false" data-panel="activity">{{ __('Activity') }}</button>
     </nav>
 
     {{-- ── Overview ──────────────────────────────────────────────────────────────── --}}
     <section class="wallet-panel is-active" id="wallet-panel-overview" role="tabpanel">
+        {{-- Everything a crypto-naive user needs is in dollars above. Connecting an outside
+             crypto wallet, addresses and raw sends are for people who already use crypto, so
+             they live behind this disclosure instead of greeting everyone. --}}
+        <details class="wallet-advanced">
+        <summary class="wallet-advanced__summary">
+            <span>{{ __('Use an outside crypto wallet') }}</span>
+            <span class="wallet-advanced__tag">{{ __('Advanced') }}</span>
+        </summary>
         @include('nft.partials.wallet-connect')
 
         @if($address)
@@ -163,7 +171,7 @@
                                 {{ __('Copy') }}
                             </button>
                         </div>
-                        <p class="wallet-note">{{ __('Share this address to receive tokens and NFTs.') }}</p>
+                        <p class="wallet-note">{{ __('Only for sending from an outside crypto wallet.') }}</p>
                     </div>
                 </div>
 
@@ -193,6 +201,7 @@
                 </div>
             </div>
         @endif
+        </details>
 
         {{-- Quick links keep the rest of the ecosystem one tap away --}}
         <div class="wallet-block">
@@ -201,8 +210,8 @@
             </div>
             <div class="wallet-links">
                 <a href="{{ route('cryptocurrency.marketplace') }}" class="wallet-link">
-                    <span class="wallet-link__title">{{ __('Token Marketplace') }}</span>
-                    <span class="wallet-link__sub">{{ __('Discover creator tokens') }}</span>
+                    <span class="wallet-link__title">{{ __('Coins') }}</span>
+                    <span class="wallet-link__sub">{{ __('Buy from $1') }}</span>
                 </a>
                 <a href="{{ route('nft.marketplace') }}" class="wallet-link">
                     <span class="wallet-link__title">{{ __('NFT Marketplace') }}</span>
@@ -224,7 +233,7 @@
     <section class="wallet-panel" id="wallet-panel-tokens" role="tabpanel" hidden>
         <div class="wallet-block">
             <div class="wallet-block__head">
-                <h2 class="wallet-block__title">{{ __('My Tokens') }}</h2>
+                <h2 class="wallet-block__title">{{ __('My coins') }}</h2>
                 <a href="{{ route('cryptocurrency.marketplace') }}" class="wallet-block__link">{{ __('See all') }}</a>
             </div>
 
@@ -235,7 +244,9 @@
                     $isUp = $change >= 0;
                     // A 0.00% "change" is no movement, not a gain — don't paint it green.
                     $deltaClass = abs($change) < 0.005 ? 'flat' : ($isUp ? 'up' : 'down');
-                    $holdingValue = (float) $wallet->balance * (float) $crypto->current_price;
+                    // Dollars only: the holding's value and how much that moved today.
+                    $holdingValue = \App\Support\TokenMoney::toUsd((float) $wallet->balance, (float) $crypto->current_price);
+                    $move = \App\Support\TokenMoney::changeUsd($holdingValue, $change);
                     $path = $sparkPath($crypto);
                 @endphp
                 <a href="{{ route('cryptocurrency.show', $crypto->id) }}" class="token-item">
@@ -244,14 +255,17 @@
                             @if($crypto->logo)
                                 <img src="{{ asset('storage/' . $crypto->logo) }}" alt="{{ $crypto->name }}" class="token-item__logo">
                             @else
-                                <span class="token-item__symbol-circle">{{ strtoupper(substr($crypto->symbol ?? $crypto->name, 0, 1)) }}</span>
+                                <span class="token-item__symbol-circle">{{ strtoupper(substr($crypto->name, 0, 1)) }}</span>
                             @endif
                             <div class="token-item__meta">
                                 <span class="token-item__name">{{ $crypto->name }}</span>
                                 <span class="token-item__price">
-                                    ${{ number_format($crypto->current_price, $crypto->current_price < 1 ? 4 : 2) }}
                                     <span class="token-item__delta token-item__delta--{{ $deltaClass }}">
-                                        {{ $deltaClass === 'up' ? '+' : '' }}{{ number_format($change, 2) }}%
+                                        @if($deltaClass === 'flat')
+                                            {{ __('No change today') }}
+                                        @else
+                                            {{ $deltaClass === 'up' ? __('Up') : __('Down') }} {{ \App\Support\TokenMoney::format(abs($move)) }} {{ __('today') }}
+                                        @endif
                                     </span>
                                 </span>
                             </div>
@@ -268,14 +282,14 @@
                         @endif
                     </div>
                     <div class="token-item__foot">
-                        <span class="token-item__amount">{{ rtrim(rtrim(number_format($wallet->balance, 4), '0'), '.') }} {{ $crypto->symbol }}</span>
-                        <span class="token-item__value">${{ number_format($holdingValue, 2) }}</span>
+                        <span class="token-item__amount">{{ __('Worth now') }}</span>
+                        <span class="token-item__value">{{ \App\Support\TokenMoney::format($holdingValue) }}</span>
                     </div>
                 </a>
             @empty
                 <div class="wallet-empty">
-                    <h4>{{ __("You don't own any tokens yet") }}</h4>
-                    <p>{{ __('Start by buying tokens from creators you support') }}</p>
+                    <h4>{{ __("You don't own any coins yet") }}</h4>
+                    <p>{{ __('Back a creator you love — start with as little as $1') }}</p>
                     <a href="{{ route('cryptocurrency.marketplace') }}" class="wallet-btn wallet-btn--primary wallet-btn--inline">{{ __('Browse Marketplace') }}</a>
                 </div>
             @endforelse
@@ -326,17 +340,17 @@
                             @if($coin->logo)
                                 <img src="{{ asset('storage/' . $coin->logo) }}" alt="{{ $coin->name }}" class="token-item__logo">
                             @else
-                                <span class="token-item__symbol-circle">{{ strtoupper(substr($coin->symbol ?? $coin->name, 0, 1)) }}</span>
+                                <span class="token-item__symbol-circle">{{ strtoupper(substr($coin->name, 0, 1)) }}</span>
                             @endif
                             <div class="token-item__meta">
                                 <span class="token-item__name">{{ $coin->name }}</span>
-                                <span class="token-item__price">{{ $coin->symbol }}</span>
+                                <span class="token-item__price">{{ __('Unlocks perks') }}</span>
                             </div>
                         </div>
                     </div>
                     <div class="token-item__foot">
-                        <span class="token-item__amount">{{ rtrim(rtrim(number_format($balance->balance, 4), '0'), '.') }} {{ __('points') }}</span>
-                        <span class="token-item__value">${{ number_format((float) $balance->balance * (float) $coin->price_per_point, 2) }}</span>
+                        <span class="token-item__amount">{{ __('In perks') }}</span>
+                        <span class="token-item__value">{{ \App\Support\TokenMoney::format((float) $balance->balance * (float) $coin->price_per_point) }}</span>
                     </div>
                 </a>
             @empty

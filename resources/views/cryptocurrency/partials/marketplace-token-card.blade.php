@@ -11,6 +11,8 @@
     $priceDecimals = $crypto->current_price < 1 ? 4 : 2;
     $tokenVolume = (float) (($volume24h ?? collect())[$crypto->id] ?? 0);
     $tokenHolders = (int) (($holders ?? collect())[$crypto->id] ?? 0);
+    // What the viewer owns of this coin, in dollars (no unit counts or per-coin price).
+    $ownedUsd = \App\Support\TokenMoney::toUsd((float) (($myUnits ?? collect())[$crypto->id] ?? 0), (float) $crypto->current_price);
 
     // Sparkline from REAL recorded history. Null when there isn't enough to plot — we draw a
     // flat baseline rather than inventing movement.
@@ -37,11 +39,13 @@
                 @if($crypto->logo)
                     <img src="{{ asset('storage/' . $crypto->logo) }}" alt="{{ $crypto->name }}" class="mp-token__logo">
                 @else
-                    <span class="mp-token__logo mp-token__logo--fallback">{{ strtoupper(substr($crypto->symbol ?? $crypto->name, 0, 2)) }}</span>
+                    <span class="mp-token__logo mp-token__logo--fallback">{{ strtoupper(substr($crypto->name, 0, 1)) }}</span>
                 @endif
                 <div class="mp-token__meta">
                     <span class="mp-token__name">{{ $crypto->name }}</span>
-                    <span class="mp-token__symbol">{{ $crypto->symbol }}</span>
+                    @if($crypto->creator)
+                        <span class="mp-token__symbol">{{ __('by') }} {{ $crypto->creator->name }}</span>
+                    @endif
                 </div>
             </div>
             @if($hasHistory)
@@ -54,7 +58,13 @@
             @endif
         </div>
 
-        <div class="mp-token__price">${{ number_format($crypto->current_price, $priceDecimals) }}</div>
+        <div class="mp-token__price">
+            @if($ownedUsd > 0)
+                {{ __('You own') }} {{ \App\Support\TokenMoney::format($ownedUsd) }}
+            @else
+                {{ __('Buy from $1') }}
+            @endif
+        </div>
 
         <div class="mp-token__spark">
             <svg viewBox="0 0 120 44" preserveAspectRatio="none" aria-hidden="true">
@@ -70,15 +80,15 @@
 
         <div class="mp-token__stats">
             <div class="mp-token__stat">
-                <span class="mp-token__stat-label">{{ __('Holders') }}</span>
+                <span class="mp-token__stat-label">{{ __('Owners') }}</span>
                 <span class="mp-token__stat-value">{{ number_format($tokenHolders) }}</span>
             </div>
             <div class="mp-token__stat">
-                <span class="mp-token__stat-label">{{ __('24h Vol') }}</span>
+                <span class="mp-token__stat-label">{{ __('Traded today') }}</span>
                 <span class="mp-token__stat-value">${{ number_format($tokenVolume, 2) }}</span>
             </div>
             <div class="mp-token__stat">
-                <span class="mp-token__stat-label">{{ __('Market Cap') }}</span>
+                <span class="mp-token__stat-label">{{ __('Total value') }}</span>
                 <span class="mp-token__stat-value">
                     {{-- Market cap is circulating_supply x price; show a dash rather than "$0"
                          when nothing is circulating, which reads as broken. --}}
@@ -91,12 +101,7 @@
             </div>
         </div>
 
-        @if($crypto->creator)
-            <div class="mp-token__creator">
-                <img src="{{ $crypto->creator->avatar ?? asset('img/default-avatar.png') }}" alt="" class="mp-token__creator-avatar" loading="lazy">
-                <span>{{ __('by') }} {{ $crypto->creator->name }}</span>
-            </div>
-        @endif
+
     </a>
 
     <div class="mp-token__actions">

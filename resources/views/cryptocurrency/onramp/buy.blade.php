@@ -352,7 +352,7 @@
 <div class="onramp-container">
     <div class="onramp-card">
         <div class="onramp-header">
-            <h1><i class="fas fa-coins"></i> {{ __('Buy Tokens') }}</h1>
+            <h1><i class="fas fa-coins"></i> {{ __('Add coins') }}</h1>
             <p>{{ __('Purchase tokens with cryptocurrency - Direct to wallet') }}</p>
         </div>
         
@@ -367,15 +367,14 @@
                 <!-- Token Info -->
                 <div class="token-info">
                     <div class="token-logo">
-                        {{ strtoupper(substr($platformToken->symbol, 0, 2)) }}
+                        {{ strtoupper(substr($platformToken->name, 0, 1)) }}
                     </div>
                     <div class="token-details">
                         <h3>{{ $platformToken->name }}</h3>
-                        <p>{{ $platformToken->symbol }}</p>
+                        <p>{{ __('Priced in dollars') }}</p>
                     </div>
                     <div class="token-price">
-                        <div class="price">${{ number_format($platformToken->current_price, 4) }}</div>
-                        <div class="label">{{ __('per token') }}</div>
+                        <div class="price">{{ __('From $5') }}</div>
                     </div>
                 </div>
                 
@@ -425,7 +424,7 @@
                         </div>
                         <div class="quote-row total">
                             <span>{{ __('You will receive') }}</span>
-                            <span class="value" id="quote-tokens">0 {{ $platformToken->symbol }}</span>
+                            <span class="value" id="quote-tokens">$0.00</span>
                         </div>
                     </div>
                     
@@ -548,7 +547,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const amountInput = document.getElementById('amount-input');
     const quickAmountBtns = document.querySelectorAll('.quick-amount-btn');
     const paymentMethods = document.querySelectorAll('.payment-method');
-    const tokenPrice = {{ $platformToken->current_price ?? 0.01 }};
     
     // Update quote when amount changes
     function updateQuote() {
@@ -556,11 +554,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const selectedCrypto = document.querySelector('input[name="payment_crypto"]:checked')?.value || 'bitcoin';
         const platformFee = amount * 0.01;
         const netAmount = amount - platformFee;
-        const tokens = netAmount / tokenPrice;
         
         document.getElementById('quote-amount').textContent = '$' + amount.toFixed(2);
         document.getElementById('quote-platform-fee').textContent = '-$' + platformFee.toFixed(2);
-        document.getElementById('quote-tokens').textContent = tokens.toFixed(4) + ' {{ $platformToken->symbol ?? "TOKEN" }}';
+        // Dollars only: the coin units are worked out on the server.
+        document.getElementById('quote-tokens').textContent = '$' + netAmount.toFixed(2) + ' {{ __('of') }} {{ $platformToken->name ?? '' }}';
         
         // Fetch crypto quote
         if (amount > 0) {

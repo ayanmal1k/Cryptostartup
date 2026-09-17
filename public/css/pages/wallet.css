@@ -1377,3 +1377,61 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
 }
+
+/* Outside crypto wallet tools (addresses, raw sends) stay folded away: the everyday
+   wallet is dollars only. */
+.wallet-advanced {
+    border: 1px solid var(--w-border);
+    border-radius: var(--w-radius-lg);
+}
+
+.wallet-advanced[open] {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 16px;
+}
+
+.wallet-advanced > :not(summary) {
+    margin-left: 16px;
+    margin-right: 16px;
+}
+
+.wallet-advanced__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--w-text-2);
+    cursor: pointer;
+    list-style: none;
+}
+
+.wallet-advanced__summary::-webkit-details-marker {
+    display: none;
+}
+
+.wallet-advanced__summary::after {
+    content: "+";
+    font-size: 18px;
+    color: var(--w-text-muted);
+}
+
+.wallet-advanced[open] .wallet-advanced__summary::after {
+    content: "\2212";
+}
+
+.wallet-advanced__tag {
+    margin-left: auto;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--w-surface-2);
+    color: var(--w-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}

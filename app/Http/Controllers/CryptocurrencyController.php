@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Cryptocurrency;
 use App\Models\CryptoWallet;
 use App\Models\CryptoTransaction;
+use App\Support\TokenMoney;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
@@ -688,8 +689,13 @@ public function show($id)
             'marketCap' => (float) $active->sum('market_cap'),
         ];
 
+        // What the viewer already owns of each coin, so cards can say "You own $X" in dollars.
+        $myUnits = CryptoWallet::where('user_id', Auth::id())
+            ->where('balance', '>', 0)
+            ->pluck('balance', 'cryptocurrency_id');
+
         return view('cryptocurrency.marketplace', compact(
-            'trending', 'cryptocurrencies', 'gainers', 'stats', 'volume24h', 'holders', 'search', 'sort'
+            'trending', 'cryptocurrencies', 'gainers', 'stats', 'volume24h', 'holders', 'search', 'sort', 'myUnits'
         ));
     }
 
@@ -822,7 +828,7 @@ public function show($id)
             
         if (!$wallet || $wallet->balance <= 0) {
             return redirect()->route('cryptocurrency.wallet')
-                ->with('error', 'You do not have any ' . $cryptocurrency->symbol . ' tokens to sell.');
+                ->with('error', 'You do not have any ' . $cryptocurrency->name . ' to sell.');
         }
         
         return view('cryptocurrency.sell', compact('cryptocurrency', 'wallet'));
@@ -891,8 +897,13 @@ public function show($id)
      */
     public function buy(Request $request, $id)
     {
+        // People buy in dollars; the unit amount is worked out here (see App\Support\TokenMoney).
         $validator = Validator::make($request->all(), [
-            'amount' => 'required|numeric|min:0.00000001',
+            'amount_usd' => 'required|numeric|min:1|max:10000',
+        ], [
+            'amount_usd.required' => 'Enter how many dollars you want to buy.',
+            'amount_usd.min' => 'The smallest amount is $1.',
+            'amount_usd.max' => 'The most you can buy at once is $10,000.',
         ]);
 
         if ($validator->fails()) {
@@ -902,12 +913,22 @@ public function show($id)
         }
 
         $cryptocurrency = Cryptocurrency::findOrFail($id);
-        $amount = (float) $request->input('amount');
-        
+        $usd = round((float) $request->input('amount_usd'), 2);
+
+        try {
+            $amount = TokenMoney::toUnits($usd, (float) $cryptocurrency->current_price);
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->back()->with('error', $e->getMessage())->withInput();
+        }
+
+        if ($amount <= 0) {
+            return redirect()->back()->with('error', 'That amount is too small to buy.')->withInput();
+        }
+
         // Check if there's enough supply
         if ($amount > $cryptocurrency->available_supply) {
             return redirect()->back()
-                ->with('error', 'Not enough tokens available for purchase.')
+                ->with('error', 'There is only ' . TokenMoney::format(TokenMoney::toUsd((float) $cryptocurrency->available_supply, (float) $cryptocurrency->current_price)) . ' of ' . $cryptocurrency->name . ' available right now.')
                 ->withInput();
         }
 
@@ -961,7 +982,7 @@ public function show($id)
             ]);
 
             return redirect()->route('cryptocurrency.show', $cryptocurrency->id)
-                ->with('success', 'Successfully purchased ' . number_format($amount, 8) . ' ' . $cryptocurrency->symbol . ' tokens for $' . number_format($totalCost, 2) . '.');
+                ->with('success', 'You bought ' . TokenMoney::format($totalCost) . ' of ' . $cryptocurrency->name . '.');
 
         } catch (\Exception $e) {
             \DB::rollBack();
@@ -980,8 +1001,13 @@ public function show($id)
  */
 public function processSell(Request $request, $id)
 {
+    // People sell in dollars (or "sell all"); the unit amount is worked out here.
     $validator = Validator::make($request->all(), [
-        'amount' => 'required|numeric|min:0.00000001',
+        'amount_usd' => 'required_unless:sell_all,1|nullable|numeric|min:0.01',
+        'sell_all' => 'nullable|in:0,1',
+    ], [
+        'amount_usd.required_unless' => 'Enter how many dollars you want to sell.',
+        'amount_usd.min' => 'Enter an amount above $0.',
     ]);
 
     if ($validator->fails()) {
@@ -991,17 +1017,39 @@ public function processSell(Request $request, $id)
     }
 
     $cryptocurrency = Cryptocurrency::findOrFail($id);
-    $amount = (float) $request->input('amount');
-    
+    $price = (float) $cryptocurrency->current_price;
+
     // Get user's wallet
     $wallet = CryptoWallet::where('user_id', Auth::id())
         ->where('cryptocurrency_id', $id)
         ->first();
-        
-    if (!$wallet || $wallet->balance < $amount) {
+
+    if (!$wallet || (float) $wallet->balance <= 0) {
         return redirect()->back()
-            ->with('error', 'You do not have enough tokens to sell.')
+            ->with('error', 'You do not have any ' . $cryptocurrency->name . ' to sell.')
             ->withInput();
+    }
+
+    $holdingUsd = TokenMoney::toUsd((float) $wallet->balance, $price);
+    if ($request->input('sell_all') === '1') {
+        // Exactly what they hold, so no tiny leftover is stranded by rounding.
+        $amount = (float) $wallet->balance;
+    } else {
+        $usd = round((float) $request->input('amount_usd'), 2);
+        if ($usd > $holdingUsd) {
+            return redirect()->back()
+                ->with('error', 'You only have ' . TokenMoney::format($holdingUsd) . ' of ' . $cryptocurrency->name . '.')
+                ->withInput();
+        }
+        try {
+            $amount = min((float) $wallet->balance, TokenMoney::toUnits($usd, $price));
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->back()->with('error', $e->getMessage())->withInput();
+        }
+    }
+
+    if ($amount <= 0) {
+        return redirect()->back()->with('error', 'That amount is too small to sell.')->withInput();
     }
 
     try {
@@ -1025,7 +1073,7 @@ public function processSell(Request $request, $id)
         
         // Update cryptocurrency available supply
         $cryptocurrency->available_supply += $amount;
-        $cryptocurrency->circulating_supply -= $amount;
+        $cryptocurrency->circulating_supply = max(0, (float) $cryptocurrency->circulating_supply - $amount);
         $cryptocurrency->volume_24h += $grossAmount;
         $cryptocurrency->save();
         
@@ -1064,7 +1112,7 @@ public function processSell(Request $request, $id)
         ]);
         
         return redirect()->route('cryptocurrency.show', $cryptocurrency->id)
-            ->with('success', 'Successfully sold ' . number_format($amount, 8) . ' ' . $cryptocurrency->symbol . ' tokens for $' . number_format($netProceeds, 2) . ' (after fees).');
+            ->with('success', 'You sold ' . TokenMoney::format($grossAmount) . ' of ' . $cryptocurrency->name . '.');
             
     } catch (\Exception $e) {
         \DB::rollBack();

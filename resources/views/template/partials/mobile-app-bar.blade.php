@@ -82,15 +82,15 @@
     } elseif ($appBarListShowPage) {
         $appBarPageTitle = $appBarListShowTitle ?? __('Lists');
     } elseif ($appBarCryptoShowPage) {
-        $appBarPageTitle = __('Token Details');
+        $appBarPageTitle = __('Coin');
     } elseif ($appBarCryptoMarketPage) {
-        $appBarPageTitle = __('Token Marketplace');
+        $appBarPageTitle = __('Coins');
     } elseif ($appBarCryptoTxnPage) {
-        $appBarPageTitle = __('Transaction History');
+        $appBarPageTitle = __('Coin activity');
     } elseif ($appBarCryptoWalletPage) {
         $appBarPageTitle = __('My Wallet');
     } elseif ($appBarCryptoPage) {
-        $appBarPageTitle = __('Cryptocurrency');
+        $appBarPageTitle = __('Coins');
     } elseif ($appBarPublicPage) {
         $appBarPageTitle = $appBarPublicPageTitle;
     } elseif ($appBarCreatorPage) {

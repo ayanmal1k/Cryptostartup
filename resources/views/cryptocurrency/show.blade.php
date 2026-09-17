@@ -13,15 +13,24 @@
         ? $cryptocurrency->transactions
         : $cryptocurrency->transactions()->latest()->take(10)->get();
     $todayTxns = $marketData['today_transactions'] ?? 0;
+    // Dollars only: what the viewer holds, and how much that moved today, in dollars.
+    $holdingUsd = $hasWallet ? \App\Support\TokenMoney::toUsd((float) $wallet->balance, (float) $cryptocurrency->current_price) : 0;
+    $holdingMove = \App\Support\TokenMoney::changeUsd($holdingUsd, $change);
 @endphp
 
 @section('styles')
-    <link rel="stylesheet" href="{{ asset('css/pages/token-show.css') }}?v=20260713b">
+    <link rel="stylesheet" href="{{ asset('css/pages/token-show.css') }}?v=20260917a">
 @endsection
 
 @section('content')
 <div class="ts-page {{ $isDarkTheme ? 'ts-page--dark' : 'ts-page--light' }}">
 <div class="ts-container">
+
+    @foreach(['success', 'error'] as $flash)
+        @if(session($flash))
+            <div class="ts-flash ts-flash--{{ $flash }}" role="status">{{ session($flash) }}</div>
+        @endif
+    @endforeach
 
     {{-- Hero --}}
     <section class="ts-hero">
@@ -29,12 +38,12 @@
             @if($cryptocurrency->logo)
                 <img src="{{ asset('storage/' . $cryptocurrency->logo) }}" alt="{{ $cryptocurrency->name }}" class="ts-hero__logo">
             @else
-                <span class="ts-hero__logo ts-hero__logo--fallback">{{ strtoupper(substr($cryptocurrency->symbol, 0, 2)) }}</span>
+                <span class="ts-hero__logo ts-hero__logo--fallback">{{ strtoupper(substr($cryptocurrency->name, 0, 1)) }}</span>
             @endif
             <div class="ts-hero__meta">
                 <div class="ts-hero__name-row">
                     <h1 class="ts-hero__name">{{ $cryptocurrency->name }}</h1>
-                    <span class="ts-hero__symbol">{{ $cryptocurrency->symbol }}</span>
+
                     @if($cryptocurrency->is_verified)
                         <span class="ts-hero__verified" title="{{ __('Verified') }}" aria-label="{{ __('Verified') }}">
                             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/></svg>
@@ -42,11 +51,17 @@
                     @endif
                 </div>
                 <div class="ts-hero__price-row">
-                    <span class="ts-hero__price">${{ number_format($cryptocurrency->current_price, $priceDecimals) }}</span>
-                    <span class="ts-hero__change ts-hero__change--{{ $isUp ? 'up' : 'down' }}">
-                        {{ $isUp ? '+' : '' }}{{ number_format($change, 2) }}%
-                        <span class="ts-hero__change-label">24h</span>
-                    </span>
+                    @if($hasWallet)
+                        <span class="ts-hero__price">{{ \App\Support\TokenMoney::format($holdingUsd) }}</span>
+                    @endif
+                    @if(abs($change) < 0.005)
+                        <span class="ts-hero__change ts-hero__change--flat">{{ __('No change today') }}</span>
+                    @else
+                        <span class="ts-hero__change ts-hero__change--{{ $isUp ? 'up' : 'down' }}">
+                            {{ $isUp ? '+' : '' }}{{ number_format($change, 2) }}%
+                            <span class="ts-hero__change-label">{{ __('today') }}</span>
+                        </span>
+                    @endif
                 </div>
             </div>
         </div>
@@ -69,22 +84,16 @@
     @if($hasWallet)
     <section class="ts-section">
         <div class="ts-section__head">
-            <h2 class="ts-section__title">{{ __('Your Portfolio') }}</h2>
+            <h2 class="ts-section__title">{{ __('What you own') }}</h2>
         </div>
         <div class="ts-stats ts-stats--3">
             <div class="ts-stat">
-                <span class="ts-stat__label">{{ $cryptocurrency->symbol }} {{ __('Balance') }}</span>
-                <span class="ts-stat__value">{{ rtrim(rtrim(number_format($wallet->balance, 8), '0'), '.') }}</span>
+                <span class="ts-stat__label">{{ __('Worth now') }}</span>
+                <span class="ts-stat__value">{{ \App\Support\TokenMoney::format($holdingUsd) }}</span>
             </div>
             <div class="ts-stat">
-                <span class="ts-stat__label">{{ __('USD Value') }}</span>
-                <span class="ts-stat__value">${{ number_format($wallet->balance * $cryptocurrency->current_price, 2) }}</span>
-            </div>
-            <div class="ts-stat">
-                <span class="ts-stat__label">{{ __('Of Total Supply') }}</span>
-                <span class="ts-stat__value">
-                    {{ $cryptocurrency->total_supply > 0 ? number_format(($wallet->balance / $cryptocurrency->total_supply) * 100, 2) : '0.00' }}%
-                </span>
+                <span class="ts-stat__label">{{ __('Change today') }}</span>
+                <span class="ts-stat__value">{{ $holdingMove >= 0 ? '+' : '' }}{{ \App\Support\TokenMoney::format($holdingMove) }}</span>
             </div>
         </div>
     </section>
@@ -93,35 +102,30 @@
     {{-- Market stats --}}
     <section class="ts-section">
         <div class="ts-section__head">
-            <h2 class="ts-section__title">{{ __('Market Statistics') }}</h2>
+            <h2 class="ts-section__title">{{ __('Activity') }}</h2>
         </div>
         <div class="ts-stats">
             <div class="ts-stat">
-                <span class="ts-stat__label">{{ __('Market Cap') }}</span>
-                <span class="ts-stat__value">${{ number_format($cryptocurrency->market_cap ?? 0, 2) }}</span>
+                <span class="ts-stat__label">{{ __('Total value') }}</span>
+                <span class="ts-stat__value">
+                    @if((float) $cryptocurrency->market_cap > 0)
+                        {{ \App\Support\TokenMoney::format((float) $cryptocurrency->market_cap) }}
+                    @else
+                        &mdash;
+                    @endif
+                </span>
             </div>
             <div class="ts-stat">
-                <span class="ts-stat__label">{{ __('24h Volume') }}</span>
+                <span class="ts-stat__label">{{ __('Traded today') }}</span>
                 <span class="ts-stat__value">${{ number_format($cryptocurrency->volume_24h ?? 0, 2) }}</span>
             </div>
             <div class="ts-stat">
-                <span class="ts-stat__label">{{ __('24h Transactions') }}</span>
+                <span class="ts-stat__label">{{ __('Trades today') }}</span>
                 <span class="ts-stat__value">{{ number_format($todayTxns) }}</span>
             </div>
             <div class="ts-stat">
-                <span class="ts-stat__label">{{ __('Total Supply') }}</span>
-                <span class="ts-stat__value">{{ number_format($cryptocurrency->total_supply ?? 0, 0) }}</span>
-                <span class="ts-stat__sub">{{ $cryptocurrency->symbol }}</span>
-            </div>
-            <div class="ts-stat">
-                <span class="ts-stat__label">{{ __('Available') }}</span>
-                <span class="ts-stat__value">{{ number_format($cryptocurrency->available_supply ?? 0, 0) }}</span>
-                <span class="ts-stat__sub">{{ $cryptocurrency->symbol }}</span>
-            </div>
-            <div class="ts-stat">
-                <span class="ts-stat__label">{{ __('Circulating') }}</span>
-                <span class="ts-stat__value">{{ number_format($cryptocurrency->circulating_supply ?? 0, 0) }}</span>
-                <span class="ts-stat__sub">{{ $cryptocurrency->symbol }}</span>
+                <span class="ts-stat__label">{{ __('Available to buy') }}</span>
+                <span class="ts-stat__value">{{ \App\Support\TokenMoney::format(\App\Support\TokenMoney::toUsd((float) ($cryptocurrency->available_supply ?? 0), (float) $cryptocurrency->current_price)) }}</span>
             </div>
         </div>
     </section>
@@ -129,42 +133,22 @@
     {{-- Details + Fees --}}
     <div class="ts-split">
         <section class="ts-card">
-            <h2 class="ts-card__title">{{ __('Token Details') }}</h2>
+            <h2 class="ts-card__title">{{ __('About this coin') }}</h2>
             <dl class="ts-dl">
                 <div class="ts-dl__row">
-                    <dt>{{ __('Network') }}</dt>
-                    <dd>{{ ucfirst($cryptocurrency->blockchain_network ?? '—') }}</dd>
-                </div>
-                <div class="ts-dl__row">
-                    <dt>{{ __('Type') }}</dt>
-                    <dd>{{ ucfirst($cryptocurrency->token_type ?? '—') }}</dd>
-                </div>
-                <div class="ts-dl__row">
-                    <dt>{{ __('Initial Price') }}</dt>
-                    <dd>${{ number_format($cryptocurrency->initial_price ?? 0, 8) }}</dd>
+                    <dt>{{ __('Creator') }}</dt>
+                    <dd>{{ $cryptocurrency->creator->name ?? __('Unknown') }}</dd>
                 </div>
                 <div class="ts-dl__row">
                     <dt>{{ __('Created') }}</dt>
                     <dd>{{ $cryptocurrency->created_at->format('M d, Y') }}</dd>
                 </div>
             </dl>
-            @if($cryptocurrency->transferable || $cryptocurrency->enable_burning || $cryptocurrency->enable_minting)
-                <div class="ts-features">
-                    @if($cryptocurrency->transferable)
-                        <span class="ts-chip">{{ __('Transferable') }}</span>
-                    @endif
-                    @if($cryptocurrency->enable_burning)
-                        <span class="ts-chip">{{ __('Burnable') }}</span>
-                    @endif
-                    @if($cryptocurrency->enable_minting)
-                        <span class="ts-chip">{{ __('Mintable') }}</span>
-                    @endif
-                </div>
-            @endif
+
         </section>
 
         <section class="ts-card">
-            <h2 class="ts-card__title">{{ __('Fee Structure') }}</h2>
+            <h2 class="ts-card__title">{{ __('Fees when you sell') }}</h2>
             <dl class="ts-dl">
                 <div class="ts-dl__row">
                     <dt>{{ __('Creator Fee') }}</dt>
@@ -174,22 +158,7 @@
                     <dt>{{ __('Platform Fee') }}</dt>
                     <dd>{{ number_format($cryptocurrency->platform_fee_percentage ?? 0, 2) }}%</dd>
                 </div>
-                <div class="ts-dl__row">
-                    <dt>{{ __('Liquidity Pool') }}</dt>
-                    <dd>{{ number_format($cryptocurrency->liquidity_pool_percentage ?? 0, 2) }}%</dd>
-                </div>
-                <div class="ts-dl__row">
-                    <dt>{{ __('Creator') }}</dt>
-                    <dd>{{ $cryptocurrency->creator->name ?? __('Unknown') }}</dd>
-                </div>
-                @if($cryptocurrency->contract_address)
-                <div class="ts-dl__row">
-                    <dt>{{ __('Contract') }}</dt>
-                    <dd class="ts-mono" title="{{ $cryptocurrency->contract_address }}">
-                        {{ substr($cryptocurrency->contract_address, 0, 8) }}…{{ substr($cryptocurrency->contract_address, -6) }}
-                    </dd>
-                </div>
-                @endif
+
             </dl>
         </section>
     </div>
@@ -207,7 +176,7 @@
                     <a href="{{ $cryptocurrency->website }}" target="_blank" rel="noopener noreferrer" class="ts-btn ts-btn--ghost ts-btn--sm">{{ __('Visit Website') }}</a>
                 @endif
                 @if($cryptocurrency->whitepaper)
-                    <a href="{{ $cryptocurrency->whitepaper }}" target="_blank" rel="noopener noreferrer" class="ts-btn ts-btn--ghost ts-btn--sm">{{ __('Read Whitepaper') }}</a>
+                    <a href="{{ $cryptocurrency->whitepaper }}" target="_blank" rel="noopener noreferrer" class="ts-btn ts-btn--ghost ts-btn--sm">{{ __('Learn more') }}</a>
                 @endif
             </div>
         @endif
@@ -235,14 +204,10 @@
                     </span>
                     <div class="ts-txn__main">
                         <div class="ts-txn__top">
-                            <span class="ts-txn__title">{{ ucfirst($txnType) }}</span>
+                            <span class="ts-txn__title">{{ ['buy' => __('Bought'), 'sell' => __('Sold'), 'transfer' => __('Sent')][$txnType] ?? ucfirst($txnType) }}</span>
                             <span class="ts-txn__total">${{ number_format($transaction->total_price ?? 0, 2) }}</span>
                         </div>
                         <div class="ts-txn__meta">
-                            <span>{{ rtrim(rtrim(number_format($transaction->amount ?? 0, 8), '0'), '.') }} {{ $cryptocurrency->symbol }}</span>
-                            <span class="ts-txn__dot" aria-hidden="true"></span>
-                            <span>${{ number_format($transaction->price_per_token ?? 0, 6) }}</span>
-                            <span class="ts-txn__dot" aria-hidden="true"></span>
                             <span>{{ $transaction->created_at->diffForHumans() }}</span>
                         </div>
                     </div>
@@ -250,7 +215,7 @@
             @empty
                 <div class="ts-empty">
                     <h4>{{ __('No transactions yet') }}</h4>
-                    <p>{{ __('Be the first to trade this token') }}</p>
+                    <p>{{ __('Be the first to buy :name', ['name' => $cryptocurrency->name]) }}</p>
                     <a href="{{ route('cryptocurrency.buy.form', $cryptocurrency->id) }}" class="ts-btn ts-btn--primary ts-btn--sm">{{ __('Buy Now') }}</a>
                 </div>
             @endforelse

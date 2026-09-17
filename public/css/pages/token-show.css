@@ -580,3 +580,27 @@
         transition: none;
     }
 }
+
+.ts-hero__change--flat {
+    color: var(--ts-text-muted);
+}
+
+/* Result of a buy or sell, in plain dollars */
+.ts-flash {
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    border-radius: var(--ts-radius-md);
+    border: 1px solid var(--ts-border);
+    background: var(--ts-surface);
+    color: var(--ts-text);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.ts-flash--success {
+    border-color: var(--ts-success);
+}
+
+.ts-flash--error {
+    border-color: var(--ts-danger);
+}
