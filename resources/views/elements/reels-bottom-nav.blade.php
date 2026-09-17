@@ -62,58 +62,64 @@
 </nav>
 
 <style>
+    /* The floating glass bar — the design the client preferred, brought back from before
+       the nav was flattened into a full-width strip. It hovers over the bottom of the
+       screen with rounded corners and a soft glow, and the active tab is a lit pill.
+
+       The seek bar and the feed height both read the space this bar takes from the
+       viewport bottom (its height plus the gap under it), measured in
+       elements/reels-scrubber, so floating it cannot put anything behind it. */
     .bottom-nav {
         position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        max-width: none;
-        margin: 0;
-        border-radius: 0;
-
-        display: flex;
-        align-items: stretch;
-        gap: 0;
-        /* The safe-area inset moves from the bottom offset into the padding. The bar
-           is flush now, so without this the buttons sit under the home indicator on a
-           gesture-bar phone -- that inset is clearance, not margin. */
-        padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+        left: 10px;
+        right: 10px;
+        bottom: calc(8px + env(safe-area-inset-bottom));
+        margin: 0 auto;
+        max-width: 560px;
         z-index: 1001;
         pointer-events: auto;
 
-        background: rgba(16, 16, 24, .82);
-        backdrop-filter: blur(20px) saturate(160%);
-        -webkit-backdrop-filter: blur(20px) saturate(160%);
-        /* A hairline instead of a full outline: the bar meets the video along one
-           edge now, so that is the only edge that needs defining. */
-        border: 0;
-        border-top: 1px solid rgba(255, 255, 255, .08);
-        box-shadow: 0 -6px 24px rgba(0, 0, 0, .38);
+        display: flex;
+        align-items: stretch;
+        justify-content: space-around;
+        gap: 4px;
+        padding: 6px;
+        border-radius: 20px;
+
+        background:
+            radial-gradient(circle at 15% 0%, rgba(236, 72, 153, .20) 0%, transparent 38%),
+            radial-gradient(circle at 85% 100%, rgba(56, 189, 248, .14) 0%, transparent 42%),
+            linear-gradient(180deg, rgba(14, 15, 26, .92) 0%, rgba(7, 8, 15, .94) 100%);
+        backdrop-filter: blur(22px) saturate(150%);
+        -webkit-backdrop-filter: blur(22px) saturate(150%);
+        border: 1px solid rgba(255, 255, 255, .10);
+        box-shadow: 0 14px 40px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .12);
     }
 
     .bottom-nav-item {
         position: relative;
         flex: 1 1 0;
         min-width: 0;
+        max-width: 120px;
         /* 48px clears the 44px minimum touch target with room for the label. */
         min-height: 48px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 3px;
-        padding: 7px 4px;
+        gap: 4px;
+        padding: 8px 4px 7px;
+        border-radius: 14px;
+        overflow: hidden;
         text-decoration: none;
-        color: rgba(233, 236, 245, .62);
-        background: transparent;
-        transition: color .18s ease, background-color .18s ease, transform .12s ease;
+        color: rgba(226, 232, 240, .70);
+        transition: color .2s ease, background .2s ease, transform .12s ease;
         -webkit-tap-highlight-color: transparent;
     }
 
     .bottom-nav-item:hover,
     .bottom-nav-item:focus-visible {
         color: #fff;
-        background: rgba(255, 255, 255, .07);
         text-decoration: none;
     }
 
@@ -122,46 +128,43 @@
         outline-offset: -2px;
     }
 
-    /* Press feedback. A nav that does not react to touch feels unresponsive on a
-       phone, where there is no hover to fall back on. */
+    /* A nav that does not react to a thumb feels dead; there is no hover on a phone. */
     .bottom-nav-item:active { transform: scale(.94); }
 
     .bottom-nav-item.is-active {
         color: #fff;
-        /* A soft vertical wash rather than a flat block: with the corners squared
-           off, a solid tint reads as a hard rectangle stuck to the bar. */
-        background: linear-gradient(180deg, rgba(255, 77, 157, .04), rgba(255, 77, 157, .20));
+        background: linear-gradient(135deg, rgba(244, 114, 182, .26), rgba(56, 189, 248, .14));
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .26), 0 8px 22px rgba(236, 72, 153, .26);
     }
 
-    /* A short bar under the active item, rather than the old full-height gradient
-       block: it marks position without competing with the video behind it. */
     .bottom-nav-item.is-active::after {
         content: '';
         position: absolute;
+        left: 22%;
+        right: 22%;
         bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 16px;
-        height: 2.5px;
-        border-radius: 99px;
-        background: linear-gradient(90deg, #ff4d9d, #ff8a80);
+        height: 2px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(244, 114, 182, .95), rgba(56, 189, 248, .95));
     }
 
     .bottom-nav-icon {
         display: block;
-        font-size: 17px;
+        font-size: 16px;
         line-height: 1;
+        filter: drop-shadow(0 0 8px rgba(255, 255, 255, .10));
     }
 
     .bottom-nav-item.is-active .bottom-nav-icon {
-        color: #ff6bae;
-        filter: drop-shadow(0 0 10px rgba(255, 77, 157, .45));
+        color: #ff8cc6;
+        filter: drop-shadow(0 0 10px rgba(255, 77, 157, .5));
     }
 
     .bottom-nav-text {
-        font-size: 10px;
-        font-weight: 600;
-        letter-spacing: .01em;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: .05em;
+        text-transform: uppercase;
         line-height: 1;
         max-width: 100%;
         overflow: hidden;
@@ -169,36 +172,34 @@
         white-space: nowrap;
     }
 
-    /* Sign-up is the one action worth pulling the eye, so it keeps a tint even when
-       it is not the current page. */
+    /* Sign-up is the one action worth pulling a guest's eye. */
     .bottom-nav-item--cta { color: #ffd7e8; }
     .bottom-nav-item--cta .bottom-nav-icon { color: #ff6bae; }
 
     /* --- responsive -------------------------------------------------------- */
 
-    @media (max-width: 480px) {
-        .bottom-nav {
-            padding: 5px 2px calc(5px + env(safe-area-inset-bottom));
-        }
-        .bottom-nav-item { padding: 6px 2px; }
-        .bottom-nav-icon { font-size: 16px; }
-        .bottom-nav-text { font-size: 9px; }
+    @media (max-width: 360px) {
+        .bottom-nav { left: 6px; right: 6px; padding: 5px; gap: 2px; }
+        .bottom-nav-item { padding: 7px 2px 6px; }
     }
 
-    /* Very narrow phones: the labels are what break first, so drop them and keep
-       the icons at a comfortable size rather than shrinking everything. */
-    @media (max-width: 340px) {
+    /* Very narrow phones: drop the labels before anything else gets cramped. */
+    @media (max-width: 320px) {
         .bottom-nav-text { display: none; }
-        .bottom-nav-item { min-height: 44px; }
         .bottom-nav-icon { font-size: 18px; }
-        .bottom-nav-item.is-active::after { bottom: 0; }
+    }
+
+    /* Short screens (landscape phones, small browsers): a slimmer bar leaves more
+       of the video on screen. */
+    @media (max-height: 560px) {
+        .bottom-nav { bottom: calc(4px + env(safe-area-inset-bottom)); padding: 4px; }
+        .bottom-nav-item { min-height: 42px; padding: 5px 4px; gap: 3px; }
     }
 
     @media (min-width: 769px) {
-        .bottom-nav { padding: 7px 6px; }
-        .bottom-nav-item { min-height: 50px; }
+        .bottom-nav { max-width: 520px; bottom: 12px; }
         .bottom-nav-icon { font-size: 18px; }
-        .bottom-nav-text { font-size: 11px; }
+        .bottom-nav-text { font-size: 10px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -206,9 +207,8 @@
         .bottom-nav-item:active { transform: none; }
     }
 
-    /* Backdrop-filter is not universal; without it the translucent background
-       leaves the labels sitting on raw video. */
+    /* Without backdrop-filter the translucent bar would leave labels on raw video. */
     @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-        .bottom-nav { background: rgba(12, 12, 18, .96); }
+        .bottom-nav { background: rgba(10, 11, 20, .97); }
     }
 </style>

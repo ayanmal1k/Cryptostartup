@@ -21,11 +21,14 @@
            real nav on a gesture-bar phone -- which put the seek bar *behind* the menu,
            invisible and untappable, unless the JS measurement landed first. The script
            still refines this; it is no longer required for the bar to be reachable. */
-        --reels-nav-h: calc(60px + env(safe-area-inset-bottom));
-        --seek-rest: 5px;      /* visible track height at rest  */
-        --seek-active: 10px;   /* ...and while hovered/dragging */
-        --seek-knob: 14px;     /* knob at rest                  */
-        --seek-knob-active: 20px;
+        /* Floating nav: ~60px bar + the 8px it floats above the edge + safe area.
+           The script measures the real value; this only has to be close. */
+        --reels-nav-h: calc(70px + env(safe-area-inset-bottom));
+        --seek-rest: 3px;      /* a hairline at rest, so it never competes with the video */
+        --seek-active: 8px;    /* ...thick enough to aim at while dragging */
+        --seek-knob: 11px;
+        --seek-knob-active: 18px;
+        --seek-gap: 6px;       /* breathing room between the bar and the nav */
     }
 
     /* The feed is the viewport minus the nav. This is the whole fix for both the
@@ -37,6 +40,10 @@
        exactly, and the bar sits at the item's own bottom edge -- no arithmetic. */
     .reels-container .video-feed {
         height: calc(100% - var(--reels-nav-h));
+        /* The container centres its child vertically, which put the shortened feed
+           half a nav-height too low: the bottom of every reel (caption included) ran
+           behind the seek bar and the nav. Pin it to the top instead. */
+        align-self: flex-start;
     }
 
     .reels-container .video-item {
@@ -82,9 +89,9 @@
        eleven of them do not stack on the same spot. */
     .reels-container .progress-bar {
         position: fixed;
-        bottom: var(--reels-nav-h);
-        left: 5px;
-        right: 5px;
+        bottom: calc(var(--reels-nav-h) + var(--seek-gap));
+        left: 14px;
+        right: 14px;
         display: none;
         /* Above the nav's 1001 so it is never the thing that loses. */
         z-index: 1002;
@@ -120,7 +127,7 @@
             left: 50%;
             right: auto;
             transform: translateX(-50%);
-            width: min(calc(100% - 10px), calc(var(--reels-feed-h, 100vh) * 9 / 16));
+            width: min(calc(100% - 28px), calc(var(--reels-feed-h, 100vh) * 9 / 16 - 28px));
         }
     }
 
@@ -145,10 +152,8 @@
            and a black night shot: a translucent white body, a dark hairline inside it,
            and a soft drop shadow underneath. The shadow is what keeps it visible on a
            pale frame, where the translucent fill alone disappears. */
-        background: rgba(255, 255, 255, 0.26);
-        box-shadow:
-            inset 0 0 0 1px rgba(0, 0, 0, 0.22),
-            0 1px 4px rgba(0, 0, 0, 0.45);
+        background: rgba(255, 255, 255, 0.22);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
         transition: height .2s cubic-bezier(.2,.8,.2,1),
                     background-color .2s ease;
     }
@@ -171,7 +176,7 @@
         inset: 0 auto 0 0;
         width: 0%;
         border-radius: 99px;
-        background: rgba(255, 255, 255, 0.42);
+        background: rgba(255, 255, 255, 0.30);
         transition: width .25s ease;
     }
 
@@ -179,14 +184,18 @@
         position: relative;
         height: 100%;
         border-radius: 99px;
-        background: linear-gradient(90deg, #ff2d78 0%, #ff4d9d 45%, #ff9a7b 100%);
-        /* Outer glow separates it from the video; the inset highlight along the top
-           gives the fill a little dimension instead of reading as flat paint. */
-        box-shadow:
-            0 0 12px rgba(255, 45, 120, 0.55),
-            inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        /* White while watching (it reads on any footage and stays out of the way),
+           brand pink while the viewer is actually dragging it. */
+        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
         width: 0%;
-        transition: width 0.1s linear;
+        transition: width 0.1s linear, background-color .2s ease;
+    }
+
+    .reels-container .progress-bar.is-scrubbing .progress,
+    .reels-container .progress-bar:focus-visible .progress {
+        background: linear-gradient(90deg, #ff2d78 0%, #ff4d9d 60%, #ff8a80 100%);
+        box-shadow: 0 0 12px rgba(255, 45, 120, 0.55);
     }
 
     /* No transition while dragging, or the fill lags behind the finger. */
@@ -209,8 +218,8 @@
         box-shadow:
             0 0 0 1.5px rgba(0, 0, 0, .28),
             0 2px 7px rgba(0, 0, 0, .5);
-        transform: translateY(-50%) scale(.86);
-        opacity: .95;
+        transform: translateY(-50%) scale(.8);
+        opacity: .9;
         transition: transform .18s cubic-bezier(.2,1.4,.4,1), opacity .18s ease,
                     width .18s ease, height .18s ease;
         pointer-events: none;
@@ -233,7 +242,7 @@
         opacity: 1;
         box-shadow:
             0 0 0 1.5px rgba(0, 0, 0, .28),
-            0 0 0 9px rgba(255, 45, 120, .24),
+            0 0 0 8px rgba(255, 45, 120, .26),
             0 3px 14px rgba(0, 0, 0, .55);
     }
 
@@ -248,15 +257,17 @@
        differently on a fifteen second clip than on a three minute one. */
     .reels-container .progress-bar__time {
         position: absolute;
-        bottom: 22px;
+        bottom: 26px;
         transform: translateX(-50%) translateY(4px);
-        padding: 5px 10px;
-        border-radius: 8px;
-        background: rgba(10, 10, 16, .86);
-        border: 1px solid rgba(255, 255, 255, .14);
-        backdrop-filter: blur(8px);
+        padding: 7px 12px;
+        border-radius: 12px;
+        background: rgba(10, 10, 16, .88);
+        border: 1px solid rgba(255, 255, 255, .16);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 8px 22px rgba(0, 0, 0, .45);
         color: #fff;
-        font-size: 12px;
+        font-size: 15px;
         font-weight: 600;
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
@@ -280,37 +291,27 @@
     /* The nav's box changes at these widths, so the reserved height has to follow.
        Kept in step with elements/reels-bottom-nav: item min-height plus the bar's
        vertical padding, plus the safe-area inset it carries on a phone. */
-    @media (max-width: 480px) {
-        .reels-container { --reels-nav-h: calc(58px + env(safe-area-inset-bottom)); }
-    }
-
-    @media (max-width: 340px) {
-        .reels-container { --reels-nav-h: calc(54px + env(safe-area-inset-bottom)); }
-    }
-
     @media (min-width: 769px) {
-        .reels-container { --reels-nav-h: 64px; }
+        .reels-container { --reels-nav-h: 76px; }
     }
-
     @media (max-width: 768px) {
         .reels-container {
-            --seek-rest: 6px;
-            --seek-active: 11px;
-            --seek-knob: 15px;
-            --seek-knob-active: 22px;
+            --seek-rest: 4px;
+            --seek-active: 9px;
+            --seek-knob: 12px;
+            --seek-knob-active: 20px;
         }
         .reels-container .progress-bar::before { top: -28px; bottom: 0; }
-        .reels-container .progress-bar__time { font-size: 11px; padding: 4px 9px; }
     }
 
     /* Desktop: a hairline bar that grows on hover reads as more precise, and the
        cursor does not need the extra grab area. */
     @media (min-width: 1024px) {
         .reels-container {
-            --seek-rest: 4px;
-            --seek-active: 9px;
-            --seek-knob: 13px;
-            --seek-knob-active: 18px;
+            --seek-rest: 3px;
+            --seek-active: 8px;
+            --seek-knob: 11px;
+            --seek-knob-active: 16px;
         }
         .reels-container .progress-bar::before { top: -18px; bottom: 0; }
     }
@@ -327,7 +328,9 @@
 
     /* The caption gradient has to clear the raised bar, or it covers the control. */
     .reels-container .video-overlay {
-        bottom: 14px;
+        /* The bar sits --seek-gap above the nav, inside the bottom of the item, so the
+           caption starts above the bar plus its grab area. */
+        bottom: calc(var(--seek-gap) + 24px);
     }
 
     /* With the comments sheet open the nav is hidden, so the feed can use the

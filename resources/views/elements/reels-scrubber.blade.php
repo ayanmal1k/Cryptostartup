@@ -28,11 +28,14 @@
             return;
         }
 
-        // The nav's own height, including the safe-area padding it carries. Measuring
-        // the element rather than a distance from the viewport bottom means the value
-        // cannot drift with scroll position or a collapsing URL bar.
-        var h = nav.getBoundingClientRect().height;
-        if (!h) return;
+        // Everything from the top of the nav to the bottom of the viewport: the bar's
+        // own height plus the gap under it, since the nav floats above the screen edge.
+        // It is position:fixed, so its rect is relative to the viewport and does not
+        // drift with scrolling.
+        var rect = nav.getBoundingClientRect();
+        if (!rect.height) return;
+        var viewport = window.innerHeight || document.documentElement.clientHeight;
+        var h = Math.max(rect.height, viewport - rect.top);
 
         container.style.setProperty('--reels-nav-h', Math.round(h) + 'px');
         measureFeed(container);

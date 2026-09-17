@@ -16,10 +16,14 @@
     the first interaction anywhere on the page restores it.
 --}}
 <style>
+    /* Top-left, just under the header. It used to sit top-right, where on common phone
+       heights it landed exactly on the like button and hid it. The left edge has
+       nothing else until the caption. --reels-header-h is measured in elements/reels-fit. */
     .reels-sound {
         position: absolute;
-        top: 74px;
-        right: 12px;
+        top: calc(var(--reels-header-h, 60px) + 10px);
+        left: 12px;
+        right: auto;
         z-index: 17;
         width: 42px;
         height: 42px;
@@ -62,8 +66,9 @@
     /* A one-time nudge on the first reel, so the control is noticed at all. */
     .reels-sound__hint {
         position: absolute;
-        top: 88px;
-        right: 62px;
+        top: calc(var(--reels-header-h, 60px) + 20px);
+        left: 62px;
+        right: auto;
         z-index: 17;
         padding: 6px 11px;
         border-radius: 99px;
@@ -90,9 +95,9 @@
     }
 
     @media (max-width: 480px) {
-        .reels-sound { top: 66px; right: 10px; width: 38px; height: 38px; }
+        .reels-sound { left: 10px; width: 38px; height: 38px; }
         .reels-sound svg { width: 18px; height: 18px; }
-        .reels-sound__hint { top: 78px; right: 56px; font-size: 11px; padding: 5px 9px; }
+        .reels-sound__hint { top: calc(var(--reels-header-h, 60px) + 18px); left: 56px; font-size: 11px; padding: 5px 9px; }
     }
 
     @media (prefers-reduced-motion: reduce) {

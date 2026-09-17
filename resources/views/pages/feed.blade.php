@@ -2339,5 +2339,6 @@ function incrementVideoViews(videoId) {
 @include('elements.reels-scrubber')
 @include('elements.reels-hud')
 @include('elements.reels-sound')
+@include('elements.reels-fit')
 @include('elements.reels-prefetch')
 @stop
