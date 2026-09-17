@@ -80,7 +80,7 @@
          ))->withFullUrl()
 !!}
 <link rel="stylesheet" href="{{ asset('css/app.css') }}?v=20260712a">
-<link rel="stylesheet" href="{{ asset('css/mobile-sidebar.css') }}?v=20260817a">
+<link rel="stylesheet" href="{{ asset('css/mobile-sidebar.css') }}?v=20260917a">
 
 {{-- FontAwesome (icons used by crypto/creator pages on the generic layout) --}}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">

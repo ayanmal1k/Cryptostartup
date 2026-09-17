@@ -1,0 +1,657 @@
+/* ==========================================================================
+   DISCOVER SHELL
+   Shared by the browse pages people come to spend time on: the NFT marketplace
+   and Challenges. Content-first — a sticky tab bar, then media. No stat tiles,
+   no page-header block; the mobile app bar already carries the page title.
+
+   Colour follows DESIGN-REFERENCE.txt: neutral ground, magenta for the one
+   primary social action, gold only for money, green only for success.
+   ========================================================================== */
+
+.dx {
+    --dx-bg: #09090b;
+    --dx-bg-veil: rgba(9, 9, 11, 0.88);
+    --dx-surface: #141418;
+    --dx-surface-2: #1c1c22;
+    --dx-surface-3: #25252c;
+    --dx-line: rgba(255, 255, 255, 0.07);
+    --dx-line-strong: rgba(255, 255, 255, 0.14);
+    --dx-ink: #fafafa;
+    --dx-body: #c9c9d1;
+    --dx-muted: #9696a1;
+
+    --dx-brand: #cb0c9f;
+    --dx-brand-hover: #b50a8d;
+    --dx-money: #ffc53d;
+    --dx-money-hover: #ffb800;
+    --dx-money-ink: #ffc53d;   /* gold used as text */
+    --dx-money-on: #1f1500;    /* text sitting on a gold fill */
+    --dx-win: #22e0a0;
+    --dx-hot: #ff3b5c;
+
+    --dx-radius: 16px;
+    --dx-radius-lg: 20px;
+    --dx-max: 1240px;
+    --dx-top: 56px;            /* mobile app bar height; corrected from JS */
+
+    --dx-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --dx-font-display: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+    min-height: calc(100vh - 56px);
+    background: var(--dx-bg);
+    color: var(--dx-body);
+    font-family: var(--dx-font);
+    font-size: 15px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+}
+
+html[data-theme="light"] .dx {
+    --dx-bg: #f4f4f7;
+    --dx-bg-veil: rgba(244, 244, 247, 0.9);
+    --dx-surface: #ffffff;
+    --dx-surface-2: #eeeef2;
+    --dx-surface-3: #e4e4ea;
+    --dx-line: rgba(9, 9, 11, 0.08);
+    --dx-line-strong: rgba(9, 9, 11, 0.16);
+    --dx-ink: #0f0f12;
+    --dx-body: #3f3f46;
+    --dx-muted: #6b6b76;
+    --dx-money-ink: #9a6200;
+}
+
+.dx *,
+.dx *::before,
+.dx *::after {
+    box-sizing: border-box;
+}
+
+.dx a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.dx img,
+.dx video {
+    display: block;
+    max-width: 100%;
+}
+
+.dx svg {
+    flex-shrink: 0;
+}
+
+.dx h1,
+.dx h2,
+.dx h3 {
+    font-family: var(--dx-font-display);
+    color: var(--dx-ink);
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.dx p {
+    margin: 0;
+}
+
+/* --- Sticky tab bar ------------------------------------------------------- */
+.dx-subnav {
+    position: relative;
+    z-index: 20;
+    background: var(--dx-bg-veil);
+    -webkit-backdrop-filter: saturate(160%) blur(14px);
+    backdrop-filter: saturate(160%) blur(14px);
+    border-bottom: 1px solid var(--dx-line);
+}
+
+/* app.css gives the layout's .flex-fill `overflow-x: hidden`, which silently turns it into a
+   scroll container: a sticky child then sticks to that box instead of the window, so it
+   never sticks and is pushed down by its own `top`. `clip` hides overflow the same way
+   without creating a scroll container. Where clip or :has() is unsupported the bar simply
+   scrolls with the page. */
+@supports (overflow-x: clip) and selector(:has(*)) {
+    .flex-fill:has(> .dx) {
+        overflow-x: clip;
+    }
+
+    .dx-subnav {
+        position: sticky;
+        top: var(--dx-top);
+    }
+}
+
+.dx-subnav__bar {
+    max-width: var(--dx-max);
+    margin: 0 auto;
+    padding: 0 16px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dx-tabs {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    gap: 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+@media (max-width: 380px) {
+    .dx-tabs {
+        gap: 16px;
+    }
+
+    .dx .dx-tab {
+        font-size: 14px;
+    }
+}
+
+.dx-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.dx-tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 100%;
+    font-family: var(--dx-font-display);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--dx-muted);
+    white-space: nowrap;
+    transition: color 0.15s ease;
+}
+
+.dx .dx-tab:hover {
+    color: var(--dx-ink);
+}
+
+.dx .dx-tab.is-active {
+    color: var(--dx-ink);
+}
+
+.dx-tab.is-active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: var(--dx-brand);
+}
+
+.dx-tab__count {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--dx-surface-2);
+    color: var(--dx-muted);
+    font-family: var(--dx-font);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 20px;
+    text-align: center;
+}
+
+.dx-tab.is-active .dx-tab__count {
+    color: var(--dx-ink);
+    background: var(--dx-surface-3);
+}
+
+.dx .dx-icon-btn {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--dx-ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s ease;
+}
+
+.dx .dx-icon-btn:hover,
+.dx .dx-icon-btn[aria-expanded="true"] {
+    background: var(--dx-surface-2);
+}
+
+.dx-icon-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Search drawer under the tab bar */
+.dx-search {
+    display: none;
+    max-width: var(--dx-max);
+    margin: 0 auto;
+    padding: 0 16px 12px;
+}
+
+.dx-subnav.is-searching .dx-search {
+    display: block;
+}
+
+.dx-search__field {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.dx-search__icon {
+    position: absolute;
+    left: 14px;
+    color: var(--dx-muted);
+    pointer-events: none;
+    display: flex;
+}
+
+.dx-search__icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.dx .dx-search__input {
+    width: 100%;
+    height: 44px;
+    padding: 0 44px 0 42px;
+    border: 1px solid var(--dx-line-strong);
+    border-radius: 999px;
+    background: var(--dx-surface);
+    color: var(--dx-ink);
+    font: 500 15px/1 var(--dx-font);
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: border-color 0.15s ease;
+}
+
+.dx .dx-search__input::placeholder {
+    color: var(--dx-muted);
+}
+
+/* app.css styles every input white with !important (input[type=text] at rest, and any
+   input on :focus) — which is what turned the old search bar into a white box. Only
+   !important at a higher specificity can win, so the states that rule touches are pinned. */
+.dx .dx-search__input,
+.dx .dx-search__input:focus {
+    padding: 0 44px 0 42px !important;
+    border: 1px solid var(--dx-line-strong) !important;
+    border-radius: 999px !important;
+    background-color: var(--dx-surface) !important;
+    color: var(--dx-ink) !important;
+    font: 500 15px/1 var(--dx-font) !important;
+    box-shadow: none !important;
+}
+
+.dx .dx-search__input:focus {
+    border-color: var(--dx-brand) !important;
+}
+
+/* type="search" draws its own clear button; we render ours */
+.dx .dx-search__input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+}
+
+.dx-search__clear {
+    position: absolute;
+    right: 4px;
+    width: 36px;
+    height: 36px;
+}
+
+/* --- Buttons --------------------------------------------------------------- */
+.dx-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 44px;
+    padding: 0 20px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-family: var(--dx-font);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.dx-btn:active {
+    transform: scale(0.97);
+}
+
+.dx-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.dx .dx-btn--primary {
+    background: var(--dx-brand);
+    color: #fff;
+    box-shadow: 0 6px 18px -8px rgba(203, 12, 159, 0.7);
+}
+
+.dx .dx-btn--primary:hover {
+    background: var(--dx-brand-hover);
+    color: #fff;
+}
+
+.dx .dx-btn--money {
+    background: var(--dx-money);
+    color: var(--dx-money-on);
+    box-shadow: 0 6px 18px -8px rgba(255, 197, 61, 0.65);
+}
+
+.dx .dx-btn--money:hover {
+    background: var(--dx-money-hover);
+    color: var(--dx-money-on);
+}
+
+.dx .dx-btn--ghost {
+    background: var(--dx-surface-2);
+    border-color: var(--dx-line);
+    color: var(--dx-ink);
+}
+
+.dx .dx-btn--ghost:hover {
+    background: var(--dx-surface-3);
+    color: var(--dx-ink);
+}
+
+.dx-btn--sm {
+    height: 34px;
+    padding: 0 14px;
+    font-size: 13px;
+}
+
+.dx-btn--sm svg {
+    width: 15px;
+    height: 15px;
+}
+
+.dx-btn--block {
+    width: 100%;
+}
+
+/* The compact create button in the tab bar */
+.dx-subnav .dx-btn {
+    height: 34px;
+    padding: 0 14px 0 10px;
+    font-size: 13px;
+    margin-left: 2px;
+}
+
+/* --- Page body ------------------------------------------------------------- */
+.dx-main {
+    max-width: var(--dx-max);
+    margin: 0 auto;
+    padding: 16px 16px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+.dx-section__head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.dx-section__title {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.dx-section__sub {
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--dx-muted);
+}
+
+.dx .dx-section__link {
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--dx-muted);
+    padding-bottom: 2px;
+}
+
+.dx .dx-section__link:hover {
+    color: var(--dx-ink);
+}
+
+/* Horizontal snap rail that bleeds to the screen edge on phones */
+.dx-rail {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: min(292px, 82%);
+    gap: 12px;
+    margin: 0 -16px;
+    padding: 2px 16px 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding: 0 16px;
+    scrollbar-width: none;
+}
+
+.dx-rail::-webkit-scrollbar {
+    display: none;
+}
+
+.dx-rail > * {
+    scroll-snap-align: start;
+}
+
+/* A single line of real numbers — only the non-zero ones are rendered */
+.dx-pulse {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 16px;
+    font-size: 13px;
+    color: var(--dx-muted);
+}
+
+.dx-pulse strong {
+    color: var(--dx-ink);
+    font-weight: 700;
+}
+
+.dx-pulse .is-money strong {
+    color: var(--dx-money-ink);
+}
+
+.dx-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--dx-muted);
+}
+
+.dx-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--dx-surface-3);
+    flex-shrink: 0;
+}
+
+/* Progress bar — gold, because what it measures is money */
+.dx-progress {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--dx-surface-3);
+    overflow: hidden;
+}
+
+.dx-progress__fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--dx-money);
+}
+
+/* --- Alerts, empty states, pagination -------------------------------------- */
+.dx-alert {
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid var(--dx-line);
+    background: var(--dx-surface);
+    color: var(--dx-ink);
+}
+
+.dx-alert--success {
+    border-color: rgba(34, 224, 160, 0.35);
+}
+
+.dx-alert--error {
+    border-color: rgba(255, 59, 92, 0.4);
+}
+
+.dx-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 44px 24px;
+    border-radius: var(--dx-radius-lg);
+    border: 1px dashed var(--dx-line-strong);
+    text-align: center;
+}
+
+.dx-empty__icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--dx-surface-2);
+    color: var(--dx-ink);
+    margin-bottom: 4px;
+}
+
+.dx-empty__icon svg {
+    width: 26px;
+    height: 26px;
+}
+
+.dx-empty h3 {
+    font-size: 19px;
+    font-weight: 800;
+}
+
+.dx-empty p {
+    max-width: 340px;
+    font-size: 14px;
+    color: var(--dx-muted);
+    margin-bottom: 8px;
+}
+
+.dx-pagination .pagination {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+}
+
+.dx-pagination .page-link {
+    min-width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px !important;
+    border: 1px solid var(--dx-line);
+    background: var(--dx-surface);
+    color: var(--dx-ink);
+    font-weight: 600;
+}
+
+.dx-pagination .page-item.active .page-link {
+    background: var(--dx-ink);
+    border-color: var(--dx-ink);
+    color: var(--dx-bg);
+}
+
+.dx-pagination .page-item.disabled .page-link {
+    color: var(--dx-muted);
+    background: transparent;
+}
+
+/* --- Larger screens --------------------------------------------------------- */
+@media (min-width: 769px) {
+    .dx {
+        min-height: calc(100vh - 72px);
+    }
+
+    /* The desktop navbar hides itself on scroll, so a sticky bar would float
+       under a gap — let it scroll away with the page instead. */
+    .dx-subnav {
+        position: relative;
+        top: 0;
+    }
+
+    .dx-subnav__bar {
+        height: 60px;
+        padding: 0 24px;
+    }
+
+    .dx-tab {
+        font-size: 16px;
+    }
+
+    .dx-search {
+        padding: 0 24px 14px;
+    }
+
+    .dx-main {
+        padding: 24px 24px 80px;
+        gap: 44px;
+    }
+
+    .dx-section__title {
+        font-size: 24px;
+    }
+
+    .dx-rail {
+        grid-auto-columns: 300px;
+        margin: 0;
+        padding: 2px 0 6px;
+        scroll-padding: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dx *,
+    .dx *::before,
+    .dx *::after {
+        transition: none !important;
+        animation: none !important;
+    }
+}

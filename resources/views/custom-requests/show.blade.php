@@ -1083,6 +1083,11 @@ document.addEventListener('DOMContentLoaded', function() {
             contributeModal.show();
         });
 
+        // "Chip in" on the browse page links here with #contribute — open the form straight away.
+        if (window.location.hash === '#contribute') {
+            contributeBtn.click();
+        }
+
         contributeForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const requestId = document.getElementById('request_id').value;

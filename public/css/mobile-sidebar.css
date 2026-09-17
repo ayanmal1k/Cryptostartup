@@ -1419,7 +1419,10 @@ body.mobile-search-open .reels-container {
     display: none;
     position: relative;
     isolation: isolate;
-    grid-template-columns: 1fr auto 1fr;
+    /* The side columns never shrink below their buttons. With a plain `1fr auto 1fr` the
+       right cluster (streak + bell + menu) is wider than its 1fr share and spilled left
+       over the title — "Custom Requ…", "JUSTFA…". Now the centre gives way and ellipsizes. */
+    grid-template-columns: minmax(max-content, 1fr) minmax(0, auto) minmax(max-content, 1fr);
     align-items: center;
     column-gap: 8px;
     min-height: 56px;
@@ -1501,6 +1504,7 @@ body.mobile-search-open .reels-container {
     align-items: center;
     justify-content: center;
     gap: 8px;
+    min-width: 0;
     max-width: 100%;
     padding: 6px 12px 6px 6px;
     border-radius: 999px;
@@ -1644,6 +1648,8 @@ body.mobile-search-open .reels-container {
 .mobile-app-bar__page-title {
     grid-column: 2;
     justify-self: center;
+    min-width: 0;
+    max-width: 100%;
     margin: 0;
     padding: 0 8px;
     font-family: var(--ms-font-display);

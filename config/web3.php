@@ -23,6 +23,10 @@ return [
 
     'network' => env('WEB3_NETWORK', 'amoy'),
 
+    // Native token symbol prices are shown in. Polygon's native token is POL on mainnet and
+    // Amoy alike — the network name ("amoy") is not a currency and should never be shown as one.
+    'currency_symbol' => env('WEB3_CURRENCY_SYMBOL', 'POL'),
+
     // Deployed thirdweb NFT Collection (ERC-721) contract address.
     'contract_address' => env('NFT_MARKETPLACE_CONTRACT_ADDRESS', ''),
 

@@ -3,169 +3,285 @@
 @section('page_title', __('Challenges'))
 
 @php
-    $isDarkTheme = Cookie::get('app_theme') == null
-        ? getSetting('site.default_user_theme') == 'dark'
-        : Cookie::get('app_theme') == 'dark';
+    $items = $requests->getCollection();
+    $onFirstPage = $requests->currentPage() === 1;
+
+    // The newest delivered clip leads the Watch tab as a playing spotlight.
+    $spotlight = ($tab === 'watch' && $search === '' && $onFirstPage) ? $items->first() : null;
+    $wall = $spotlight ? $items->slice(1) : $items;
+
+    $tabUrl = fn ($key) => route('custom-requests.marketplace', $key === 'watch' ? [] : ['tab' => $key]);
+
+    $dare = Auth::check()
+        ? ['label' => __('Dare'), 'onclick' => 'CustomRequest.showCreateModal()']
+        : ['label' => __('Dare'), 'href' => route('login')];
 @endphp
 
 @section('styles')
-    <link rel="stylesheet" href="{{ asset('css/pages/challenges.css') }}?v=20260817a">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap">
+    <link rel="stylesheet" href="{{ asset('css/pages/discover.css') }}?v=20260917a">
+    <link rel="stylesheet" href="{{ asset('css/pages/challenges.css') }}?v=20260917a">
 @endsection
 
 @section('content')
-<div class="ch-page {{ $isDarkTheme ? 'ch-page--dark' : 'ch-page--light' }}">
-<div class="ch-container">
+<div class="dx ch">
 
-    <header class="ch-header">
-        <div>
-            <h1 class="ch-header__title">{{ __('Challenges') }}</h1>
-            <p class="ch-header__sub">{{ __('Fans put up the money. Creators do the challenge. Watch what happens.') }}</p>
-        </div>
-        <div class="ch-header__actions">
-            <a href="{{ route('custom-requests.my-requests') }}" class="ch-btn ch-btn--ghost">{{ __('My requests') }}</a>
-            <button type="button" class="ch-btn ch-btn--primary" onclick="CustomRequest.showCreateModal()">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                {{ __('Request a challenge') }}
-            </button>
-        </div>
-    </header>
+    @include('elements.discover.subnav', [
+        'tabs' => array_filter([
+            ['label' => __('Watch'), 'href' => $tabUrl('watch'), 'active' => $search === '' && $tab === 'watch'],
+            ['label' => __('Fund'), 'href' => $tabUrl('open'), 'active' => $search === '' && $tab === 'open'],
+            ['label' => __('Top'), 'href' => $tabUrl('top'), 'active' => $search === '' && $tab === 'top'],
+            Auth::check() ? ['label' => __('Mine'), 'href' => route('custom-requests.my-requests'), 'active' => false] : null,
+        ]),
+        'search' => $search,
+        'searchAction' => route('custom-requests.marketplace'),
+        'searchLabel' => __('Search challenges'),
+        'cta' => $dare,
+    ])
 
-    <section class="ch-stats">
-        <div class="ch-stat">
-            <span class="ch-stat__value">{{ number_format($stats['watch']) }}</span>
-            <span class="ch-stat__label">{{ __('To watch') }}</span>
-        </div>
-        <div class="ch-stat">
-            <span class="ch-stat__value">{{ number_format($stats['open']) }}</span>
-            <span class="ch-stat__label">{{ __('Open now') }}</span>
-        </div>
-        <div class="ch-stat">
-            <span class="ch-stat__value">${{ number_format($stats['raised'], 2) }}</span>
-            <span class="ch-stat__label">{{ __('Total raised') }}</span>
-        </div>
-        <div class="ch-stat">
-            <span class="ch-stat__value">{{ number_format($stats['completed']) }}</span>
-            <span class="ch-stat__label">{{ __('Completed') }}</span>
-        </div>
-    </section>
+    <main class="dx-main">
 
-    <section class="ch-toolbar">
-        <form action="{{ route('custom-requests.marketplace') }}" method="GET" class="ch-search" role="search">
-            <input type="hidden" name="tab" value="{{ $tab }}">
-            <span class="ch-search__icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5" stroke-linecap="round"/></svg>
-            </span>
-            <input type="text" name="search" class="ch-search__input" value="{{ $search }}"
-                   autocomplete="off" placeholder="{{ __('Search challenges...') }}"
-                   aria-label="{{ __('Search challenges') }}">
-            <button type="submit" class="ch-search__btn">{{ __('Search') }}</button>
-        </form>
+        {{-- ============ Spotlight ============ --}}
+        @if($spotlight)
+            @php
+                $s = $spotlight;
+                $sThumb = $s->delivery_thumbnail_path ? asset('storage/' . $s->delivery_thumbnail_path) : null;
+                $sUrl = route('custom-requests.show', $s->id);
+                $sBackers = (int) ($s->backers_count ?? 0);
+                $sViews = (int) ($s->views_count ?? 0);
+            @endphp
+            <section class="ch-spot" data-dx-media aria-label="{{ __('Featured challenge') }}">
+                <a href="{{ $sUrl }}" class="ch-spot__media" tabindex="-1" aria-hidden="true">
+                    <video data-dx-autoplay data-src="{{ asset('storage/' . $s->delivery_video_path) }}"
+                           @if($sThumb) poster="{{ $sThumb }}" @endif
+                           muted loop playsinline preload="none"></video>
+                </a>
+                <span class="ch-spot__scrim"></span>
+                <span class="ch-spot__play" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>
+                </span>
 
-        <nav class="ch-tabs">
-            @foreach(['watch' => __('Watch'), 'open' => __('Fund a challenge'), 'funded' => __('Completed')] as $key => $label)
-                <a href="{{ route('custom-requests.marketplace', array_filter(['search' => $search, 'tab' => $key])) }}"
-                   class="ch-tab {{ $tab === $key ? 'is-active' : '' }}">{{ $label }}</a>
-            @endforeach
-        </nav>
-    </section>
+                <div class="ch-spot__top">
+                    <span class="ch-chip ch-chip--win">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"/></svg>
+                        {{ __('Challenge done') }}
+                    </span>
+                    <button type="button" class="ch-spot__sound" data-dx-sound hidden
+                            aria-pressed="false" aria-label="{{ __('Sound') }}">
+                        <svg class="is-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m23 9-6 6M17 9l6 6"/>
+                        </svg>
+                        <svg class="is-unmuted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>
+                        </svg>
+                    </button>
+                </div>
 
-    {{-- Delivered challenge videos: the reason to be on this page at all. --}}
-    @if($delivered->count() && $tab === 'watch')
-        <section class="ch-section">
-            <div class="ch-section__head">
-                <h2 class="ch-section__title">{{ __('Latest challenges') }}</h2>
-                <span class="ch-section__count">{{ $delivered->count() }}</span>
-            </div>
-            <div class="ch-grid">
-                @foreach($delivered as $cr)
-                    @include('custom-requests.partials.challenge-card', ['cr' => $cr])
-                @endforeach
-            </div>
-        </section>
-    @endif
+                <div class="ch-spot__info">
+                    @if($s->creator)
+                        <a href="{{ route('profile', ['username' => $s->creator->username]) }}" class="ch-spot__by">
+                            <img src="{{ $s->creator->avatar }}" alt="" class="dx-avatar">
+                            {{ $s->creator->name }}
+                            @if($s->delivered_at)
+                                <time datetime="{{ $s->delivered_at->toIso8601String() }}">· {{ $s->delivered_at->diffForHumans() }}</time>
+                            @endif
+                        </a>
+                    @endif
 
-    {{-- Almost funded — one more contribution tips these over. --}}
-    @if($almost->count() && $search === '')
-        <section class="ch-section">
-            <div class="ch-section__head">
-                <h2 class="ch-section__title">{{ __('Almost funded') }}</h2>
-                <span class="ch-section__count">{{ __('closest to their goal') }}</span>
-            </div>
-            <div class="ch-rail">
-                @foreach($almost as $cr)
-                    @include('custom-requests.partials.challenge-card', ['cr' => $cr, 'wide' => true])
-                @endforeach
-            </div>
-        </section>
-    @endif
+                    <h1 class="ch-spot__title"><a href="{{ $sUrl }}">{{ $s->title }}</a></h1>
 
-    {{-- Open challenges looking for backers --}}
-    @if($open->count() && $tab !== 'funded')
-        <section class="ch-section">
-            <div class="ch-section__head">
-                <h2 class="ch-section__title">{{ __('Open for funding') }}</h2>
-                <a href="{{ route('custom-requests.marketplace', ['tab' => 'open']) }}" class="ch-section__count">{{ __('See all') }}</a>
-            </div>
-            <div class="ch-grid">
-                @foreach($open->take(8) as $cr)
-                    @include('custom-requests.partials.challenge-card', ['cr' => $cr, 'wide' => true])
-                @endforeach
-            </div>
-        </section>
-    @endif
+                    <div class="ch-spot__stats">
+                        @if((float) $s->current_amount > 0)
+                            <span class="ch-spot__raised"><strong>${{ number_format((float) $s->current_amount, 0) }}</strong> {{ __('raised') }}</span>
+                        @endif
+                        @if($sBackers > 0)
+                            <span><strong>{{ $sBackers }}</strong> {{ trans_choice('{1} backer|[2,*] backers', $sBackers) }}</span>
+                        @endif
+                        @if($sViews > 0)
+                            <span><strong>{{ number_format($sViews) }}</strong> {{ __('views') }}</span>
+                        @endif
+                    </div>
 
-    {{-- Nothing anywhere --}}
-    @if(!$delivered->count() && !$open->count())
-        <div class="ch-empty">
-            <span class="ch-empty__icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="m10 8 6 4-6 4V8z"/><rect x="2" y="3" width="20" height="18" rx="2"/></svg>
-            </span>
-            <h3>{{ $search !== '' ? __('Nothing matches that search') : __('No challenges yet') }}</h3>
-            <p>
-                {{ $search !== ''
-                    ? __('Try a different word.')
-                    : __('Dare a creator to do something. Put money behind it, and everyone gets to watch the result.') }}
-            </p>
-            @if($search !== '')
-                <a href="{{ route('custom-requests.marketplace') }}" class="ch-btn ch-btn--ghost">{{ __('Clear search') }}</a>
-            @else
-                <button type="button" class="ch-btn ch-btn--primary" onclick="CustomRequest.showCreateModal()">{{ __('Request a challenge') }}</button>
+                    <div class="ch-spot__cta">
+                        <a href="{{ $sUrl }}" class="dx-btn dx-btn--primary">
+                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>
+                            {{ __('Watch it') }}
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            @if($stats['raised'] > 0 || $stats['watch'] > 0)
+                <div class="dx-pulse" aria-label="{{ __('Challenge activity') }}">
+                    @if($stats['raised'] > 0)
+                        <span class="is-money"><strong>${{ number_format($stats['raised'], 0) }}</strong> {{ __('put up by fans') }}</span>
+                    @endif
+                    @if($stats['watch'] > 0)
+                        <span><strong>{{ number_format($stats['watch']) }}</strong> {{ trans_choice('{1} challenge done|[2,*] challenges done', $stats['watch']) }}</span>
+                    @endif
+                    @if($stats['open'] > 0)
+                        <span><strong>{{ number_format($stats['open']) }}</strong> {{ __('waiting on backers') }}</span>
+                    @endif
+                </div>
             @endif
-        </div>
-    @endif
+        @endif
 
-    @if($requests->hasPages())
-        <div class="ch-pagination">{{ $requests->links() }}</div>
-    @endif
+        {{-- ============ Almost funded rail ============ --}}
+        @if($almost->count())
+            <section>
+                <div class="dx-section__head">
+                    <div>
+                        <h2 class="dx-section__title">{{ __('Almost funded') }}</h2>
+                        <p class="dx-section__sub">{{ __('One more backer could make these happen') }}</p>
+                    </div>
+                    <a href="{{ $tabUrl('open') }}" class="dx-section__link">{{ __('See all') }}</a>
+                </div>
+                <div class="dx-rail">
+                    @foreach($almost as $cr)
+                        @include('custom-requests.partials.fund-card', ['cr' => $cr])
+                    @endforeach
+                </div>
+            </section>
+        @endif
 
-</div>
+        {{-- ============ Main list for the current tab ============ --}}
+        @if($wall->count())
+            <section>
+                <div class="dx-section__head">
+                    <div>
+                        @if($search !== '')
+                            <h2 class="dx-section__title">{{ __('Results for') }} “{{ $search }}”</h2>
+                            <p class="dx-section__sub">{{ trans_choice('{1} :count challenge|[2,*] :count challenges', $requests->total(), ['count' => $requests->total()]) }}</p>
+                        @elseif($tab === 'open')
+                            <h2 class="dx-section__title">{{ __('Back a challenge') }}</h2>
+                            <p class="dx-section__sub">{{ __('Closest to their goal first') }}</p>
+                        @elseif($tab === 'top')
+                            <h2 class="dx-section__title">{{ __('Biggest challenges') }}</h2>
+                            <p class="dx-section__sub">{{ __('Ranked by how much fans put up') }}</p>
+                        @else
+                            <h2 class="dx-section__title">{{ $spotlight ? __('More to watch') : __('Challenges to watch') }}</h2>
+                        @endif
+                    </div>
+                </div>
+
+                @if($search === '' && $tab === 'open')
+                    <div class="ch-fund-grid">
+                        @foreach($wall as $cr)
+                            @include('custom-requests.partials.fund-card', ['cr' => $cr])
+                        @endforeach
+                    </div>
+                @elseif($search === '' && $tab === 'top')
+                    <ol class="ch-rank">
+                        @foreach($wall->values() as $i => $cr)
+                            @php
+                                $rank = $requests->firstItem() + $i;
+                                $rThumb = $cr->delivery_thumbnail_path ? asset('storage/' . $cr->delivery_thumbnail_path) : null;
+                                $rGoal = (float) $cr->goal_amount;
+                                $rPct = $rGoal > 0 ? (int) min(100, round((float) $cr->current_amount / $rGoal * 100)) : 0;
+                                $rDone = $cr->status === 'completed';
+                            @endphp
+                            <li>
+                                <a href="{{ route('custom-requests.show', $cr->id) }}" class="ch-rank__row">
+                                    <span class="ch-rank__num {{ $rank <= 3 ? 'is-top' : '' }}">{{ $rank }}</span>
+                                    <span class="ch-rank__thumb">
+                                        @if($rThumb)
+                                            <img src="{{ $rThumb }}" alt="" loading="lazy">
+                                        @else
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                                        @endif
+                                    </span>
+                                    <span class="ch-rank__body">
+                                        <span class="ch-rank__title">{{ $cr->title }}</span>
+                                        <span class="ch-rank__meta">
+                                            {{ $cr->creator->name ?? __('Unknown') }} ·
+                                            @if($rDone)
+                                                <span class="is-win">{{ __('Done') }}</span>
+                                            @elseif($rGoal > 0)
+                                                {{ $rPct }}% {{ __('funded') }}
+                                            @else
+                                                {{ __('Open') }}
+                                            @endif
+                                        </span>
+                                    </span>
+                                    <span class="ch-rank__amount">${{ number_format((float) $cr->current_amount, 0) }}</span>
+                                </a>
+                            </li>
+                        @endforeach
+                    </ol>
+                @else
+                    <div class="ch-grid">
+                        @foreach($wall as $cr)
+                            @include('custom-requests.partials.challenge-card', ['cr' => $cr])
+                        @endforeach
+                    </div>
+                @endif
+            </section>
+        @elseif(!$spotlight)
+            {{-- ============ Empty ============ --}}
+            <div class="dx-empty">
+                <span class="dx-empty__icon" aria-hidden="true">
+                    @if($search !== '')
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    @else
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    @endif
+                </span>
+                @if($search !== '')
+                    <h3>{{ __('Nothing matches that') }}</h3>
+                    <p>{{ __('Try another word, or dare a creator to do it.') }}</p>
+                    <a href="{{ route('custom-requests.marketplace') }}" class="dx-btn dx-btn--ghost">{{ __('Clear search') }}</a>
+                @elseif($tab === 'open')
+                    <h3>{{ __('Nothing waiting on backers') }}</h3>
+                    <p>{{ __('Every challenge is either funded or done. Start the next one.') }}</p>
+                    @include('custom-requests.partials.dare-button')
+                @else
+                    <h3>{{ __('No challenges yet') }}</h3>
+                    <p>{{ __('Dare a creator to do something. Put money behind it, and everyone gets to watch.') }}</p>
+                    @include('custom-requests.partials.dare-button')
+                @endif
+            </div>
+        @endif
+
+        @if($requests->hasPages())
+            <div class="dx-pagination">{{ $requests->links() }}</div>
+        @endif
+
+        {{-- ============ How it works ============ --}}
+        @if($tab === 'watch' && $search === '' && $onFirstPage)
+            <section class="ch-how">
+                <div>
+                    <h2>{{ __('How challenges work') }}</h2>
+                </div>
+                <ol class="ch-how__steps">
+                    <li>
+                        <span class="ch-how__n">1</span>
+                        <strong>{{ __('Dare') }}</strong>
+                        <span>{{ __('Pitch a challenge to a creator and set a goal.') }}</span>
+                    </li>
+                    <li>
+                        <span class="ch-how__n">2</span>
+                        <strong>{{ __('Fund') }}</strong>
+                        <span>{{ __('Fans chip in until the goal is hit.') }}</span>
+                    </li>
+                    <li>
+                        <span class="ch-how__n">3</span>
+                        <strong>{{ __('Watch') }}</strong>
+                        <span>{{ __('The creator does it and posts the video here.') }}</span>
+                    </li>
+                </ol>
+                @include('custom-requests.partials.dare-button')
+            </section>
+        @endif
+
+    </main>
 </div>
 
 {{-- The create-request modal is already rendered by layouts/generic.blade.php — including it
      again here would duplicate #createCustomRequestModal and break the modal. --}}
+@endsection
 
-<script>
-/* Hover-to-preview: play the clip muted while the pointer is over the tile, like a
-   YouTube browse grid. Only bound on devices that actually have a hover pointer, so
-   phones are left to their poster images and don't burn data auto-playing. */
-(function () {
-    if (!window.matchMedia || !window.matchMedia('(hover: hover)').matches) return;
-
-    document.querySelectorAll('.ch-card__media video').forEach(function (video) {
-        var card = video.closest('.ch-card');
-        if (!card) return;
-
-        card.addEventListener('mouseenter', function () {
-            video.currentTime = 0;
-            var p = video.play();
-            if (p && p.catch) p.catch(function () {});
-        });
-
-        card.addEventListener('mouseleave', function () {
-            video.pause();
-            video.currentTime = 0;
-        });
-    });
-})();
-</script>
+@section('scripts')
+    <script src="{{ asset('js/pages/discover.js') }}?v=20260917a" defer></script>
 @endsection

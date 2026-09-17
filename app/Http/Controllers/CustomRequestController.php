@@ -12,6 +12,7 @@ use App\Model\Transaction;
 use App\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -24,61 +25,66 @@ class CustomRequestController extends Controller
     public function marketplace(Request $request)
     {
         $search = trim((string) $request->query('search', ''));
-        $tab = in_array($request->query('tab'), ['open', 'funded'], true) ? $request->query('tab') : 'watch';
+        $tab = (string) $request->query('tab', 'watch');
+        $tab = $tab === 'funded' ? 'top' : $tab; // old links used ?tab=funded
+        $tab = in_array($tab, ['watch', 'open', 'top'], true) ? $tab : 'watch';
 
+        $openStatuses = [CustomRequest::STATUS_PENDING, CustomRequest::STATUS_ACCEPTED];
+
+        // Rejected and cancelled requests are dead ends, so browsing never shows them.
         $base = fn () => CustomRequest::where('is_marketplace', true)
-            ->where('status', '!=', CustomRequest::STATUS_CANCELLED)
-            ->with(['creator', 'contributions']);
+            ->whereNotIn('status', [CustomRequest::STATUS_CANCELLED, CustomRequest::STATUS_REJECTED])
+            ->with('creator')
+            ->withCount(['contributions as backers_count' => function ($q) {
+                $q->select(DB::raw('count(distinct contributor_id)'));
+            }]);
 
-        $applySearch = function ($q) use ($search) {
-            if ($search !== '') {
-                $q->where(function ($w) use ($search) {
-                    $w->where('title', 'like', '%' . $search . '%')
-                      ->orWhere('description', 'like', '%' . $search . '%');
-                });
-            }
-            return $q;
-        };
-
-        // The hero content: challenges that were actually delivered, so the page opens on a
-        // wall of videos rather than an empty form.
-        $delivered = $applySearch(
-            $base()->whereNotNull('delivery_video_path')->where('status', CustomRequest::STATUS_COMPLETED)
-        )->orderByDesc('delivered_at')->limit(24)->get();
-
-        // Challenges still open for funding.
-        $open = $applySearch(
-            $base()->whereIn('status', [CustomRequest::STATUS_PENDING, CustomRequest::STATUS_ACCEPTED])
-        )->orderByDesc('created_at')->limit(24)->get();
-
-        // Closest to their goal — the ones most likely to tip over with one more contribution.
-        $almost = $open
-            ->filter(fn ($r) => (float) $r->goal_amount > 0 && (float) $r->current_amount > 0)
-            ->sortByDesc(fn ($r) => (float) $r->current_amount / max(0.01, (float) $r->goal_amount))
-            ->take(6)
-            ->values();
-
-        // Paginated full list drives the tab the user is actually on.
-        $listQuery = $applySearch($base());
-        if ($tab === 'open') {
-            $listQuery->whereIn('status', [CustomRequest::STATUS_PENDING, CustomRequest::STATUS_ACCEPTED]);
-        } elseif ($tab === 'funded') {
-            $listQuery->where('status', CustomRequest::STATUS_COMPLETED);
+        $query = $base();
+        if ($search !== '') {
+            $query->where(function ($w) use ($search) {
+                $w->where('title', 'like', '%' . $search . '%')
+                  ->orWhere('description', 'like', '%' . $search . '%');
+            });
+        } elseif ($tab === 'open') {
+            // Closest to the goal first: those are the ones one more backer tips over.
+            $query->whereIn('status', $openStatuses)
+                ->orderByRaw('CASE WHEN goal_amount > 0 THEN current_amount / goal_amount ELSE 0 END DESC');
+        } elseif ($tab === 'top') {
+            $query->orderByDesc('current_amount');
         } else {
-            $listQuery->whereNotNull('delivery_video_path');
+            // Watch: delivered challenge videos, newest first.
+            $query->whereNotNull('delivery_video_path')
+                ->where('status', CustomRequest::STATUS_COMPLETED)
+                ->orderByDesc('delivered_at');
         }
-        $requests = $listQuery->orderByDesc('created_at')->paginate(12)->withQueryString();
+        $requests = $query->orderByDesc('created_at')->paginate(24)->withQueryString();
 
+        // The "Almost funded" rail on the Watch tab.
+        $almost = collect();
+        if ($tab === 'watch' && $search === '') {
+            $almost = $base()
+                ->whereIn('status', $openStatuses)
+                ->where('goal_amount', '>', 0)
+                ->orderByRaw('current_amount / goal_amount DESC')
+                ->limit(10)
+                ->get();
+        }
+
+        $marketplace = fn () => CustomRequest::where('is_marketplace', true)
+            ->whereNotIn('status', [CustomRequest::STATUS_CANCELLED, CustomRequest::STATUS_REJECTED]);
+
+        // "Raised" sums the same current_amount every card shows, so the headline and the
+        // cards can never disagree (the contributions ledger is empty for seeded rows).
         $stats = [
-            'watch' => CustomRequest::whereNotNull('delivery_video_path')->count(),
-            'open' => CustomRequest::where('is_marketplace', true)
-                ->whereIn('status', [CustomRequest::STATUS_PENDING, CustomRequest::STATUS_ACCEPTED])->count(),
-            'raised' => (float) CustomRequestContribution::where('status', CustomRequestContribution::STATUS_COMPLETED)->sum('amount'),
-            'completed' => CustomRequest::where('status', CustomRequest::STATUS_COMPLETED)->count(),
+            'raised' => (float) $marketplace()->sum('current_amount'),
+            'watch' => $marketplace()->whereNotNull('delivery_video_path')
+                ->where('status', CustomRequest::STATUS_COMPLETED)->count(),
+            'open' => $marketplace()->whereIn('status', $openStatuses)->count(),
+            'backers' => CustomRequestContribution::distinct('contributor_id')->count('contributor_id'),
         ];
 
         return view('custom-requests.marketplace', compact(
-            'requests', 'delivered', 'open', 'almost', 'stats', 'search', 'tab'
+            'requests', 'almost', 'stats', 'search', 'tab'
         ));
     }
 

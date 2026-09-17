@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Jobs\MintNft;
 use App\Models\NFT;
 use App\Models\NFTListing;
+use App\Models\NFTTransaction;
+use App\Models\Video;
 use App\Services\Nft\Contracts\MarketplaceService;
 use App\Services\Nft\Contracts\MetadataStorageService;
 use Illuminate\Http\Request;
@@ -57,42 +59,104 @@ class NFTMarketplaceController extends Controller
     }
 
     /**
-     * Marketplace: NFTs currently listed for sale. (Buy/sell is rebuilt in the marketplace
-     * phase; for now this shows active listings only.)
+     * Marketplace browse. `explore` (default) shows every NFT that exists on-chain with
+     * for-sale items first; `?view=sale` shows active listings only, sortable by price.
      */
     public function index(Request $request)
     {
         $search = trim((string) $request->query('search', ''));
+        $view = $request->query('view') === 'sale' ? 'sale' : 'explore';
         $sort = (string) $request->query('sort', 'newest');
 
-        $query = NFTListing::where('status', 'active')->with(['nft', 'seller']);
+        $live = [NFT::STATUS_MINTED, NFT::STATUS_LISTED, NFT::STATUS_SOLD, NFT::STATUS_TRANSFERRED];
 
-        // Search matches the NFT itself, not the listing row.
-        if ($search !== '') {
-            $query->whereHas('nft', function ($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%')
-                  ->orWhere('description', 'like', '%' . $search . '%');
-            });
+        $matchesSearch = function ($q) use ($search) {
+            $q->where('name', 'like', '%' . $search . '%')
+              ->orWhere('description', 'like', '%' . $search . '%');
+        };
+
+        if ($view === 'sale') {
+            $query = NFTListing::where('status', 'active')
+                ->whereHas('nft')
+                ->with(['nft.creator', 'seller']);
+
+            // Search matches the NFT itself, not the listing row.
+            if ($search !== '') {
+                $query->whereHas('nft', $matchesSearch);
+            }
+
+            // Whitelist sorts so a crafted ?sort= can't reach an arbitrary column.
+            switch ($sort) {
+                case 'price_low':  $query->orderBy('price', 'asc');  break;
+                case 'price_high': $query->orderBy('price', 'desc'); break;
+                default:           $query->orderBy('created_at', 'desc'); $sort = 'newest'; break;
+            }
+
+            // Normalise to NFTs so both views render the same card.
+            $items = $query->paginate(20)->withQueryString();
+            $items->setCollection($items->getCollection()->map(function ($listing) {
+                $nft = $listing->nft;
+                $nft->setRelation('activeListing', $listing);
+
+                return $nft;
+            }));
+        } else {
+            // Explore shows everything that exists on-chain, not only what is for sale — an
+            // unlisted 1-of-1 is still something to look at, and a market with nothing listed
+            // would otherwise open on an empty page. For-sale items float to the top.
+            $query = NFT::whereIn('status', $live)->with(['creator', 'activeListing']);
+
+            if ($search !== '') {
+                $query->where($matchesSearch);
+            }
+
+            $items = $query
+                ->orderByRaw("CASE WHEN status = 'listed' THEN 0 ELSE 1 END")
+                ->orderByDesc('created_at')
+                ->paginate(20)
+                ->withQueryString();
         }
 
-        // Whitelist sorts so a crafted ?sort= can't reach an arbitrary column.
-        switch ($sort) {
-            case 'price_low':  $query->orderBy('price', 'asc');  break;
-            case 'price_high': $query->orderBy('price', 'desc'); break;
-            default:           $query->orderBy('created_at', 'desc'); $sort = 'newest'; break;
+        // Spotlight: the newest listing if anything is for sale, else the newest mint.
+        $spotlight = null;
+        if ($search === '' && $items->currentPage() === 1) {
+            $spotlight = NFT::whereIn('status', $live)
+                ->whereHas('activeListing')
+                ->with(['creator', 'activeListing'])
+                ->latest()
+                ->first()
+                ?? NFT::whereIn('status', $live)->with(['creator', 'activeListing'])->latest()->first();
         }
 
-        $listings = $query->paginate(20)->withQueryString();
-
-        // Headline stats — real figures, computed from listings/sales.
+        // Real figures only; the view hides any that are zero rather than advertising emptiness.
         $stats = [
+            'minted' => NFT::whereIn('status', $live)->count(),
             'listed' => NFTListing::where('status', 'active')->count(),
             'floor' => (float) NFTListing::where('status', 'active')->min('price'),
             'owners' => NFT::whereNotNull('owner_address')->distinct('owner_address')->count('owner_address'),
-            'minted' => NFT::whereIn('status', [NFT::STATUS_MINTED, NFT::STATUS_LISTED, NFT::STATUS_SOLD])->count(),
+            'volume' => (float) NFTTransaction::whereIn('type', ['sale', 'resale'])->sum('price'),
         ];
 
-        return view('nft.marketplace', compact('listings', 'stats', 'search', 'sort'));
+        // The viewer's own uploads that are not NFTs yet — the page's way in for creators.
+        $mintable = collect();
+        if (Auth::check() && $search === '' && $view === 'explore') {
+            $minted = NFT::where('source_type', 'video')->pluck('source_id')->map(fn ($id) => (string) $id)->all();
+            $mintable = Video::where('user_id', Auth::id())
+                ->whereNotIn('id', $minted)
+                ->latest()
+                ->limit(12)
+                ->get();
+        }
+
+        $economics = [
+            'fee_pct' => (int) config('web3.marketplace_fee_bps', 250) / 100,
+            'royalty_pct' => (int) config('web3.default_royalty_bps', 1000) / 100,
+            'currency' => config('web3.currency_symbol', 'POL'),
+        ];
+
+        return view('nft.marketplace', compact(
+            'items', 'spotlight', 'stats', 'mintable', 'economics', 'search', 'sort', 'view'
+        ));
     }
 
     /**
