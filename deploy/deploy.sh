@@ -17,6 +17,11 @@
 #   XF_PASSPHRASE='...' ./deploy/deploy.sh <git-ref>     # deploy files changed since <git-ref>
 #   XF_PASSPHRASE='...' ./deploy/deploy.sh --files a b c # deploy an explicit list
 #   XF_PASSPHRASE='...' ./deploy/deploy.sh --dry-run <ref>
+#   ./deploy/deploy.sh --vpn <git-ref>                   # go out through Cloudflare WARP
+#
+# --vpn (or XF_VPN=1) sends only this deploy's ssh/sftp through a userspace WireGuard
+# tunnel (deploy/vpn.sh) — for when the host's firewall has banned this machine's IP.
+# Nothing else on the machine is routed through it, and it is torn down on exit.
 #
 # XF_PASSPHRASE can be left unset: the script then reads `passphrase` from
 # .vscode/sftp.json, the VS Code SFTP extension config that already holds it on this
@@ -32,12 +37,19 @@ REMOTE_APP="/home/wao3fxpfdect/laravel"
 REMOTE_PUB="/home/wao3fxpfdect/public_html"
 TMP="${TMPDIR:-/tmp}/xf-deploy-$$"
 DRY_RUN=0
+USE_VPN="${XF_VPN:-0}"
 
 log()  { printf '  %s\n' "$*"; }
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
 # --- Collect the file list ---------------------------------------------------------
-if [ "${1:-}" = "--dry-run" ]; then DRY_RUN=1; shift; fi
+while [ "${1:-}" = "--dry-run" ] || [ "${1:-}" = "--vpn" ]; do
+    case "$1" in
+        --dry-run) DRY_RUN=1 ;;
+        --vpn)     USE_VPN=1 ;;
+    esac
+    shift
+done
 
 declare -a DELETED=()
 
@@ -140,6 +152,7 @@ fi
 mkdir -p "$TMP"
 chmod 700 "$TMP"
 cleanup() {
+    if [ "$USE_VPN" = "1" ] && declare -F xf_vpn_stop >/dev/null; then xf_vpn_stop; fi
     ssh -O exit -o ControlPath="$TMP/cm" "$HOST" 2>/dev/null || true
     [ -n "${SSH_AGENT_PID:-}" ] && kill "$SSH_AGENT_PID" 2>/dev/null || true
     rm -rf "$TMP"
@@ -160,6 +173,14 @@ rm -f "$TMP/askpass"
 SSH_MUX=(-o BatchMode=yes -o ConnectTimeout=30)
 if [ "${XF_MUX:-0}" = "1" ]; then
     SSH_MUX+=(-o ControlMaster=auto -o ControlPath="$TMP/cm" -o ControlPersist=120)
+fi
+
+if [ "$USE_VPN" = "1" ]; then
+    echo "Connecting VPN (Cloudflare WARP, deploy traffic only)..."
+    # shellcheck source=deploy/vpn.sh
+    source "$(dirname "$0")/vpn.sh"
+    xf_vpn_start || fail "VPN did not come up — nothing was sent"
+    SSH_MUX+=(-o ProxyCommand="$XF_VPN_PROXY_COMMAND")
 fi
 
 # --- Upload: ONE sftp batch ---------------------------------------------------------
