@@ -1,29 +1,32 @@
 /* ==========================================================================
-   NFT MARKETPLACE — browse (nft/marketplace)
-   Built on discover.css. A spotlight piece, the collection wall, and a pitch
-   to creators that shows the money with the platform's real fee and royalty.
+   NFTS — marketplace, collection pages and the wallet's NFT tab
+   Built on discover.css. An NFT is shown as a product, exactly like a challenge:
+   the picture or clip fills the tile, the price sits on it in gold, the creator
+   underneath. No token ids, chains or wallet addresses anywhere a fan looks.
+   Token fallbacks (var(--dx-x, …)) let the tile render inside the wallet page,
+   which has its own palette.
    ========================================================================== */
 
-/* --- Spotlight ------------------------------------------------------------ */
-.nx-hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
+/* --- Spotlight (same build as the challenges spotlight) -------------------- */
+.nx-spot {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    max-height: 78vh;
+    width: 100%;
     border-radius: var(--dx-radius-lg);
     overflow: hidden;
-    background: var(--dx-surface);
-    border: 1px solid var(--dx-line);
+    background: #000;
+    isolation: isolate;
 }
 
-.nx-hero__media {
-    position: relative;
-    display: block;
-    aspect-ratio: 1 / 1;
-    background: var(--dx-surface-2);
-    overflow: hidden;
+.nx-spot__media {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
 }
 
-.nx-hero__media img,
-.nx-hero__media video {
+.nx-spot__media img,
+.nx-spot__media video {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -31,7 +34,17 @@
     object-fit: cover;
 }
 
-.nx-hero__chips {
+.nx-spot__scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+        linear-gradient(to bottom, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 22%),
+        linear-gradient(to top, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.55) 34%, rgba(0, 0, 0, 0) 62%);
+}
+
+.nx-spot__top {
     position: absolute;
     top: 14px;
     left: 14px;
@@ -42,117 +55,173 @@
     pointer-events: none;
 }
 
-.nx-hero__panel {
+.nx-spot__info {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
     padding: 18px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
+    color: #fff;
+    pointer-events: none;
 }
 
-.nx-hero__title {
-    font-size: clamp(24px, 6.4vw, 38px);
+.nx-spot__info a,
+.nx-spot__info .dx-btn,
+.nx-spot__info form {
+    pointer-events: auto;
+}
+
+.dx .nx-spot__by {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.nx-spot__by .dx-avatar {
+    width: 32px;
+    height: 32px;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+}
+
+.dx .nx-spot__title {
+    font-size: clamp(26px, 6.8vw, 42px);
     font-weight: 800;
-    line-height: 1.1;
+    line-height: 1.06;
     letter-spacing: -0.03em;
+    color: #fff;
+    text-wrap: balance;
     overflow-wrap: anywhere;
 }
 
-.dx .nx-by {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    align-self: flex-start;
-    font-size: 14px;
-    color: var(--dx-muted);
-    line-height: 1.25;
-}
-
-.nx-by .dx-avatar {
-    width: 36px;
-    height: 36px;
-}
-
-.nx-by strong {
-    display: block;
-    color: var(--dx-ink);
-    font-weight: 700;
-}
-
-.nx-price {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 14px 16px;
-    border-radius: 14px;
-    background: var(--dx-surface-2);
-}
-
-.nx-price__label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--dx-muted);
-}
-
-.nx-price__value {
-    font-family: var(--dx-font-display);
-    font-size: 30px;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    line-height: 1.15;
-    color: var(--dx-money-ink);
-}
-
-.nx-price__value small {
-    font-size: 16px;
-    font-weight: 700;
-}
-
-.nx-price__value.is-muted {
-    font-size: 20px;
-    color: var(--dx-ink);
-}
-
-.nx-hero__actions {
+.nx-spot__cta {
     display: flex;
     gap: 8px;
+    margin-top: 2px;
 }
 
-.nx-hero__actions > *,
-.nx-hero__actions form {
-    flex: 1;
-}
-
-.nx-facts {
+.nx-spot__blank {
+    position: absolute;
+    inset: 0;
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px 16px;
-    margin: 0;
-    font-size: 13px;
+    align-items: center;
+    justify-content: center;
+    background: var(--dx-surface-2);
     color: var(--dx-muted);
 }
 
-.nx-facts div {
+.nx-spot__blank svg {
+    width: 48px;
+    height: 48px;
+}
+
+.nx-spot .dx-preview-video,
+.nx-tile .dx-preview-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity .2s ease;
+}
+
+.is-previewing .dx-preview-video {
+    opacity: 1;
+}
+
+/* --- Tile ---------------------------------------------------------------- */
+.nx-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.nx-tile {
+    position: relative;
+    display: block;
+    aspect-ratio: 4 / 5;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--dx-surface-2, #1c1c22);
+    isolation: isolate;
+    text-decoration: none;
+}
+
+.dx .nx-tile,
+.nx-tile,
+.nx-tile:hover {
+    color: #fff;
+    text-decoration: none;
+}
+
+.nx-tile__media {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+
+.nx-tile__media img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform .4s ease;
+}
+
+.nx-tile:hover .nx-tile__media img {
+    transform: scale(1.04);
+}
+
+.nx-tile__blank {
+    position: absolute;
+    inset: 0;
     display: flex;
-    gap: 5px;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 30%;
+    color: var(--dx-muted, #9696a1);
 }
 
-.nx-facts dt {
-    font-weight: 500;
+.nx-tile__blank svg {
+    width: 34px;
+    height: 34px;
 }
 
-.nx-facts dd {
-    margin: 0;
-    font-weight: 700;
-    color: var(--dx-ink);
+.nx-tile__scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background:
+        linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0) 22%),
+        linear-gradient(to top, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.4) 32%, rgba(0, 0, 0, 0) 58%);
 }
 
-/* Chip on media */
-.nx-chip {
+.nx-tile__top {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.nx-tile__chip {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    height: 26px;
-    padding: 0 10px;
+    gap: 4px;
+    height: 24px;
+    padding: 0 9px;
     border-radius: 999px;
     background: rgba(0, 0, 0, 0.55);
     -webkit-backdrop-filter: blur(8px);
@@ -164,58 +233,82 @@
     white-space: nowrap;
 }
 
-.nx-chip svg {
-    width: 12px;
-    height: 12px;
+.nx-tile__chip--money {
+    color: #ffc53d;
 }
 
-.nx-chip--money {
-    color: var(--dx-money);
-}
-
-.nx-play {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    z-index: 1;
-    width: 60px;
-    height: 60px;
-    margin: -30px 0 0 -30px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.45);
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
-    color: #fff;
-    pointer-events: none;
-    transition: opacity 0.25s ease;
-}
-
-.nx-play svg {
+.nx-tile__chip--icon {
     width: 24px;
-    height: 24px;
-    margin-left: 3px;
-    fill: currentColor;
+    padding: 0;
+    justify-content: center;
 }
 
-.is-playing .nx-play {
-    opacity: 0;
+.nx-tile__chip--icon svg {
+    width: 11px;
+    height: 11px;
+    margin-left: 1px;
 }
 
-.nx-placeholder {
+.nx-tile__info {
     position: absolute;
-    inset: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.nx-tile__title {
+    font-family: var(--dx-font-display, 'Plus Jakarta Sans', 'Inter', sans-serif);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.nx-tile__by {
     display: flex;
     align-items: center;
-    justify-content: center;
-    color: var(--dx-muted);
+    gap: 6px;
+    min-width: 0;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
 }
 
-.nx-placeholder svg {
-    width: 36px;
-    height: 36px;
+.nx-tile__by span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nx-tile__avatar {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+/* A tile with no picture keeps its text readable on the plain surface */
+.nx-tile--blank .nx-tile__scrim {
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 60%);
+}
+
+/* Actions under a tile (my listings) */
+.nx-tile-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.nx-tile-wrap form {
+    margin: 0;
 }
 
 /* Earn banner under the spotlight — one line that points at the calculator */
@@ -307,141 +400,6 @@
     background: var(--dx-ink);
     border-color: var(--dx-ink);
     color: var(--dx-bg);
-}
-
-/* --- Collection wall ------------------------------------------------------- */
-.nx-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-}
-
-.nx-card {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    border-radius: var(--dx-radius);
-    overflow: hidden;
-    background: var(--dx-surface);
-    border: 1px solid var(--dx-line);
-    transition: border-color 0.15s ease, transform 0.2s ease;
-}
-
-.nx-card:hover {
-    border-color: var(--dx-line-strong);
-}
-
-.nx-card__media {
-    position: relative;
-    display: block;
-    aspect-ratio: 1 / 1;
-    background: var(--dx-surface-2);
-    overflow: hidden;
-}
-
-.nx-card__media img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.4s ease;
-}
-
-.nx-card:hover .nx-card__media img {
-    transform: scale(1.04);
-}
-
-.nx-card__media .nx-chip {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    height: 22px;
-    padding: 0 8px;
-    font-size: 11px;
-}
-
-.nx-card__body {
-    padding: 10px 12px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: 1;
-}
-
-.dx .nx-card__name {
-    font-family: var(--dx-font-display);
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--dx-ink);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.nx-card__by {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    font-size: 12px;
-    color: var(--dx-muted);
-}
-
-.nx-card__by .dx-avatar {
-    width: 18px;
-    height: 18px;
-}
-
-.nx-card__by span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.nx-card__foot {
-    margin-top: auto;
-    padding-top: 10px;
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 8px;
-}
-
-.nx-card__price {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    line-height: 1.2;
-}
-
-.nx-card__price span {
-    font-size: 11px;
-    color: var(--dx-muted);
-}
-
-.nx-card__price strong {
-    font-family: var(--dx-font-display);
-    font-size: 16px;
-    font-weight: 800;
-    color: var(--dx-money-ink);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.nx-card__price strong.is-muted {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--dx-ink);
-}
-
-.nx-card__foot .dx-btn {
-    position: relative;
-    z-index: 2;
-    height: 32px;
-    padding: 0 12px;
-    font-size: 13px;
 }
 
 /* --- Mint-ready uploads rail --------------------------------------------- */
@@ -680,24 +638,20 @@
 }
 
 @media (min-width: 769px) {
-    .nx-hero {
-        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-        align-items: stretch;
+    .nx-spot {
+        aspect-ratio: 21 / 9;
+        max-height: 540px;
     }
 
-    .nx-hero__media {
-        aspect-ratio: auto;
-        min-height: 460px;
+    .nx-spot__info {
+        padding: 32px;
+        max-width: 760px;
     }
 
-    .nx-hero__panel {
-        padding: 36px;
-        justify-content: center;
-        gap: 18px;
-    }
-
-    .nx-hero__actions {
-        max-width: 420px;
+    .nx-spot__top {
+        top: 20px;
+        left: 20px;
+        right: 20px;
     }
 
     .nx-earn {
@@ -715,7 +669,7 @@
 @media (min-width: 992px) {
     .nx-grid {
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 16px;
+        gap: 14px;
     }
 }
 
@@ -723,4 +677,202 @@
     .nx-grid {
         grid-template-columns: repeat(5, minmax(0, 1fr));
     }
+}
+
+/* --- NFT detail (nft/show) — layout comes from challenge-detail.css -------- */
+.nx-flash {
+    margin-bottom: 12px;
+}
+
+.cd-stage.nx-stage img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+}
+
+.nx-sell__amount {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    padding: 4px 16px;
+    border-radius: 16px;
+    border: 1px solid var(--dx-line-strong);
+    background: var(--dx-surface-2);
+}
+
+.nx-sell__amount:focus-within {
+    border-color: var(--dx-money);
+}
+
+.nx-sell__amount span {
+    font-family: var(--dx-font-display);
+    font-size: 30px;
+    font-weight: 800;
+    color: var(--dx-money-ink);
+}
+
+/* app.css forces number inputs to white bordered boxes with !important */
+.dx .nx-sell__amount input,
+.dx .nx-sell__amount input:focus {
+    flex: 1;
+    min-width: 0;
+    height: 56px;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--dx-ink) !important;
+    font-family: var(--dx-font-display) !important;
+    font-size: 32px !important;
+    font-weight: 800;
+    -moz-appearance: textfield;
+}
+
+.nx-sell__amount input::-webkit-outer-spin-button,
+.nx-sell__amount input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.nx-sell .cd-note {
+    margin-top: 10px;
+}
+
+.nx-sell .cd-note strong {
+    color: var(--dx-money-ink);
+}
+
+.nx-sell__actions {
+    margin-top: 10px;
+}
+
+.nx-error {
+    color: var(--dx-hot);
+}
+
+.cd-money__raised.nx-not-for-sale {
+    font-size: 26px;
+    color: var(--dx-ink);
+}
+
+.nx-owner-note {
+    margin-top: 8px;
+}
+
+/* --- Create / sell form (nft/mint-from) ----------------------------------- */
+.dx .nx-page-title {
+    font-size: 26px;
+}
+
+.nx-form {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Not <label> styling from app.css: it forces a grey !important colour, so pin it. */
+.dx .nx-form__label {
+    margin: 16px 0 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--dx-ink) !important;
+}
+
+.nx-form__label:first-of-type {
+    margin-top: 0;
+}
+
+.nx-form__label span {
+    font-weight: 500;
+    color: var(--dx-muted);
+}
+
+.dx .nx-form__input,
+.dx .nx-form__input:focus {
+    width: 100%;
+    padding: 12px 14px !important;
+    border: 1px solid var(--dx-line-strong) !important;
+    border-radius: 12px !important;
+    background: var(--dx-surface-2) !important;
+    box-shadow: none !important;
+    color: var(--dx-ink) !important;
+    font-family: var(--dx-font) !important;
+    font-size: 15px !important;
+}
+
+.dx .nx-form__input:focus {
+    border-color: var(--dx-brand) !important;
+}
+
+.dx textarea.nx-form__input {
+    resize: vertical;
+}
+
+.nx-form .nx-sell__amount {
+    margin-top: 0;
+}
+
+.nx-form__royalty {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.nx-form__chip {
+    height: 38px;
+    padding: 0 14px;
+    border: 1px solid var(--dx-line-strong);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--dx-body);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.nx-form__chip.is-active {
+    background: var(--dx-ink);
+    border-color: var(--dx-ink);
+    color: var(--dx-bg);
+}
+
+.dx .nx-form__input--small,
+.dx .nx-form__input--small:focus {
+    width: 90px;
+    padding: 8px 10px !important;
+}
+
+.dx .nx-form__check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 18px 0 0;
+    font-size: 14px;
+    color: var(--dx-body) !important;
+    cursor: pointer;
+}
+
+.nx-form__check input {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    accent-color: var(--dx-brand);
+    flex-shrink: 0;
+}
+
+.nx-tile__blank svg[fill="currentColor"] {
+    width: 28px;
+    height: 28px;
+}
+
+/* On the create form the fields come first on phones and the "you get" panel with the
+   submit button follows them (the challenge layout puts money before the cards). */
+.cd--form .cd-col > .nx-form {
+    order: 3;
+}
+
+.cd--form .cd-money {
+    order: 4;
 }

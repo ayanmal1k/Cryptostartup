@@ -1,110 +1,243 @@
 @extends('layouts.generic')
 
-@section('content')
+@section('page_title', $nft->name)
+
+@section('styles')
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap">
+    <link rel="stylesheet" href="{{ asset('css/pages/discover.css') }}?v=20260917a">
+    <link rel="stylesheet" href="{{ asset('css/pages/challenge-detail.css') }}?v=20260917a">
+    <link rel="stylesheet" href="{{ asset('css/pages/nft-marketplace.css') }}?v=20260917b">
+@endsection
+
 @php
+    /** Product page for one NFT. Same layout as a challenge; no token ids, chains or hashes. */
     $me = auth()->user();
-    $myWallet = $me->wallet_address ?? null;
-    $isOwner = $myWallet
-        ? strtolower($myWallet) === strtolower((string) $nft->owner_address)
-        : ((int) $me->id === (int) $nft->user_id && empty($nft->owner_address));
-    $token = strtoupper(config('web3.network'));
-    $animationUrl = $nft->metadata['animation_url'] ?? null;
+    $credits = \App\Models\NFT::settlesInCredits();
+    $money = fn ($v) => $credits
+        ? '$' . number_format((float) $v, 2)
+        : rtrim(rtrim(number_format((float) $v, 4), '0'), '.') . ' ' . config('web3.currency_symbol', 'POL');
+
+    $isOwner = $nft->isOwnedBy($me);
+    $isSeller = $listing && (int) $listing->seller_id === (int) $me->id;
+    $image = $nft->display_image_url;
+    $video = $nft->video_url;
+    $royaltyPct = (int) ($nft->royalty_bps ?? 0) / 100;
+    $owner = $nft->owner ?? $nft->creator;
+    $ownerIsCreator = (int) $nft->ownerId() === (int) $nft->user_id;
+
+    if ($nft->isPendingMint()) {
+        $status = ['label' => __('Being created'), 'tone' => 'muted'];
+    } elseif ($nft->status === \App\Models\NFT::STATUS_MINT_FAILED) {
+        $status = ['label' => __("Couldn't be created"), 'tone' => 'hot'];
+    } elseif ($listing) {
+        $status = ['label' => __('For sale'), 'tone' => 'money'];
+    } else {
+        $status = ['label' => __('Not for sale'), 'tone' => 'muted'];
+    }
+
+    $canAfford = $listing && $balance >= (float) $listing->price;
+    $shortfall = $listing ? max(0, (float) $listing->price - $balance) : 0;
 @endphp
-<div class="container py-4">
-    @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
-    @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
-    @if(session('info'))<div class="alert alert-info">{{ session('info') }}</div>@endif
 
-    @include('nft.partials.wallet-connect')
+@section('content')
+<div class="dx cd">
+<div class="cd-wrap">
 
-    <div class="row">
-        <div class="col-md-6 mb-4">
-            <div class="card shadow">
-                <div class="nft-image-container-large">
-                    @if($nft->media_type === 'video' && $animationUrl)
-                        <video src="{{ $animationUrl }}" poster="{{ $nft->image_url }}" controls></video>
-                    @else
-                        <img src="{{ $nft->image_url ?? asset('img/default-nft.png') }}" alt="{{ $nft->name }}">
-                    @endif
-                </div>
+    @foreach(['success', 'error', 'info'] as $flash)
+        @if(session($flash))
+            <div class="dx-alert dx-alert--{{ $flash }} nx-flash" role="status">{{ session($flash) }}</div>
+        @endif
+    @endforeach
+
+    {{-- ============ The piece itself ============ --}}
+    <section class="cd-stage {{ $image || $video ? 'has-video nx-stage' : '' }}">
+        @if($video)
+            <video src="{{ $video }}" @if($image) poster="{{ $image }}" @endif controls playsinline preload="metadata"></video>
+        @elseif($image)
+            <img src="{{ $image }}" alt="{{ $nft->name }}">
+        @else
+            <div class="cd-stage__empty">
+                <span class="cd-stage__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                </span>
+                <p class="cd-stage__line">{{ __('The picture for this one isn\'t available right now.') }}</p>
             </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card shadow">
-                <div class="card-body">
-                    <h1 class="h2 mb-3">{{ $nft->name }}</h1>
-                    @if($nft->description)
-                        <p class="text-muted mb-4">{{ $nft->description }}</p>
-                    @endif
+        @endif
+    </section>
 
-                    <div class="mb-4">
-                        <h6 class="text-muted">Owner</h6>
-                        @if($nft->owner_address)
-                            <code>{{ substr($nft->owner_address, 0, 8) }}…{{ substr($nft->owner_address, -6) }}</code>
-                            @if($isOwner) <span class="badge badge-info">You</span> @endif
-                        @else
-                            <span>{{ optional($nft->user)->name ?? 'Unknown' }}</span>
-                        @endif
-                        <div class="small text-muted mt-1">Created by {{ optional($nft->user)->name ?? 'Unknown' }}</div>
-                    </div>
+    <div class="cd-grid">
+    <div class="cd-col">
 
-                    @if($nft->status === 'pending_mint')
-                        <div class="alert alert-warning"><i class="fas fa-spinner fa-spin"></i> Minting in progress…</div>
-                    @elseif($listing && $listing->status === 'active')
-                        <div class="border-top border-bottom py-3 mb-3">
-                            <span class="text-muted">Price</span>
-                            <h3 class="mb-0">{{ rtrim(rtrim(number_format($listing->price, 6), '0'), '.') }} {{ $token }}</h3>
-                        </div>
-                        @if((int) $listing->seller_id === (int) $me->id)
-                            <form action="{{ route('nft.listing.cancel', $listing->id) }}" method="POST">
-                                @csrf
-                                <button class="btn btn-outline-danger btn-block"><i class="fas fa-times"></i> Cancel listing</button>
-                            </form>
-                        @elseif($myWallet)
-                            <form action="{{ route('nft.buy', $listing->id) }}" method="POST"
-                                  onsubmit="return confirm('Buy this NFT for {{ $listing->price }} {{ $token }}?');">
-                                @csrf
-                                <button class="btn btn-primary btn-lg btn-block"><i class="fas fa-shopping-cart"></i> Buy now</button>
-                            </form>
-                        @else
-                            <div class="alert alert-warning mb-0">Connect your wallet above to buy.</div>
-                        @endif
-                    @elseif($isOwner)
-                        <form action="{{ route('nft.list', $nft->id) }}" method="POST" class="border-top pt-3">
-                            @csrf
-                            <label class="small">List this NFT for sale</label>
-                            <div class="input-group">
-                                <input type="number" step="0.000001" min="0.000001" name="price" class="form-control"
-                                       placeholder="Price in {{ $token }}" required>
-                                <div class="input-group-append">
-                                    <button class="btn btn-primary"><i class="fas fa-tag"></i> List</button>
-                                </div>
-                            </div>
-                            @error('price')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
-                        </form>
-                    @else
-                        <div class="alert alert-secondary mb-0"><i class="fas fa-info-circle"></i> Not currently listed for sale.</div>
-                    @endif
-
-                    <div class="mt-4 pt-3 border-top">
-                        <table class="table table-sm mb-0">
-                            <tr><td class="text-muted">Token ID</td><td class="text-right"><code>{{ $nft->token_id ?? '—' }}</code></td></tr>
-                            <tr><td class="text-muted">Type</td><td class="text-right">{{ ucfirst($nft->media_type ?? 'image') }}</td></tr>
-                            <tr><td class="text-muted">Creator royalty</td><td class="text-right">{{ ($nft->royalty_bps ?? 0) / 100 }}%</td></tr>
-                            <tr><td class="text-muted">Network</td><td class="text-right">{{ $token }}</td></tr>
-                            <tr><td class="text-muted">Created</td><td class="text-right">{{ optional($nft->created_at)->format('M d, Y') }}</td></tr>
-                        </table>
-                    </div>
-                </div>
+        <header class="cd-head">
+            <div class="cd-chips">
+                <span class="cd-status cd-status--{{ $status['tone'] }}">
+                    <span class="cd-status__dot" aria-hidden="true"></span>{{ $status['label'] }}
+                </span>
+                <span class="cd-type">{{ $nft->media_type === 'video' ? __('Video') : __('Photo') }} · {{ __('One of a kind') }}</span>
             </div>
+            <h1 class="cd-title">{{ $nft->name }}</h1>
+            <p class="cd-meta">{{ __('Created') }} {{ optional($nft->created_at)->diffForHumans() }}</p>
+        </header>
+
+        <div class="cd-people">
+            @if($nft->creator)
+                <a href="{{ route('profile', ['username' => $nft->creator->username]) }}" class="cd-person">
+                    <img src="{{ $nft->creator->avatar }}" alt="" class="dx-avatar">
+                    <span class="cd-person__text">
+                        <span class="cd-person__role">{{ __('Creator') }}</span>
+                        <span class="cd-person__name">{{ $nft->creator->name }}</span>
+                    </span>
+                </a>
+            @endif
+            @if($owner)
+                <a href="{{ route('profile', ['username' => $owner->username]) }}" class="cd-person">
+                    <img src="{{ $owner->avatar }}" alt="" class="dx-avatar">
+                    <span class="cd-person__text">
+                        <span class="cd-person__role">{{ __('Owner') }}</span>
+                        <span class="cd-person__name">{{ $isOwner ? __('You') : $owner->name }}</span>
+                    </span>
+                </a>
+            @endif
         </div>
+
+        @if(trim((string) $nft->description) !== '')
+            <section class="cd-card">
+                <h2 class="cd-card__title">{{ __('About this piece') }}</h2>
+                <p class="cd-story">{{ $nft->description }}</p>
+            </section>
+        @endif
+
+        <section class="cd-card">
+            <div class="cd-card__head">
+                <h2 class="cd-card__title">{{ __('Sales') }}</h2>
+                @if($royaltyPct > 0)
+                    <span class="cd-card__aside">{{ __('Creator gets :pct% of every resale', ['pct' => rtrim(rtrim(number_format($royaltyPct, 2), '0'), '.')]) }}</span>
+                @endif
+            </div>
+            @if($sales->count())
+                <ul class="cd-list">
+                    @foreach($sales as $sale)
+                        @php $buyer = $buyers->get($sale->buyer_id); @endphp
+                        <li class="cd-list__row">
+                            @if($buyer)
+                                <img src="{{ $buyer->avatar }}" alt="" class="dx-avatar">
+                            @endif
+                            <span class="cd-list__main">
+                                <strong>{{ $buyer ? ((int) $buyer->id === (int) $me->id ? __('You') : $buyer->name) : __('A fan') }}</strong>
+                                {{ __('bought it') }}
+                                <span class="cd-list__time">{{ $sale->created_at->diffForHumans() }}</span>
+                            </span>
+                            <span class="cd-list__side is-money">{{ $money($sale->price) }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            @else
+                <p class="cd-note">{{ __('Never sold yet — the first buyer owns the original.') }}</p>
+            @endif
+        </section>
     </div>
+
+    <aside class="cd-side">
+        <section class="cd-card cd-money">
+            @if($nft->isPendingMint())
+                <p class="cd-note">{{ __('This NFT is being created. It will be ready in a moment — refresh to check.') }}</p>
+
+            @elseif($listing)
+                <div class="cd-money__amounts">
+                    <span class="cd-money__raised">{{ $money($listing->price) }}</span>
+                    <span class="cd-money__goal">{{ $isSeller ? __('your asking price') : __('to own it') }}</span>
+                </div>
+                <div class="cd-actions">
+                    @if($isSeller)
+                        <form action="{{ route('nft.listing.cancel', $listing->id) }}" method="POST">
+                            @csrf
+                            <button type="submit" class="dx-btn dx-btn--ghost dx-btn--block">{{ __('Stop selling') }}</button>
+                        </form>
+                    @elseif(!$credits || $canAfford)
+                        <form action="{{ route('nft.buy', $listing->id) }}" method="POST"
+                              data-confirm="{{ __('Buy “:name” for :price?', ['name' => $nft->name, 'price' => $money($listing->price)]) }}"
+                              onsubmit="return confirm(this.dataset.confirm)">
+                            @csrf
+                            <button type="submit" class="dx-btn dx-btn--money dx-btn--block">{{ __('Buy now') }}</button>
+                        </form>
+                        @if($credits)
+                            <p class="cd-note cd-note--center">{{ __('Paid from your balance') }} ({{ $money($balance) }})</p>
+                        @endif
+                    @else
+                        <a href="{{ route('my.settings', ['type' => 'wallet', 'active' => 'deposit']) }}" class="dx-btn dx-btn--money dx-btn--block">
+                            {{ __('Add :amount to buy', ['amount' => $money($shortfall)]) }}
+                        </a>
+                        <p class="cd-note cd-note--center">{{ __('Your balance is :amount', ['amount' => $money($balance)]) }}</p>
+                    @endif
+                </div>
+
+            @elseif($isOwner && $nft->isMinted())
+                <h2 class="cd-card__title">{{ __('Sell it') }}</h2>
+                <form action="{{ route('nft.list', $nft->id) }}" method="POST" class="nx-sell"
+                      data-fee="{{ $feePct }}" data-royalty="{{ $ownerIsCreator ? 0 : $royaltyPct }}">
+                    @csrf
+                    <div class="nx-sell__amount">
+                        <span aria-hidden="true">{{ $credits ? '$' : '' }}</span>
+                        <input type="number" name="price" step="0.01" min="{{ $credits ? '1' : '0.000001' }}"
+                               inputmode="decimal" placeholder="0.00" required aria-label="{{ __('Price') }}"
+                               value="{{ old('price', $nft->metadata['price_hint'] ?? '') }}">
+                    </div>
+                    @error('price')<p class="cd-note nx-error">{{ $message }}</p>@enderror
+                    <p class="cd-note">{{ __('You get') }} <strong data-sell-net>—</strong>
+                        {{ $ownerIsCreator ? __('after the :fee% fee', ['fee' => rtrim(rtrim(number_format($feePct, 2), '0'), '.')]) : __('after the fee and the creator\'s cut') }}</p>
+                    <div class="cd-actions nx-sell__actions">
+                        <button type="submit" class="dx-btn dx-btn--primary dx-btn--block">{{ __('Put it up for sale') }}</button>
+                    </div>
+                </form>
+
+            @elseif($nft->status === \App\Models\NFT::STATUS_MINT_FAILED)
+                <p class="cd-note">{{ __('Something went wrong creating this NFT.') }}</p>
+
+            @else
+                <div class="cd-money__amounts">
+                    <span class="cd-money__raised nx-not-for-sale">{{ __('Not for sale') }}</span>
+                </div>
+                <p class="cd-note nx-owner-note">{{ __(':name owns it. If they put it up for sale, it will show here.', ['name' => $owner->name ?? __('The owner')]) }}</p>
+            @endif
+        </section>
+
+        <nav class="cd-card cd-more" aria-label="{{ __('More') }}">
+            <a href="{{ route('nft.marketplace') }}" class="cd-more__link">
+                <span>{{ __('Explore more NFTs') }}</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+            </a>
+            <a href="{{ route('nft.my-nfts') }}" class="cd-more__link">
+                <span>{{ __('My NFTs') }}</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+            </a>
+            <a href="{{ route('nft.mintable') }}" class="cd-more__link">
+                <span>{{ __('Sell one of my uploads') }}</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </a>
+        </nav>
+    </aside>
+    </div>
+
+</div>
 </div>
 
-<style>
-    .nft-image-container-large { width:100%; padding-top:100%; position:relative; overflow:hidden; background:#f8f9fa; }
-    .nft-image-container-large img, .nft-image-container-large video {
-        position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover;
-    }
-</style>
+<script>
+/* Sell form: show what the seller actually receives as they type. */
+document.addEventListener('DOMContentLoaded', function () {
+    var form = document.querySelector('.nx-sell');
+    if (!form) return;
+    var input = form.querySelector('input[name="price"]');
+    var out = form.querySelector('[data-sell-net]');
+    var keep = 1 - ((parseFloat(form.dataset.fee) || 0) + (parseFloat(form.dataset.royalty) || 0)) / 100;
+    var prefix = @json($credits ? '$' : '');
+    var update = function () {
+        var p = parseFloat(input.value);
+        out.textContent = p > 0 ? prefix + (p * keep).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+    };
+    input.addEventListener('input', update);
+    update();
+});
+</script>
 @endsection

@@ -51,6 +51,7 @@
 
 @section('styles')
     <link rel="stylesheet" href="{{ asset('css/pages/wallet.css') }}?v=20260917a">
+    <link rel="stylesheet" href="{{ asset('css/pages/nft-marketplace.css') }}?v=20260917b">
 @endsection
 
 @section('content')
@@ -290,41 +291,20 @@
             </div>
 
             @if($nfts->count())
-                <div class="nft-grid">
+                {{-- Same tile as the marketplace: the piece, its price, who made it. --}}
+                <div class="nx-grid">
                     @foreach($nfts as $nft)
-                        <a href="{{ route('nft.show', $nft->id) }}" class="nft-card">
-                            <div class="nft-card__media">
-                                @if($nft->image_url)
-                                    <img src="{{ $nft->image_url }}" alt="{{ $nft->name }}" loading="lazy">
-                                @else
-                                    <span class="nft-card__placeholder" aria-hidden="true">
-                                        <svg viewBox="0 0 24 24" fill="none">
-                                            <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.75"/>
-                                            <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
-                                            <path d="m21 15-5-5L5 21" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-                                        </svg>
-                                    </span>
-                                @endif
-                                <span class="nft-card__status nft-card__status--{{ $nft->status }}">{{ ucfirst(str_replace('_', ' ', $nft->status)) }}</span>
-                            </div>
-                            <div class="nft-card__body">
-                                <span class="nft-card__name">{{ $nft->name }}</span>
-                                <span class="nft-card__sub">
-                                    @if($nft->token_id !== null)
-                                        #{{ $nft->token_id }}
-                                    @else
-                                        {{ __('Pending') }}
-                                    @endif
-                                </span>
-                            </div>
-                        </a>
+                        @include('nft.partials.card', [
+                            'nft' => $nft,
+                            'note' => $nft->isPendingMint() ? __('Being created') : null,
+                        ])
                     @endforeach
                 </div>
             @else
                 <div class="wallet-empty">
                     <h4>{{ __('No NFTs yet') }}</h4>
-                    <p>{{ __('Mint an NFT from a video or photo you have uploaded') }}</p>
-                    <a href="{{ route('nft.mintable') }}" class="wallet-btn wallet-btn--primary wallet-btn--inline">{{ __('Mint from my uploads') }}</a>
+                    <p>{{ __('Buy one from a creator, or turn something you posted into one you can sell') }}</p>
+                    <a href="{{ route('nft.marketplace') }}" class="wallet-btn wallet-btn--primary wallet-btn--inline">{{ __('Explore NFTs') }}</a>
                 </div>
             @endif
         </div>

@@ -1371,3 +1371,9 @@
     color: var(--w-text-muted) !important;
     text-decoration: underline;
 }
+
+/* NFT tab uses the shared tile (nft-marketplace.css); two columns in this narrow column. */
+.wallet-page .nx-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}

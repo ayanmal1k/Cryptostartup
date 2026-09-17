@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Model\Attachment;
 use App\Models\NFT;
 use App\Models\Video;
+use App\Services\Nft\Contracts\MarketplaceService;
+use App\Services\Nft\CreditsMarketplaceService;
 use App\Services\Nft\MediaNftService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -65,7 +67,9 @@ class MediaNftController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
             'royalty_percent' => 'required|numeric|min:0|max:50',
-            'price' => 'nullable|numeric|min:0',
+            'price' => NFT::settlesInCredits()
+                ? 'nullable|numeric|min:' . CreditsMarketplaceService::MIN_PRICE . '|max:' . CreditsMarketplaceService::MAX_PRICE
+                : 'nullable|numeric|min:0',
             'confirm_original' => 'accepted',
         ]);
 
@@ -75,15 +79,34 @@ class MediaNftController extends Controller
 
         try {
             $media = $this->service->resolve($type, $id);
-            $this->service->mintFromMedia(Auth::user(), $media, [
+            $nft = $this->service->mintFromMedia(Auth::user(), $media, [
                 'name' => $request->name,
                 'description' => $request->description,
                 'royalty_bps' => (int) round((float) $request->royalty_percent * 100),
                 'price_hint' => $request->price,
             ]);
 
+            // Create and put up for sale in one step when a price was given and the mint has
+            // already completed (it is synchronous unless a real queue worker is running).
+            $nft->refresh();
+            if ($request->filled('price') && $nft->isMinted()) {
+                try {
+                    app(MarketplaceService::class)->list($nft, Auth::user(), (float) $request->price);
+
+                    return redirect()->route('nft.show', $nft->id)
+                        ->with('success', __('Your NFT is live and for sale.'));
+                } catch (\Throwable $e) {
+                    return redirect()->route('nft.show', $nft->id)
+                        ->with('info', __('Your NFT is ready, but it could not be put up for sale: :reason', ['reason' => $e->getMessage()]));
+                }
+            }
+
+            if ($nft->isMinted()) {
+                return redirect()->route('nft.show', $nft->id)->with('success', __('Your NFT is ready.'));
+            }
+
             return redirect()->route('nft.my-nfts')
-                ->with('success', 'Your content is being minted into an NFT. It will show as owned once confirmed.');
+                ->with('success', __('Your NFT is being created. It will show up here in a moment.'));
         } catch (\Throwable $e) {
             Log::error('Media NFT mint failed', ['type' => $type, 'id' => $id, 'error' => $e->getMessage()]);
 

@@ -267,5 +267,5 @@
 @endsection
 
 @section('scripts')
-    <script src="{{ asset('js/pages/discover.js') }}?v=20260917a" defer></script>
+    <script src="{{ asset('js/pages/discover.js') }}?v=20260917b" defer></script>
 @endsection

@@ -7,6 +7,7 @@ use App\Models\NFT;
 use App\Models\NFTListing;
 use App\Models\NFTTransaction;
 use App\Models\Video;
+use App\Services\Nft\CreditsMarketplaceService;
 use App\Services\Nft\Contracts\MarketplaceService;
 use App\Services\Nft\Contracts\MetadataStorageService;
 use Illuminate\Http\Request;
@@ -151,7 +152,9 @@ class NFTMarketplaceController extends Controller
         $economics = [
             'fee_pct' => (int) config('web3.marketplace_fee_bps', 250) / 100,
             'royalty_pct' => (int) config('web3.default_royalty_bps', 1000) / 100,
-            'currency' => config('web3.currency_symbol', 'POL'),
+            // Dollars when sales settle in platform credits; the chain's token otherwise.
+            'currency' => NFT::settlesInCredits() ? '$' : config('web3.currency_symbol', 'POL'),
+            'prefix' => NFT::settlesInCredits(),
         ];
 
         return view('nft.marketplace', compact(
@@ -241,10 +244,22 @@ class NFTMarketplaceController extends Controller
      */
     public function show($id)
     {
-        $nft = NFT::with(['user', 'currentOwner', 'activeListing', 'transactions'])->findOrFail($id);
+        $nft = NFT::with(['creator', 'owner', 'activeListing'])->findOrFail($id);
         $listing = $nft->activeListing;
 
-        return view('nft.show', compact('nft', 'listing'));
+        // Sales history in plain terms (who bought it, for how much, when) — no hashes.
+        $sales = $nft->transactions()
+            ->whereIn('type', ['sale', 'resale'])
+            ->where('status', 'confirmed')
+            ->latest()
+            ->limit(10)
+            ->get();
+        $buyers = \App\Model\User::whereIn('id', $sales->pluck('buyer_id')->filter()->unique())->get()->keyBy('id');
+
+        $balance = (float) (optional(Auth::user()->wallet)->total ?? 0);
+        $feePct = (int) config('web3.marketplace_fee_bps', 250) / 100;
+
+        return view('nft.show', compact('nft', 'listing', 'sales', 'buyers', 'balance', 'feePct'));
     }
 
     /**
@@ -252,7 +267,7 @@ class NFTMarketplaceController extends Controller
      */
     public function list(Request $request, $id)
     {
-        $validator = Validator::make($request->all(), ['price' => 'required|numeric|min:0.000001']);
+        $validator = Validator::make($request->all(), ['price' => $this->priceRule()]);
         if ($validator->fails()) {
             return back()->withErrors($validator);
         }
@@ -302,7 +317,7 @@ class NFTMarketplaceController extends Controller
      */
     public function resell(Request $request, $id)
     {
-        $validator = Validator::make($request->all(), ['price' => 'required|numeric|min:0.000001']);
+        $validator = Validator::make($request->all(), ['price' => $this->priceRule()]);
         if ($validator->fails()) {
             return back()->withErrors($validator);
         }
@@ -325,18 +340,28 @@ class NFTMarketplaceController extends Controller
     {
         $user = Auth::user();
 
-        $query = NFT::query()->with(['activeListing', 'transactions'])->orderByDesc('created_at');
-        if (!empty($user->wallet_address)) {
-            $query->where(function ($q) use ($user) {
-                $q->ownedByAddress($user->wallet_address)->orWhere('user_id', $user->id);
-            });
-        } else {
-            $query->where('user_id', $user->id);
-        }
-
-        $nfts = $query->paginate(20);
+        // Ownership is the account (owner_user_id); a linked wallet's on-chain holdings still count.
+        $nfts = NFT::query()
+            ->with(['activeListing', 'creator'])
+            ->where('status', '!=', NFT::STATUS_MINT_FAILED)
+            ->where(function ($q) use ($user) {
+                $q->ownedByUser((int) $user->id);
+                if (!empty($user->wallet_address)) {
+                    $q->orWhere(fn ($w) => $w->ownedByAddress($user->wallet_address));
+                }
+            })
+            ->orderByDesc('created_at')
+            ->paginate(24);
 
         return view('nft.my-nfts', compact('nfts'));
+    }
+
+    /** Listing price rule: dollars (at least $1) in credit mode, token units otherwise. */
+    private function priceRule(): string
+    {
+        return NFT::settlesInCredits()
+            ? 'required|numeric|min:' . CreditsMarketplaceService::MIN_PRICE . '|max:' . CreditsMarketplaceService::MAX_PRICE
+            : 'required|numeric|min:0.000001';
     }
 
     /**
@@ -345,7 +370,7 @@ class NFTMarketplaceController extends Controller
     public function myListings()
     {
         $listings = NFTListing::where('seller_id', Auth::id())
-            ->with(['nft'])
+            ->with(['nft.creator'])
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 

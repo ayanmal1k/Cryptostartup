@@ -1,65 +1,50 @@
 @php
     /**
-     * Collection card.
+     * NFT tile — the same shape as a challenge tile: the picture is the product, with the
+     * price on it and who made it underneath. No token ids, chains or addresses.
+     *
      * $nft      - NFT with `creator` and `activeListing` loaded
-     * $currency - native token symbol
+     * $note     - optional override for the corner chip (e.g. "Creating…")
      */
     $listing = $nft->activeListing;
-    $url = route('nft.show', $nft->id);
-    $me = auth()->user();
-    $canBuy = $listing && $me && (int) $listing->seller_id !== (int) $me->id;
-    $price = $listing ? rtrim(rtrim(number_format((float) $listing->price, 4), '0'), '.') : null;
+    $image = $nft->display_image_url;
+    $isVideo = $nft->media_type === 'video';
+    $note = $note ?? null;
 @endphp
-<article class="nx-card">
-    <a href="{{ $url }}" class="nx-card__media" tabindex="-1" aria-hidden="true">
-        @if($nft->image_url)
-            <img src="{{ $nft->image_url }}" alt="" loading="lazy" decoding="async">
+<a href="{{ route('nft.show', $nft->id) }}" class="nx-tile {{ $image ? '' : 'nx-tile--blank' }}">
+    <div class="nx-tile__media" @if($isVideo && $nft->video_url) data-dx-preview="{{ $nft->video_url }}" @endif>
+        @if($image)
+            <img src="{{ $image }}" alt="" loading="lazy" decoding="async">
         @else
-            <span class="nx-placeholder">
+            <span class="nx-tile__blank" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
             </span>
         @endif
-        @if($nft->media_type === 'video')
-            <span class="nx-chip">
+        <span class="nx-tile__scrim"></span>
+    </div>
+
+    <div class="nx-tile__top">
+        @if($note)
+            <span class="nx-tile__chip">{{ $note }}</span>
+        @elseif($listing)
+            <span class="nx-tile__chip nx-tile__chip--money">${{ number_format((float) $listing->price, 2) }}</span>
+        @else
+            <span class="nx-tile__chip">{{ __('Not for sale') }}</span>
+        @endif
+        @if($isVideo)
+            <span class="nx-tile__chip nx-tile__chip--icon" aria-label="{{ __('Video') }}">
                 <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>
-                {{ __('Video') }}
             </span>
         @endif
-    </a>
+    </div>
 
-    <div class="nx-card__body">
-        <a href="{{ $url }}" class="nx-card__name">{{ $nft->name }}</a>
-        <span class="nx-card__by">
+    <div class="nx-tile__info">
+        <span class="nx-tile__title">{{ $nft->name }}</span>
+        <span class="nx-tile__by">
             @if($nft->creator)
-                <img src="{{ $nft->creator->avatar }}" alt="" class="dx-avatar" loading="lazy">
+                <img src="{{ $nft->creator->avatar }}" alt="" class="nx-tile__avatar" loading="lazy">
             @endif
             <span>{{ $nft->creator->name ?? __('Unknown creator') }}</span>
         </span>
-
-        <div class="nx-card__foot">
-            <div class="nx-card__price">
-                @if($listing)
-                    <span>{{ __('Price') }}</span>
-                    <strong>{{ $price }} {{ $currency }}</strong>
-                @else
-                    <span>{{ __('1 of 1') }}</span>
-                    <strong class="is-muted">{{ __('Not for sale') }}</strong>
-                @endif
-            </div>
-
-            @if($canBuy)
-                {{-- Buying needs a connected wallet; without one the detail page walks them through it. --}}
-                @if($me->wallet_address)
-                    <form action="{{ route('nft.buy', $listing->id) }}" method="POST"
-                          data-confirm="{{ __('Buy :name for :price :currency?', ['name' => $nft->name, 'price' => $price, 'currency' => $currency]) }}"
-                          onsubmit="return confirm(this.dataset.confirm)">
-                        @csrf
-                        <button type="submit" class="dx-btn dx-btn--money">{{ __('Buy') }}</button>
-                    </form>
-                @else
-                    <a href="{{ $url }}" class="dx-btn dx-btn--money">{{ __('Buy') }}</a>
-                @endif
-            @endif
-        </div>
     </div>
-</article>
+</a>

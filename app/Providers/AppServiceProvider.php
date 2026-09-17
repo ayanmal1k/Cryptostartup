@@ -83,6 +83,10 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->bind(\App\Services\Nft\Contracts\MarketplaceService::class, function () {
+            // Dollar pricing (the default) settles in platform credits, independent of the chain.
+            if (\App\Models\NFT::settlesInCredits()) {
+                return new \App\Services\Nft\CreditsMarketplaceService();
+            }
             $driver = config('web3.driver', 'auto');
             $thirdweb = new \App\Services\Nft\ThirdwebMarketplaceService();
             if ($driver === 'thirdweb' || ($driver === 'auto' && $thirdweb->isLive())) {

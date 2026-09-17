@@ -1,101 +1,87 @@
 @extends('layouts.generic')
 
-@section('content')
-<div class="container py-4">
-    <div class="row mb-4">
-        <div class="col-12">
-            <h1 class="display-4">My Listings</h1>
-            <p class="lead text-muted">NFTs you've listed for sale</p>
-        </div>
-    </div>
+@section('page_title', __('My listings'))
 
-    <div class="row">
-        @forelse($listings as $listing)
-            <div class="col-md-4 col-lg-3 mb-4">
-                <div class="card h-100 shadow-sm">
-                    <div class="nft-image-container">
-                        <img src="{{ $listing->nft->image_url ?? asset('img/default-nft.png') }}" 
-                             class="card-img-top nft-image" 
-                             alt="{{ $listing->nft->name }}">
-                        <div class="nft-price-badge">
-                            {{ rtrim(rtrim(number_format($listing->price, 6), '0'), '.') }} {{ strtoupper(config('web3.network')) }}
-                        </div>
-                    </div>
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title">{{ $listing->nft->name }}</h5>
-                        <p class="card-text text-muted small">
-                            Status: <span class="badge badge-{{ $listing->status === 'active' ? 'success' : 'secondary' }}">
-                                {{ ucfirst($listing->status) }}
-                            </span>
-                        </p>
-                        <div class="mt-auto">
-                            <a href="{{ route('nft.show', $listing->nft_id) }}" class="btn btn-sm btn-outline-primary btn-block">
-                                View Details
-                            </a>
+@section('styles')
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap">
+    <link rel="stylesheet" href="{{ asset('css/pages/discover.css') }}?v=20260917a">
+    <link rel="stylesheet" href="{{ asset('css/pages/nft-marketplace.css') }}?v=20260917b">
+@endsection
+
+@section('content')
+<div class="dx nx">
+
+    @include('elements.discover.subnav', [
+        'tabs' => [
+            ['label' => __('Explore'), 'href' => route('nft.marketplace'), 'active' => false],
+            ['label' => __('For sale'), 'href' => route('nft.marketplace', ['view' => 'sale']), 'active' => false],
+            ['label' => __('My NFTs'), 'href' => route('nft.my-nfts'), 'active' => true],
+        ],
+        'search' => '',
+        'searchAction' => route('nft.marketplace'),
+        'searchLabel' => __('Search NFTs'),
+        'cta' => ['label' => __('Create'), 'href' => route('nft.mintable')],
+    ])
+
+    <main class="dx-main">
+        @foreach(['success', 'error'] as $flash)
+            @if(session($flash))
+                <div class="dx-alert dx-alert--{{ $flash }}" role="status">{{ session($flash) }}</div>
+            @endif
+        @endforeach
+
+        <section>
+            <div class="dx-section__head">
+                <div>
+                    <h2 class="dx-section__title">{{ __('My listings') }}</h2>
+                    <p class="dx-section__sub">{{ __('What you have put up for sale') }}</p>
+                </div>
+                <a href="{{ route('nft.my-nfts') }}" class="dx-section__link">{{ __('My NFTs') }}</a>
+            </div>
+
+            @php $shown = $listings->getCollection()->filter(fn ($l) => $l->nft); @endphp
+            @if($shown->count())
+                <div class="nx-grid">
+                    @foreach($shown as $listing)
+                        @php
+                            $nft = $listing->nft;
+                            $nft->setRelation('activeListing', $listing->status === 'active' ? $listing : null);
+                            $note = [
+                                'sold' => __('Sold · $:price', ['price' => number_format((float) $listing->price, 2)]),
+                                'cancelled' => __('Stopped'),
+                            ][$listing->status] ?? null;
+                        @endphp
+                        <div class="nx-tile-wrap">
+                            @include('nft.partials.card', ['nft' => $nft, 'note' => $note])
                             @if($listing->status === 'active')
-                                <form action="{{ route('nft.listing.cancel', $listing->id) }}" method="POST" class="mt-1">
+                                <form action="{{ route('nft.listing.cancel', $listing->id) }}" method="POST">
                                     @csrf
-                                    <button class="btn btn-sm btn-outline-danger btn-block">
-                                        <i class="fas fa-times"></i> Cancel listing
-                                    </button>
+                                    <button type="submit" class="dx-btn dx-btn--ghost dx-btn--sm dx-btn--block">{{ __('Stop selling') }}</button>
                                 </form>
                             @endif
                         </div>
-                    </div>
+                    @endforeach
                 </div>
-            </div>
-        @empty
-            <div class="col-12">
-                <div class="text-center py-5">
-                    <i class="fas fa-tag fa-3x text-muted mb-3"></i>
-                    <h3 class="text-muted">No listings yet</h3>
-                    <p class="text-muted">List your NFTs for sale to get started!</p>
-                    <a href="{{ route('nft.my-nfts') }}" class="btn btn-primary">
-                        <i class="fas fa-box"></i> View My NFTs
-                    </a>
+                @if($listings->hasPages())
+                    <div class="dx-pagination nx-pagination">{{ $listings->links() }}</div>
+                @endif
+            @else
+                <div class="dx-empty">
+                    <span class="dx-empty__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+                    </span>
+                    <h3>{{ __('Nothing for sale yet') }}</h3>
+                    <p>{{ __('Open one of your NFTs and put it up for sale.') }}</p>
+                    <a href="{{ route('nft.my-nfts') }}" class="dx-btn dx-btn--primary">{{ __('My NFTs') }}</a>
                 </div>
-            </div>
-        @endforelse
-    </div>
-
-    @if($listings->hasPages())
-        <div class="row mt-4">
-            <div class="col-12 d-flex justify-content-center">
-                {{ $listings->links() }}
-            </div>
-        </div>
-    @endif
+            @endif
+        </section>
+    </main>
 </div>
-
-<style>
-    .nft-image-container {
-        position: relative;
-        width: 100%;
-        padding-top: 100%;
-        overflow: hidden;
-        background: #f8f9fa;
-    }
-
-    .nft-image {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .nft-price-badge {
-        position: absolute;
-        bottom: 10px;
-        right: 10px;
-        background: rgba(0, 0, 0, 0.8);
-        color: white;
-        padding: 8px 12px;
-        border-radius: 20px;
-        font-weight: 600;
-        font-size: 0.9rem;
-    }
-</style>
 @endsection
 
+@section('scripts')
+    <script src="{{ asset('js/pages/discover.js') }}?v=20260917b" defer></script>
+@endsection

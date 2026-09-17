@@ -37,7 +37,10 @@ class MediaNftService
         if ((int) $media->ownerId !== (int) $user->id) {
             throw new RuntimeException('You can only mint your own content.');
         }
-        if (empty($user->wallet_address)) {
+        // With dollar pricing the account owns the NFT; a linked wallet is optional and the
+        // token is held for the user when they have none.
+        $mintTo = $user->wallet_address ?: (NFT::settlesInCredits() ? $this->custodialAddress() : null);
+        if (!$mintTo) {
             throw new RuntimeException('Connect your wallet before minting — an NFT must be owned by a wallet address.');
         }
         if (NFT::mintedFor($media->sourceType, $media->sourceId)) {
@@ -63,7 +66,7 @@ class MediaNftService
             ],
             // Royalty hints honoured by thirdweb / ERC-2981-aware marketplaces.
             'seller_fee_basis_points' => $royaltyBps,
-            'fee_recipient' => $user->wallet_address,
+            'fee_recipient' => $user->wallet_address ?: $mintTo,
         ];
 
         $animationUri = null;
@@ -76,7 +79,8 @@ class MediaNftService
 
         $nft = NFT::create([
             'user_id' => $user->id,
-            'owner_address' => $user->wallet_address,
+            'owner_user_id' => $user->id,
+            'owner_address' => $mintTo,
             'name' => $name,
             'description' => $description,
             'token_uri' => $metadataUri,
@@ -95,8 +99,17 @@ class MediaNftService
             ],
         ]);
 
-        MintNft::dispatch($nft->id, $user->wallet_address);
+        MintNft::dispatch($nft->id, $mintTo);
 
         return $nft;
+    }
+
+    /**
+     * Address that holds tokens for users without a wallet of their own: the configured
+     * custodial/backend wallet, or with none configured (local fake minting) a clearly-fake marker.
+     */
+    private function custodialAddress(): string
+    {
+        return (string) (config('web3.custodial_address') ?: '0xFAKEcustodial00000000000000000000000000');
     }
 }

@@ -27,6 +27,15 @@ return [
     // Amoy alike — the network name ("amoy") is not a currency and should never be shown as one.
     'currency_symbol' => env('WEB3_CURRENCY_SYMBOL', 'POL'),
 
+    // How NFT sales settle. 'credits' (default): priced in dollars and paid with platform
+    // credits, owned by the buyer's account — no crypto wallet needed. 'onchain': priced in
+    // the native token and settled by the marketplace contract.
+    'settlement' => env('NFT_SETTLEMENT', 'credits'),
+
+    // Where tokens are minted for users who have not linked a wallet of their own (the
+    // platform holds them on the user's behalf). Defaults to the Engine backend wallet.
+    'custodial_address' => env('NFT_CUSTODIAL_ADDRESS', env('WEB3_ENGINE_BACKEND_WALLET', '')),
+
     // Deployed thirdweb NFT Collection (ERC-721) contract address.
     'contract_address' => env('NFT_MARKETPLACE_CONTRACT_ADDRESS', ''),
 

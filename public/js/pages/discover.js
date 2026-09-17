@@ -128,9 +128,14 @@
         var royalty = parseFloat(calc.dataset.royalty) / 100;
         var resales = parseInt(calc.dataset.resales, 10) || 0;
         var currency = calc.dataset.currency || '';
+        var prefix = calc.dataset.prefix === '1';
 
+        // "$1,975.00" for dollars, "1,975 POL" for a token.
         var fmt = function (n) {
-            return (Math.round(n * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + currency;
+            var rounded = Math.round(n * 100) / 100;
+            return prefix
+                ? currency + rounded.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                : rounded.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + currency;
         };
         var put = function (name, text) {
             var el = calc.querySelector('[data-out="' + name + '"]');

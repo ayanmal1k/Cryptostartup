@@ -88,15 +88,18 @@ class WalletHubController extends Controller
      */
     private function ownedNfts(int $userId, ?string $address)
     {
-        $query = NFT::query()->where('status', '!=', NFT::STATUS_MINT_FAILED);
-
-        if ($address) {
-            $query->where(fn ($q) => $q->ownedByAddress($address)->orWhere('user_id', $userId));
-        } else {
-            $query->where('user_id', $userId);
-        }
-
-        return $query->latest()->get();
+        return NFT::query()
+            ->with(['activeListing', 'creator'])
+            ->where('status', '!=', NFT::STATUS_MINT_FAILED)
+            ->where(function ($q) use ($userId, $address) {
+                // The account owns it, or a linked wallet holds it on-chain.
+                $q->ownedByUser($userId);
+                if ($address) {
+                    $q->orWhere(fn ($w) => $w->ownedByAddress($address));
+                }
+            })
+            ->latest()
+            ->get();
     }
 
     /**

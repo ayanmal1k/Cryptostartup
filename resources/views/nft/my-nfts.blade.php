@@ -1,116 +1,74 @@
 @extends('layouts.generic')
 
-@section('content')
-<div class="container py-4">
-    <div class="row mb-4">
-        <div class="col-12">
-            <h1 class="display-4">My NFTs</h1>
-            <p class="lead text-muted">Manage your NFT collection</p>
-        </div>
-    </div>
+@section('page_title', __('My NFTs'))
 
-    <div class="row">
-        @forelse($nfts as $nft)
-            @php
-                $statusMap = [
-                    'pending_mint' => ['Minting…', 'warning'],
-                    'minted'       => ['Owned', 'primary'],
-                    'listed'       => ['Listed', 'success'],
-                    'sold'         => ['Sold', 'success'],
-                    'transferred'  => ['Transferred', 'secondary'],
-                    'mint_failed'  => ['Mint failed', 'danger'],
-                ];
-                [$statusLabel, $statusClass] = $statusMap[$nft->status] ?? [ucfirst($nft->status), 'primary'];
-            @endphp
-            <div class="col-md-4 col-lg-3 mb-4">
-                <div class="card h-100 shadow-sm">
-                    <div class="nft-image-container">
-                        <img src="{{ $nft->image_url ?? asset('img/default-nft.png') }}"
-                             class="card-img-top nft-image"
-                             alt="{{ $nft->name }}">
-                        @if($nft->status === 'pending_mint')
-                            <div class="nft-status-badge badge-warning">
-                                <i class="fas fa-spinner fa-spin"></i> Minting
-                            </div>
-                        @elseif($nft->activeListing)
-                            <div class="nft-status-badge badge-success">
-                                <i class="fas fa-tag"></i> Listed
-                            </div>
-                        @endif
-                    </div>
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title">{{ $nft->name }}</h5>
-                        <p class="card-text text-muted small mb-2">
-                            {{ Str::limit($nft->description ?? 'No description', 70) }}
-                        </p>
-                        <div class="small text-muted flex-grow-1">
-                            @if($nft->token_id)
-                                <div><i class="fas fa-hashtag"></i> Token #{{ $nft->token_id }}</div>
-                            @endif
-                            @if($nft->owner_address)
-                                <div title="{{ $nft->owner_address }}">
-                                    <i class="fas fa-user"></i> {{ substr($nft->owner_address, 0, 6) }}…{{ substr($nft->owner_address, -4) }}
-                                </div>
-                            @endif
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mt-2">
-                            <span class="badge badge-{{ $statusClass }}">{{ $statusLabel }}</span>
-                            <a href="{{ route('nft.show', $nft->id) }}" class="btn btn-sm btn-primary">
-                                View
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        @empty
-            <div class="col-12">
-                <div class="text-center py-5">
-                    <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
-                    <h3 class="text-muted">You don't have any NFTs yet</h3>
-                    <p class="text-muted">Turn a video or photo you've uploaded into an NFT.</p>
-                    <a href="{{ route('nft.mintable') }}" class="btn btn-primary">
-                        <i class="fas fa-plus"></i> Mint from my uploads
-                    </a>
-                </div>
-            </div>
-        @endforelse
-    </div>
-
-    @if($nfts->hasPages())
-        <div class="row mt-4">
-            <div class="col-12 d-flex justify-content-center">
-                {{ $nfts->links() }}
-            </div>
-        </div>
-    @endif
-</div>
-
-<style>
-    .nft-image-container {
-        position: relative;
-        width: 100%;
-        padding-top: 100%;
-        overflow: hidden;
-        background: #f8f9fa;
-    }
-
-    .nft-image {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .nft-status-badge {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        padding: 5px 10px;
-        border-radius: 15px;
-        font-size: 0.8rem;
-    }
-</style>
+@section('styles')
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap">
+    <link rel="stylesheet" href="{{ asset('css/pages/discover.css') }}?v=20260917a">
+    <link rel="stylesheet" href="{{ asset('css/pages/nft-marketplace.css') }}?v=20260917b">
 @endsection
 
+@section('content')
+<div class="dx nx">
+
+    @include('elements.discover.subnav', [
+        'tabs' => [
+            ['label' => __('Explore'), 'href' => route('nft.marketplace'), 'active' => false],
+            ['label' => __('For sale'), 'href' => route('nft.marketplace', ['view' => 'sale']), 'active' => false],
+            ['label' => __('My NFTs'), 'href' => route('nft.my-nfts'), 'active' => true],
+        ],
+        'search' => '',
+        'searchAction' => route('nft.marketplace'),
+        'searchLabel' => __('Search NFTs'),
+        'cta' => ['label' => __('Create'), 'href' => route('nft.mintable')],
+    ])
+
+    <main class="dx-main">
+        @foreach(['success', 'error', 'info'] as $flash)
+            @if(session($flash))
+                <div class="dx-alert dx-alert--{{ $flash }}" role="status">{{ session($flash) }}</div>
+            @endif
+        @endforeach
+
+        <section>
+            <div class="dx-section__head">
+                <div>
+                    <h2 class="dx-section__title">{{ __('My NFTs') }}</h2>
+                    <p class="dx-section__sub">{{ trans_choice('{0} Nothing here yet|{1} :count piece you own|[2,*] :count pieces you own', $nfts->total(), ['count' => $nfts->total()]) }}</p>
+                </div>
+                <a href="{{ route('nft.my-listings') }}" class="dx-section__link">{{ __('My listings') }}</a>
+            </div>
+
+            @if($nfts->count())
+                <div class="nx-grid">
+                    @foreach($nfts as $nft)
+                        @include('nft.partials.card', [
+                            'nft' => $nft,
+                            'note' => $nft->isPendingMint() ? __('Being created') : null,
+                        ])
+                    @endforeach
+                </div>
+                @if($nfts->hasPages())
+                    <div class="dx-pagination nx-pagination">{{ $nfts->links() }}</div>
+                @endif
+            @else
+                <div class="dx-empty">
+                    <span class="dx-empty__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                    </span>
+                    <h3>{{ __('You don\'t own any NFTs yet') }}</h3>
+                    <p>{{ __('Buy one from a creator you love, or turn something you posted into one you can sell.') }}</p>
+                    <a href="{{ route('nft.marketplace') }}" class="dx-btn dx-btn--primary">{{ __('Explore NFTs') }}</a>
+                    <a href="{{ route('nft.mintable') }}" class="dx-btn dx-btn--ghost">{{ __('Create from my uploads') }}</a>
+                </div>
+            @endif
+        </section>
+    </main>
+</div>
+@endsection
+
+@section('scripts')
+    <script src="{{ asset('js/pages/discover.js') }}?v=20260917b" defer></script>
+@endsection
