@@ -10,6 +10,7 @@
     $appBarStreamsPage = Route::currentRouteName() === 'streams.index';
     $appBarMarketplacePage = Route::currentRouteName() === 'custom-requests.marketplace';
     $appBarNftMarketPage = Route::currentRouteName() === 'nft.marketplace';
+    $appBarWalletHubPage = Route::currentRouteName() === 'wallet.hub';
     $appBarListsPage = Route::currentRouteName() === 'my.lists.all';
     $appBarListShowPage = Route::currentRouteName() === 'my.lists.show';
     $appBarCryptoPage = Route::currentRouteName() === 'cryptocurrency.index';
@@ -50,6 +51,7 @@
         || $appBarStreamsPage
         || $appBarMarketplacePage
         || $appBarNftMarketPage
+        || $appBarWalletHubPage
         || $appBarListsPage
         || $appBarListShowPage
         || $appBarCryptoPage
@@ -73,6 +75,8 @@
         $appBarPageTitle = __('Challenges');
     } elseif ($appBarNftMarketPage) {
         $appBarPageTitle = __('NFT Market');
+    } elseif ($appBarWalletHubPage) {
+        $appBarPageTitle = __('Wallet');
     } elseif ($appBarListsPage) {
         $appBarPageTitle = __('Lists');
     } elseif ($appBarListShowPage) {

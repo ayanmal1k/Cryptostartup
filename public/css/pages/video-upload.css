@@ -844,3 +844,163 @@
         transition: none;
     }
 }
+
+/* ============================================
+   Unlock price (videos/partials/price-field)
+   Gold is the money colour (DESIGN-REFERENCE), so the amount and the
+   earnings read as money rather than as another form field.
+   ============================================ */
+.vu-price {
+    --vu-money: #ffc53d;
+    --vu-money-ink: #ffc53d;
+}
+
+.vu-page--light .vu-price {
+    --vu-money-ink: #9a6200;
+}
+
+.vu-price__box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 18px;
+    border: 1px solid var(--vu-border-strong);
+    border-radius: var(--vu-radius-md);
+    background: var(--vu-surface-2);
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.vu-price__box:focus-within {
+    border-color: var(--vu-money);
+    box-shadow: 0 0 0 3px rgba(255, 197, 61, .18);
+}
+
+.vu-price__box.is-invalid,
+.vu-price__box.is-out-of-range {
+    border-color: var(--vu-danger);
+}
+
+.vu-price__symbol {
+    font-family: var(--vu-font-display);
+    font-size: 30px;
+    font-weight: 800;
+    color: var(--vu-money-ink);
+    line-height: 1;
+}
+
+/* app.css forces every number input to a white bordered box with !important. */
+.vu-page input.vu-price__input,
+.vu-page input.vu-price__input:focus {
+    flex: 1;
+    min-width: 0;
+    height: 56px;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--vu-text) !important;
+    font-family: var(--vu-font-display) !important;
+    font-size: 34px !important;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+}
+
+.vu-page input.vu-price__input::placeholder {
+    color: var(--vu-text-muted) !important;
+    opacity: .6;
+}
+
+.vu-price__input::-webkit-outer-spin-button,
+.vu-price__input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.vu-price__presets {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.vu-price__presets::-webkit-scrollbar {
+    display: none;
+}
+
+.vu-price__preset {
+    flex: 0 0 auto;
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--vu-border-strong);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--vu-text-2);
+    font-family: var(--vu-font);
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.vu-price__preset:hover {
+    color: var(--vu-text);
+    border-color: var(--vu-text-muted);
+}
+
+.vu-price__preset.is-active {
+    background: var(--vu-money);
+    border-color: var(--vu-money);
+    color: #1f1500;
+}
+
+.vu-price__earn {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: var(--vu-radius-md);
+    background: var(--vu-surface-2);
+    border: 1px solid var(--vu-border);
+}
+
+.vu-price__earn-title {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--vu-text-muted);
+}
+
+.vu-price__earn-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.vu-price__earn-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.vu-price__earn-cell strong {
+    font-family: var(--vu-font-display);
+    font-size: 19px;
+    font-weight: 800;
+    color: var(--vu-money-ink);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vu-price__earn-cell span {
+    font-size: 12px;
+    color: var(--vu-text-muted);
+}

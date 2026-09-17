@@ -59,17 +59,6 @@ class CustomRequestController extends Controller
         }
         $requests = $query->orderByDesc('created_at')->paginate(24)->withQueryString();
 
-        // The "Almost funded" rail on the Watch tab.
-        $almost = collect();
-        if ($tab === 'watch' && $search === '') {
-            $almost = $base()
-                ->whereIn('status', $openStatuses)
-                ->where('goal_amount', '>', 0)
-                ->orderByRaw('current_amount / goal_amount DESC')
-                ->limit(10)
-                ->get();
-        }
-
         $marketplace = fn () => CustomRequest::where('is_marketplace', true)
             ->whereNotIn('status', [CustomRequest::STATUS_CANCELLED, CustomRequest::STATUS_REJECTED]);
 
@@ -84,7 +73,7 @@ class CustomRequestController extends Controller
         ];
 
         return view('custom-requests.marketplace', compact(
-            'requests', 'almost', 'stats', 'search', 'tab'
+            'requests', 'stats', 'search', 'tab'
         ));
     }
 

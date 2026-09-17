@@ -50,18 +50,18 @@
 @endphp
 
 @section('styles')
-    <link rel="stylesheet" href="{{ asset('css/pages/wallet.css') }}?v=20260804a">
+    <link rel="stylesheet" href="{{ asset('css/pages/wallet.css') }}?v=20260917a">
 @endsection
 
 @section('content')
 <div class="wallet-page {{ $isDarkTheme ? 'wallet-page--dark' : 'wallet-page--light' }}">
 <div class="wallet-container">
 
-    {{-- ── Balance hero ──────────────────────────────────────────────────────────── --}}
-    <section class="wallet-hero">
+    {{-- ── Balance card ──────────────────────────────────────────────────────────── --}}
+    <section class="wallet-hero" id="walletHero">
         <div class="wallet-hero__top">
-            <span class="wallet-hero__label">{{ __('Total Balance') }}</span>
-            <button type="button" class="wallet-hero__eye" id="walletBalanceToggle" aria-label="{{ __('Toggle balance visibility') }}">
+            <span class="wallet-hero__label">{{ __('Your balance') }}</span>
+            <button type="button" class="wallet-hero__eye" id="walletBalanceToggle" aria-pressed="false" aria-label="{{ __('Hide balance') }}">
                 <svg class="wallet-hero__eye-open" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
                     <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.75"/>
@@ -70,45 +70,69 @@
                     <path d="M3 3l18 18M10.6 10.6a3 3 0 004.24 4.24M9.9 5.2A9.7 9.7 0 0112 5c6.5 0 10 7 10 7a17.6 17.6 0 01-3.4 4.3M6.1 6.1A17.7 17.7 0 002 12s3.5 7 10 7c1 0 1.96-.14 2.86-.4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </button>
+
+            @if($address)
+                <span class="wallet-hero__addr" title="{{ $address }}">
+                    <span class="wallet-hero__addr-dot" aria-hidden="true"></span>
+                    {{ substr($address, 0, 6) }}…{{ substr($address, -4) }}
+                </span>
+            @endif
         </div>
 
-        <div class="wallet-hero__balance" data-balance="${{ number_format($totalBalance, 2) }}">${{ number_format($totalBalance, 2) }}</div>
-        <p class="wallet-hero__hint">{{ __('Platform credits + token holdings') }}</p>
+        <div class="wallet-hero__balance-row">
+            <span class="wallet-hero__coin" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 6.5v11M14.6 9.3c-.5-.8-1.5-1.3-2.6-1.3-1.5 0-2.6.8-2.6 2s1.1 1.7 2.6 2c1.5.3 2.6.8 2.6 2s-1.1 2-2.6 2c-1.1 0-2.1-.5-2.6-1.3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+            </span>
+            <div class="wallet-hero__balance" data-balance="${{ number_format($totalBalance, 2) }}">${{ number_format($totalBalance, 2) }}</div>
+        </div>
+        <p class="wallet-hero__hint">{{ __("Spendable credits plus your tokens at today's price") }}</p>
 
         {{-- Deposit/withdraw route to the REAL payment flow (Stripe/PayPal via my.settings),
              not CryptocurrencyController's stub which records a "completed" deposit without
              ever taking payment. --}}
         <div class="wallet-hero__actions">
-            <a href="{{ route('my.settings', ['type' => 'wallet', 'active' => 'deposit']) }}" class="wallet-btn wallet-btn--primary">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                {{ __('Deposit') }}
+            <a href="{{ route('my.settings', ['type' => 'wallet', 'active' => 'deposit']) }}" class="wallet-btn wallet-btn--money">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                {{ __('Add funds') }}
             </a>
             <a href="{{ route('my.settings', ['type' => 'wallet', 'active' => 'withdraw']) }}" class="wallet-btn wallet-btn--ghost">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                {{ __('Withdraw') }}
+                {{ __('Cash out') }}
             </a>
         </div>
-
-        {{-- Every form of value the user holds, in one strip --}}
-        <ul class="wallet-hero__meta">
-            <li>
-                <span class="wallet-hero__meta-label">{{ __('Credits') }}</span>
-                <span class="wallet-hero__meta-value">${{ number_format($credits, 2) }}</span>
-            </li>
-            <li>
-                <span class="wallet-hero__meta-label">{{ __('Tokens') }}</span>
-                <span class="wallet-hero__meta-value">${{ number_format($tokenValue, 2) }}</span>
-            </li>
-            <li>
-                <span class="wallet-hero__meta-label">{{ __('Coins') }}</span>
-                <span class="wallet-hero__meta-value">{{ $coinBalances->count() }}</span>
-            </li>
-            <li>
-                <span class="wallet-hero__meta-label">{{ __('NFTs') }}</span>
-                <span class="wallet-hero__meta-value">{{ $nftCount }}</span>
-            </li>
-        </ul>
     </section>
+
+    {{-- Every form of value the user holds; each tile opens its tab --}}
+    <ul class="wallet-breakdown" aria-label="{{ __('Balance breakdown') }}">
+        <li>
+            <button type="button" class="wallet-breakdown__item" data-open-panel="overview">
+                <span class="wallet-breakdown__label">{{ __('Credits') }}</span>
+                <span class="wallet-breakdown__value is-money">${{ number_format($credits, 2) }}</span>
+                <span class="wallet-breakdown__sub">{{ __('Ready to spend') }}</span>
+            </button>
+        </li>
+        <li>
+            <button type="button" class="wallet-breakdown__item" data-open-panel="tokens">
+                <span class="wallet-breakdown__label">{{ __('Tokens') }}</span>
+                <span class="wallet-breakdown__value is-money">${{ number_format($tokenValue, 2) }}</span>
+                <span class="wallet-breakdown__sub">{{ trans_choice('{0} None held|{1} :count token|[2,*] :count tokens', $tokenWallets->count(), ['count' => $tokenWallets->count()]) }}</span>
+            </button>
+        </li>
+        <li>
+            <button type="button" class="wallet-breakdown__item" data-open-panel="coins">
+                <span class="wallet-breakdown__label">{{ __('Creator coins') }}</span>
+                <span class="wallet-breakdown__value">{{ number_format($coinBalances->count()) }}</span>
+                <span class="wallet-breakdown__sub">{{ $coinValue > 0 ? '≈ $' . number_format($coinValue, 2) . ' ' . __('in perks') : __('Back a creator') }}</span>
+            </button>
+        </li>
+        <li>
+            <button type="button" class="wallet-breakdown__item" data-open-panel="nfts">
+                <span class="wallet-breakdown__label">{{ __('NFTs') }}</span>
+                <span class="wallet-breakdown__value">{{ number_format($nftCount) }}</span>
+                <span class="wallet-breakdown__sub">{{ $nftCount ? __('In your collection') : __('Mint your first') }}</span>
+            </button>
+        </li>
+    </ul>
 
     {{-- ── Tabs ──────────────────────────────────────────────────────────────────── --}}
     <nav class="wallet-tabs" role="tablist" aria-label="{{ __('Wallet sections') }}">
@@ -208,6 +232,8 @@
                     $crypto = $wallet->cryptocurrency;
                     $change = (float) ($crypto->price_change_24h ?? 0);
                     $isUp = $change >= 0;
+                    // A 0.00% "change" is no movement, not a gain — don't paint it green.
+                    $deltaClass = abs($change) < 0.005 ? 'flat' : ($isUp ? 'up' : 'down');
                     $holdingValue = (float) $wallet->balance * (float) $crypto->current_price;
                     $path = $sparkPath($crypto);
                 @endphp
@@ -223,24 +249,22 @@
                                 <span class="token-item__name">{{ $crypto->name }}</span>
                                 <span class="token-item__price">
                                     ${{ number_format($crypto->current_price, $crypto->current_price < 1 ? 4 : 2) }}
-                                    <span class="token-item__delta token-item__delta--{{ $isUp ? 'up' : 'down' }}">
-                                        {{ $isUp ? '+' : '' }}{{ number_format($change, 2) }}%
+                                    <span class="token-item__delta token-item__delta--{{ $deltaClass }}">
+                                        {{ $deltaClass === 'up' ? '+' : '' }}{{ number_format($change, 2) }}%
                                     </span>
                                 </span>
                             </div>
                         </div>
-                        <div class="token-item__spark">
-                            <svg viewBox="0 0 120 44" preserveAspectRatio="none" aria-hidden="true">
-                                {{-- Real history when we have it; an honest flat line when we don't. --}}
-                                <path d="{{ $path ?? 'M0 22 L120 22' }}"
-                                      fill="none"
-                                      stroke="{{ $path === null ? 'currentColor' : ($isUp ? '#22c55e' : '#f43f5e') }}"
-                                      stroke-width="2"
-                                      stroke-linecap="round"
-                                      stroke-linejoin="round"
-                                      {{ $path === null ? 'opacity=0.25' : '' }}/>
-                            </svg>
-                        </div>
+                        {{-- Only plotted from real recorded history; with none, show nothing rather
+                             than a line that reads as a flat market. --}}
+                        @if($path !== null)
+                            <div class="token-item__spark">
+                                <svg viewBox="0 0 120 44" preserveAspectRatio="none" aria-hidden="true">
+                                    <path d="{{ $path }}" fill="none" stroke="{{ $isUp ? '#22e0a0' : '#ff3b5c' }}"
+                                          stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                        @endif
                     </div>
                     <div class="token-item__foot">
                         <span class="token-item__amount">{{ rtrim(rtrim(number_format($wallet->balance, 4), '0'), '.') }} {{ $crypto->symbol }}</span>
@@ -413,6 +437,10 @@
             balance.textContent = hidden ? '••••••' : balance.getAttribute('data-balance');
             if (open) open.hidden = hidden;
             if (closed) closed.hidden = !hidden;
+            // The breakdown carries the same figures, so it hides with the headline.
+            document.querySelector('.wallet-page').classList.toggle('is-balance-hidden', hidden);
+            toggle.setAttribute('aria-pressed', hidden ? 'true' : 'false');
+            toggle.setAttribute('aria-label', hidden ? @json(__('Show balance')) : @json(__('Hide balance')));
         });
     }
 
@@ -435,6 +463,14 @@
     }
     tabs.forEach(function (t) {
         t.addEventListener('click', function () { activate(t.dataset.panel, true); });
+    });
+    // Breakdown tiles are shortcuts into their tab.
+    document.querySelectorAll('[data-open-panel]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            activate(b.dataset.openPanel, true);
+            var bar = document.querySelector('.wallet-tabs');
+            if (bar && bar.scrollIntoView) bar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
     });
     // Deep-link support: /wallet#nfts opens straight to the NFT tab.
     var hash = (window.location.hash || '').replace('#', '');

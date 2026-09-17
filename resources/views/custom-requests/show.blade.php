@@ -2,1072 +2,405 @@
 
 @section('page_title', $customRequest->title)
 
+@section('styles')
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap">
+    <link rel="stylesheet" href="{{ asset('css/pages/discover.css') }}?v=20260917a">
+    <link rel="stylesheet" href="{{ asset('css/pages/challenge-detail.css') }}?v=20260917a">
+@endsection
+
+@php
+    $cr = $customRequest;
+    $me = Auth::id();
+    $isCreator = $me && (int) $cr->creator_id === (int) $me;
+    $isRequester = $me && (int) $cr->requester_id === (int) $me;
+
+    $goal = (float) $cr->goal_amount;
+    $raised = (float) $cr->current_amount;
+    $pct = $goal > 0 ? (int) min(100, floor($raised / $goal * 100)) : 0;
+    $left = max(0, $goal - $raised);
+
+    $backing = $cr->contributions->where('status', 'completed')->sortByDesc('created_at');
+    $backers = $backing->pluck('contributor_id')->unique()->count();
+
+    $videoUrl = $cr->delivery_video_url;
+    $thumbUrl = $cr->delivery_thumbnail_url;
+
+    // One status vocabulary for the whole page. Tone maps to the design reference:
+    // green = done/success, gold = money is moving, red = a dead end.
+    $status = [
+        'pending'   => ['label' => __('Waiting on the creator'), 'tone' => 'muted'],
+        'accepted'  => $cr->is_marketplace
+            ? ['label' => __('Open for backing'), 'tone' => 'money']
+            : ['label' => __('In progress'), 'tone' => 'money'],
+        'completed' => ['label' => __('Challenge done'), 'tone' => 'win'],
+        'rejected'  => ['label' => __('Declined'), 'tone' => 'hot'],
+        'cancelled' => ['label' => __('Cancelled'), 'tone' => 'muted'],
+    ][$cr->status] ?? ['label' => ucfirst($cr->status), 'tone' => 'muted'];
+
+    $type = [
+        'marketplace' => __('Community challenge'),
+        'private'     => __('Private request'),
+        'public'      => __('Public request'),
+    ][$cr->type] ?? ($cr->is_marketplace ? __('Community challenge') : __('Request'));
+
+    $deadlineNote = null;
+    if ($cr->deadline && $cr->status === 'accepted') {
+        $deadlineNote = $cr->deadline->isPast() ? 'overdue' : ($cr->deadline->diffInDays() <= 7 ? 'soon' : null);
+    }
+
+    $money = fn ($v, $d = 0) => '$' . number_format((float) $v, $d);
+    $canChipIn = $cr->is_marketplace && $cr->status === 'accepted' && !$isCreator;
+@endphp
+
 @section('content')
-<div class="container-fluid px-4 py-5">
-    <!-- Hero Section -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="request-hero-card">
-                <div class="hero-background">
-                    <div class="hero-overlay"></div>
-                    <div class="hero-content">
-                        <div class="d-flex justify-content-between align-items-start mb-3">
-                            <div class="flex-grow-1">
-                                <h1 class="hero-title mb-2">{{ $customRequest->title }}</h1>
-                                <div class="hero-meta d-flex flex-wrap align-items-center gap-3 text-white-50">
-                                    <span><i class="far fa-clock mr-1"></i>{{ $customRequest->created_at->diffForHumans() }}</span>
-                                    @if($customRequest->deadline)
-                                        <span><i class="far fa-calendar-alt mr-1"></i>{{ __('Due') }}: {{ $customRequest->deadline->format('M d, Y') }}</span>
-                                    @endif
-                                </div>
-                            </div>
-                            <div class="status-badge-large">
-                                @if($customRequest->status == 'accepted')
-                                    <span class="badge badge-success badge-lg">
-                                        <i class="fas fa-play-circle mr-1"></i>{{ __('Active') }}
-                                    </span>
-                                @elseif($customRequest->status == 'completed')
-                                    <span class="badge badge-info badge-lg">
-                                        <i class="fas fa-trophy mr-1"></i>{{ __('Completed') }}
-                                    </span>
-                                @elseif($customRequest->status == 'rejected')
-                                    <span class="badge badge-danger badge-lg">
-                                        <i class="fas fa-times-circle mr-1"></i>{{ __('Rejected') }}
-                                    </span>
-                                @elseif($customRequest->status == 'cancelled')
-                                    <span class="badge badge-secondary badge-lg">
-                                        <i class="fas fa-ban mr-1"></i>{{ __('Cancelled') }}
-                                    </span>
-                                @else
-                                    <span class="badge badge-warning badge-lg">
-                                        <i class="fas fa-clock mr-1"></i>{{ __('Pending') }}
-                                    </span>
-                                @endif
-                            </div>
-                        </div>
+<div class="dx cd">
+<div class="cd-wrap">
 
-                        <!-- User Info in Hero -->
-                        <div class="hero-users d-flex flex-wrap align-items-center gap-4">
-                            <div class="user-info-item d-flex align-items-center">
-                                <div class="user-avatar-lg mr-3">
-                                    @if($customRequest->creator->avatar)
-                                        <img src="{{ asset('storage/' . $customRequest->creator->avatar) }}" alt="{{ $customRequest->creator->name }}" class="rounded-circle">
-                                    @else
-                                        <div class="avatar-placeholder-lg rounded-circle bg-primary text-white d-flex align-items-center justify-content-center">
-                                            <i class="fas fa-user"></i>
-                                        </div>
-                                    @endif
-                                </div>
-                                <div>
-                                    <div class="text-white-50 small">{{ __('Creator') }}</div>
-                                    <a href="{{ route('profile', ['username' => $customRequest->creator->username]) }}" class="text-white text-decoration-none font-weight-bold">
-                                        {{ $customRequest->creator->name }}
-                                    </a>
-                                </div>
-                            </div>
-
-                            @if($customRequest->requester)
-                                <div class="user-info-item d-flex align-items-center">
-                                    <div class="user-avatar-lg mr-3">
-                                        @if($customRequest->requester->avatar)
-                                            <img src="{{ asset('storage/' . $customRequest->requester->avatar) }}" alt="{{ $customRequest->requester->name }}" class="rounded-circle">
-                                        @else
-                                            <div class="avatar-placeholder-lg rounded-circle bg-info text-white d-flex align-items-center justify-content-center">
-                                                <i class="fas fa-user"></i>
-                                            </div>
-                                        @endif
-                                    </div>
-                                    <div>
-                                        <div class="text-white-50 small">{{ __('Requester') }}</div>
-                                        <a href="{{ route('profile', ['username' => $customRequest->requester->username]) }}" class="text-white text-decoration-none font-weight-bold">
-                                            {{ $customRequest->requester->name }}
-                                        </a>
-                                    </div>
-                                </div>
-                            @endif
-
-                            <!-- Type Badge -->
-                            <div class="type-indicator">
-                                <span class="badge badge-light badge-lg">
-                                    @if($customRequest->type == 'marketplace')
-                                        <i class="fas fa-store mr-1"></i>{{ __('Marketplace Request') }}
-                                    @elseif($customRequest->type == 'private')
-                                        <i class="fas fa-lock mr-1"></i>{{ __('Private Request') }}
-                                    @else
-                                        <i class="fas fa-globe mr-1"></i>{{ __('Public Request') }}
-                                    @endif
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-12 col-lg-8">
-            <!-- Main Content Card -->
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-body p-4">
-                    <!-- Description Section -->
-                    <div class="content-section mb-4">
-                        <h4 class="section-title mb-3">
-                            <i class="fas fa-align-left text-primary mr-2"></i>{{ __('Description') }}
-                        </h4>
-                        <div class="description-content">
-                            <p class="lead">{{ $customRequest->description }}</p>
-                        </div>
-                    </div>
-
-                    <!-- Progress/Price Section -->
-                    @if($customRequest->is_marketplace)
-                        <div class="content-section mb-4">
-                            <h4 class="section-title mb-4">
-                                <i class="fas fa-chart-line text-success mr-2"></i>{{ __('Funding Progress') }}
-                            </h4>
-                            <div class="progress-hero mb-4">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <div class="progress-stats">
-                                        <h3 class="progress-amount text-success mb-0">
-                                            ${{ number_format($customRequest->current_amount, 0) }}
-                                        </h3>
-                                        <small class="text-muted">{{ __('Raised') }}</small>
-                                    </div>
-                                    <div class="progress-stats text-right">
-                                        <h3 class="progress-amount text-muted mb-0">
-                                            ${{ number_format($customRequest->goal_amount, 0) }}
-                                        </h3>
-                                        <small class="text-muted">{{ __('Goal') }}</small>
-                                    </div>
-                                </div>
-                                <div class="progress progress-xl mb-3">
-                                    <div class="progress-bar progress-bar-hero" role="progressbar"
-                                         style="width: {{ min(100, $customRequest->progress_percentage) }}%"
-                                         aria-valuenow="{{ $customRequest->progress_percentage }}"
-                                         aria-valuemin="0"
-                                         aria-valuemax="100">
-                                    </div>
-                                </div>
-                                <div class="text-center">
-                                    <span class="progress-percentage h4 text-primary font-weight-bold">
-                                        {{ number_format($customRequest->progress_percentage, 1) }}%
-                                    </span>
-                                    <small class="text-muted d-block">{{ __('Complete') }}</small>
-                                </div>
-                            </div>
-                        </div>
+    {{-- ============ Stage: the video, or where it will land ============ --}}
+    <section class="cd-stage {{ $videoUrl ? 'has-video' : '' }}">
+        @if($videoUrl)
+            <video src="{{ $videoUrl }}" @if($thumbUrl) poster="{{ $thumbUrl }}" @endif
+                   controls playsinline preload="metadata"></video>
+        @else
+            <div class="cd-stage__empty">
+                <span class="cd-stage__icon" aria-hidden="true">
+                    @if($cr->status === 'completed')
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17 19 7"/></svg>
+                    @elseif(in_array($cr->status, ['rejected', 'cancelled']))
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
                     @else
-                        <div class="content-section mb-4">
-                            <h4 class="section-title mb-3">
-                                <i class="fas fa-dollar-sign text-success mr-2"></i>{{ __('Price') }}
-                            </h4>
-                            <div class="price-display">
-                                <span class="price-amount">${{ number_format($customRequest->price, 2) }}</span>
-                                <small class="text-muted d-block">{{ __('Fixed price for this request') }}</small>
-                            </div>
-                        </div>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
                     @endif
-
-                    <!-- Payment Section (if payment required but not received) -->
-                    @auth
-                        @if($customRequest->requester_id == Auth::id() && $customRequest->upfront_payment > 0 && !$customRequest->payment_received)
-                            <div class="payment-required-section mb-4">
-                                <div class="alert alert-warning border-0 shadow-sm">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <div>
-                                            <h5 class="mb-2">
-                                                <i class="fas fa-credit-card text-warning"></i>
-                                                {{ __('Upfront Payment Required') }}
-                                            </h5>
-                                            <p class="mb-2">
-                                                {{ __('To proceed with this request, you need to make an upfront payment of') }}
-                                                <strong class="h5 text-dark">${{ number_format($customRequest->upfront_payment, 2) }}</strong>
-                                            </p>
-                                            <small class="text-muted">
-                                                <i class="fas fa-info-circle"></i>
-                                                {{ __('Minimum upfront payment is $1.00. This ensures commitment to the request.') }}
-                                            </small>
-                                        </div>
-                                        <div>
-                                            <button type="button" class="btn btn-warning btn-lg" onclick="processUpfrontPayment({{ $customRequest->id }})">
-                                                <i class="fas fa-credit-card"></i>
-                                                {{ __('Pay Now') }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        @endif
-                    @endauth
-
-                    <!-- Voting Section (for public/marketplace requests) -->
-                    @if($customRequest->requires_voting && in_array($customRequest->status, ['accepted', 'completed']))
-                        <div class="voting-section mb-4">
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-header bg-gradient-primary text-white">
-                                    <h5 class="mb-0">
-                                        <i class="fas fa-vote-yea"></i>
-                                        {{ __('Voting & Fund Release') }}
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="voting-stats mb-4">
-                                        <div class="row text-center">
-                                            <div class="col-md-4">
-                                                <div class="stat-box">
-                                                    <h3 class="text-success mb-1">{{ $customRequest->approval_votes ?? 0 }}</h3>
-                                                    <small class="text-muted">{{ __('Approvals') }}</small>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="stat-box">
-                                                    <h3 class="text-danger mb-1">{{ $customRequest->rejection_votes ?? 0 }}</h3>
-                                                    <small class="text-muted">{{ __('Rejections') }}</small>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="stat-box">
-                                                    <h3 class="text-primary mb-1">{{ number_format($customRequest->approval_percentage ?? 0, 1) }}%</h3>
-                                                    <small class="text-muted">{{ __('Approval Rate') }}</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="progress mt-3" style="height: 20px;">
-                                            <div class="progress-bar bg-success" 
-                                                 role="progressbar" 
-                                                 style="width: {{ $customRequest->approval_percentage ?? 0 }}%"
-                                                 aria-valuenow="{{ $customRequest->approval_percentage ?? 0 }}" 
-                                                 aria-valuemin="0" 
-                                                 aria-valuemax="100">
-                                                {{ number_format($customRequest->approval_percentage ?? 0, 1) }}%
-                                            </div>
-                                        </div>
-                                        
-                                        @if($customRequest->hasMajorityApproval())
-                                            <div class="alert alert-success mt-3 mb-0">
-                                                <i class="fas fa-check-circle"></i>
-                                                <strong>{{ __('Majority Approval Reached!') }}</strong>
-                                                {{ __('Funds can now be released to the creator.') }}
-                                            </div>
-                                        @else
-                                            <div class="alert alert-info mt-3 mb-0">
-                                                <i class="fas fa-info-circle"></i>
-                                                {{ __('Majority approval (50%+) is required to release funds.') }}
-                                            </div>
-                                        @endif
-                                    </div>
-
-                                    @auth
-                                        @if($customRequest->canUserVote(Auth::id()) && !$customRequest->hasUserVoted(Auth::id()))
-                                            <div class="voting-actions">
-                                                <h6 class="mb-3">{{ __('Cast Your Vote') }}</h6>
-                                                <div class="d-flex gap-2 mb-3">
-                                                    <button type="button" class="btn btn-success btn-lg flex-fill" onclick="castVote({{ $customRequest->id }}, 'approve')">
-                                                        <i class="fas fa-thumbs-up"></i>
-                                                        {{ __('Approve Release') }}
-                                                    </button>
-                                                    <button type="button" class="btn btn-danger btn-lg flex-fill" onclick="castVote({{ $customRequest->id }}, 'reject')">
-                                                        <i class="fas fa-thumbs-down"></i>
-                                                        {{ __('Reject Release') }}
-                                                    </button>
-                                                </div>
-                                                <small class="text-muted">
-                                                    <i class="fas fa-info-circle"></i>
-                                                    {{ __('Your vote helps determine if funds should be released to the creator.') }}
-                                                </small>
-                                            </div>
-                                        @elseif($customRequest->hasUserVoted(Auth::id()))
-                                            @php
-                                                $userVote = $customRequest->getUserVote(Auth::id());
-                                            @endphp
-                                            <div class="alert alert-info">
-                                                <i class="fas fa-check"></i>
-                                                {{ __('You have already voted:') }}
-                                                <strong>{{ ucfirst($userVote->vote_type) }}</strong>
-                                                @if($userVote->comment)
-                                                    <div class="mt-2">
-                                                        <small><em>"{{ $userVote->comment }}"</em></small>
-                                                    </div>
-                                                @endif
-                                            </div>
-                                        @else
-                                            <div class="alert alert-warning">
-                                                <i class="fas fa-exclamation-triangle"></i>
-                                                {{ __('Only the requester and contributors can vote on fund release.') }}
-                                            </div>
-                                        @endif
-
-                                        @if($customRequest->creator_id == Auth::id() && $customRequest->canReleaseFunds() && !$customRequest->funds_released)
-                                            <div class="fund-release-section mt-4 pt-4 border-top">
-                                                <h6 class="mb-3">{{ __('Release Funds') }}</h6>
-                                                <button type="button" class="btn btn-primary btn-lg" onclick="releaseFunds({{ $customRequest->id }})">
-                                                    <i class="fas fa-unlock"></i>
-                                                    {{ __('Release Funds to Creator') }}
-                                                </button>
-                                                <small class="d-block text-muted mt-2">
-                                                    <i class="fas fa-info-circle"></i>
-                                                    {{ __('Funds will be released to your account after majority approval.') }}
-                                                </small>
-                                            </div>
-                                        @endif
-                                    @endauth
-
-                                    <!-- Votes List -->
-                                    @if($customRequest->votes && $customRequest->votes->count() > 0)
-                                        <div class="votes-list mt-4 pt-4 border-top">
-                                            <h6 class="mb-3">{{ __('Votes') }}</h6>
-                                            <div class="list-group">
-                                                @foreach($customRequest->votes as $vote)
-                                                    <div class="list-group-item">
-                                                        <div class="d-flex justify-content-between align-items-start">
-                                                            <div>
-                                                                <strong>{{ $vote->voter->name ?? 'Unknown' }}</strong>
-                                                                @if($vote->is_requester)
-                                                                    <span class="badge badge-primary ml-2">{{ __('Requester') }}</span>
-                                                                @endif
-                                                                @if($vote->is_contributor)
-                                                                    <span class="badge badge-info ml-2">{{ __('Contributor') }}</span>
-                                                                @endif
-                                                                <div class="mt-1">
-                                                                    @if($vote->vote_type == 'approve')
-                                                                        <span class="badge badge-success">
-                                                                            <i class="fas fa-thumbs-up"></i> {{ __('Approved') }}
-                                                                        </span>
-                                                                    @elseif($vote->vote_type == 'reject')
-                                                                        <span class="badge badge-danger">
-                                                                            <i class="fas fa-thumbs-down"></i> {{ __('Rejected') }}
-                                                                        </span>
-                                                                    @else
-                                                                        <span class="badge badge-secondary">
-                                                                            <i class="fas fa-minus"></i> {{ __('Abstained') }}
-                                                                        </span>
-                                                                    @endif
-                                                                </div>
-                                                                @if($vote->comment)
-                                                                    <p class="mb-0 mt-2 text-muted small">{{ $vote->comment }}</p>
-                                                                @endif
-                                                            </div>
-                                                            <small class="text-muted">{{ $vote->created_at->diffForHumans() }}</small>
-                                                        </div>
-                                                    </div>
-                                                @endforeach
-                                            </div>
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
-                        </div>
+                </span>
+                <p class="cd-stage__line">
+                    @if($cr->status === 'completed')
+                        {{ __('Done — no video was posted for this one.') }}
+                    @elseif(in_array($cr->status, ['rejected', 'cancelled']))
+                        {{ __('This challenge won\'t be happening.') }}
+                    @else
+                        {{ __('The video lands here when :name does it.', ['name' => $cr->creator->name ?? __('the creator')]) }}
                     @endif
-
-                    <!-- Support Ticket Section -->
-                    @auth
-                        <div class="support-section mb-4">
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-header bg-light">
-                                    <h5 class="mb-0">
-                                        <i class="fas fa-headset"></i>
-                                        {{ __('Customer Support') }}
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    @if($customRequest->has_support_ticket)
-                                        <div class="alert alert-info">
-                                            <i class="fas fa-ticket-alt"></i>
-                                            {{ __('You have an open support ticket for this request.') }}
-                                            <a href="#" class="btn btn-sm btn-outline-primary ml-2" onclick="showSupportTicket({{ $customRequest->id }})">
-                                                {{ __('View Ticket') }}
-                                            </a>
-                                        </div>
-                                    @else
-                                        <p class="text-muted mb-3">
-                                            {{ __('Need help with this request? Create a support ticket for assistance.') }}
-                                        </p>
-                                        <button type="button" class="btn btn-outline-primary" onclick="showCreateSupportTicketModal({{ $customRequest->id }})">
-                                            <i class="fas fa-plus-circle"></i>
-                                            {{ __('Create Support Ticket') }}
-                                        </button>
-                                    @endif
-                                </div>
-                            </div>
-                        </div>
-                    @endauth
-
-                    <!-- Action Buttons -->
-                    @auth
-                        <div class="action-section">
-                            @if($customRequest->creator_id == Auth::id())
-                                <div class="creator-actions mb-4">
-                                    <h5 class="mb-3">{{ __('Manage Request') }}</h5>
-                                    <div class="d-flex flex-wrap gap-2">
-                                        @if($customRequest->status == 'pending')
-                                            <button type="button" class="btn btn-success btn-lg px-4" onclick="handleRequestAction('accept', {{ $customRequest->id }})">
-                                                <i class="fas fa-check-circle mr-2"></i>{{ __('Accept Request') }}
-                                            </button>
-                                            <button type="button" class="btn btn-outline-danger btn-lg px-4" onclick="handleRequestAction('reject', {{ $customRequest->id }})">
-                                                <i class="fas fa-times-circle mr-2"></i>{{ __('Reject Request') }}
-                                            </button>
-                                        @endif
-                                        @if($customRequest->status == 'accepted')
-                                            <button type="button" class="btn btn-primary btn-lg px-4" onclick="handleRequestAction('complete', {{ $customRequest->id }})">
-                                                <i class="fas fa-check-double mr-2"></i>{{ __('Mark as Completed') }}
-                                            </button>
-                                        @endif
-                                        @if(in_array($customRequest->status, ['pending', 'accepted']))
-                                            <button type="button" class="btn btn-outline-secondary btn-lg px-4" onclick="cancelRequest({{ $customRequest->id }})">
-                                                <i class="fas fa-ban mr-2"></i>{{ __('Cancel Request') }}
-                                            </button>
-                                        @endif
-                                    </div>
-                                </div>
-                            @elseif($customRequest->status == 'accepted' && $customRequest->is_marketplace)
-                                <div class="contribution-section">
-                                    <button class="btn btn-primary btn-xl contribute-btn w-100" data-request-id="{{ $customRequest->id }}">
-                                        <i class="fas fa-hand-holding-heart mr-2"></i>{{ __('Contribute to This Request') }}
-                                        <div class="small opacity-75">{{ __('Help make this happen!') }}</div>
-                                    </button>
-                                </div>
-                            @elseif($customRequest->requester_id == Auth::id() && in_array($customRequest->status, ['pending', 'accepted']))
-                                <div class="requester-actions">
-                                    <div class="alert alert-info">
-                                        <i class="fas fa-info-circle mr-2"></i>
-                                        {{ __('You created this request. The creator will respond soon.') }}
-                                        @if($customRequest->status == 'pending')
-                                            <button type="button" class="btn btn-sm btn-outline-danger ml-3" onclick="cancelRequest({{ $customRequest->id }})">
-                                                {{ __('Cancel Request') }}
-                                            </button>
-                                        @endif
-                                    </div>
-                                </div>
-                            @endif
-                        </div>
-                    @endauth
-                </div>
+                </p>
             </div>
+        @endif
+    </section>
 
-            <!-- Contributions Section -->
-            @if($customRequest->is_marketplace && $customRequest->contributions->count() > 0)
-                <div class="card shadow-sm border-0">
-                    <div class="card-header bg-light border-0">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h4 class="mb-0">
-                                <i class="fas fa-hand-holding-heart text-success mr-2"></i>{{ __('Contributions') }}
-                                <span class="badge badge-success ml-2">{{ $customRequest->contributions->where('status', 'completed')->count() }}</span>
-                            </h4>
-                            <small class="text-muted">{{ __('Recent supporters') }}</small>
-                        </div>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="contributions-list">
-                            @foreach($customRequest->contributions->where('status', 'completed')->take(10) as $contribution)
-                                <div class="contribution-item p-3 border-bottom">
-                                    <div class="d-flex align-items-start">
-                                        <div class="contributor-avatar mr-3">
-                                            @if($contribution->contributor->avatar)
-                                                <img src="{{ asset('storage/' . $contribution->contributor->avatar) }}" alt="{{ $contribution->contributor->name }}" class="rounded-circle">
-                                            @else
-                                                <div class="avatar-placeholder-sm rounded-circle bg-primary text-white d-flex align-items-center justify-content-center">
-                                                    <i class="fas fa-user"></i>
-                                                </div>
-                                            @endif
-                                        </div>
-                                        <div class="flex-grow-1">
-                                            <div class="d-flex justify-content-between align-items-start mb-1">
-                                                <div>
-                                                    <strong class="text-dark">{{ $contribution->contributor->name }}</strong>
-                                                    <small class="text-muted ml-2">
-                                                        <i class="far fa-clock mr-1"></i>{{ $contribution->created_at->diffForHumans() }}
-                                                    </small>
-                                                </div>
-                                                <div class="contribution-amount">
-                                                    <span class="badge badge-success badge-lg">
-                                                        <i class="fas fa-dollar-sign mr-1"></i>${{ number_format($contribution->amount, 2) }}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            @if($contribution->message)
-                                                <div class="contribution-message">
-                                                    <p class="text-muted mb-0 small">"{{ Str::limit($contribution->message, 150) }}"</p>
-                                                </div>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                        @if($customRequest->contributions->where('status', 'completed')->count() > 10)
-                            <div class="text-center p-3">
-                                <small class="text-muted">{{ __('And') }} {{ $customRequest->contributions->where('status', 'completed')->count() - 10 }} {{ __('more contributions...') }}</small>
-                            </div>
-                        @endif
-                    </div>
-                </div>
+    <div class="cd-grid">
+    <div class="cd-col">
+
+        {{-- ============ Title ============ --}}
+        <header class="cd-head">
+            <div class="cd-chips">
+                <span class="cd-status cd-status--{{ $status['tone'] }}">
+                    <span class="cd-status__dot" aria-hidden="true"></span>{{ $status['label'] }}
+                </span>
+                <span class="cd-type">{{ $type }}</span>
+            </div>
+            <h1 class="cd-title">{{ $cr->title }}</h1>
+            <p class="cd-meta">
+                <span>{{ __('Posted') }} {{ $cr->created_at->diffForHumans() }}</span>
+                @if($cr->deadline)
+                    <span class="cd-meta__due {{ $deadlineNote ? 'is-' . $deadlineNote : '' }}">
+                        · {{ __('Due') }} {{ $cr->deadline->format('M j, Y') }}
+                        @if($deadlineNote === 'overdue') ({{ __('overdue') }}) @elseif($deadlineNote === 'soon') ({{ __('soon') }}) @endif
+                    </span>
+                @endif
+            </p>
+        </header>
+
+        {{-- ============ Who ============ --}}
+        <div class="cd-people">
+            @if($cr->creator)
+                <a href="{{ route('profile', ['username' => $cr->creator->username]) }}" class="cd-person">
+                    <img src="{{ $cr->creator->avatar }}" alt="" class="dx-avatar">
+                    <span class="cd-person__text">
+                        <span class="cd-person__role">{{ __('Creator') }}</span>
+                        <span class="cd-person__name">{{ $cr->creator->name }}</span>
+                    </span>
+                </a>
+            @endif
+            @if($cr->requester)
+                <a href="{{ route('profile', ['username' => $cr->requester->username]) }}" class="cd-person">
+                    <img src="{{ $cr->requester->avatar }}" alt="" class="dx-avatar">
+                    <span class="cd-person__text">
+                        <span class="cd-person__role">{{ __('Dared by') }}</span>
+                        <span class="cd-person__name">{{ $cr->requester->name }}</span>
+                    </span>
+                </a>
             @endif
         </div>
 
-        <!-- Sidebar -->
-        <div class="col-12 col-lg-4">
-            <!-- Request Details Card -->
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-light border-0">
-                    <h5 class="mb-0">
-                        <i class="fas fa-info-circle text-primary mr-2"></i>{{ __('Request Details') }}
-                    </h5>
+        {{-- ============ The dare ============ --}}
+        @if(trim((string) $cr->description) !== '')
+            <section class="cd-card">
+                <h2 class="cd-card__title">{{ __('The dare') }}</h2>
+                <p class="cd-story">{{ $cr->description }}</p>
+            </section>
+        @endif
+
+        {{-- ============ Voting & fund release ============ --}}
+        @if($cr->requires_voting && in_array($cr->status, ['accepted', 'completed']))
+            @php $approval = (float) ($cr->approval_percentage ?? 0); @endphp
+            <section class="cd-card">
+                <div class="cd-card__head">
+                    <h2 class="cd-card__title">{{ __('Backers decide the payout') }}</h2>
+                    <span class="cd-card__aside">{{ number_format($approval, 0) }}% {{ __('approve') }}</span>
                 </div>
-                <div class="card-body">
-                    <div class="details-list">
-                        <div class="detail-item mb-3">
-                            <div class="detail-label text-muted small">{{ __('Request Type') }}</div>
-                            <div class="detail-value">
-                                @if($customRequest->type == 'marketplace')
-                                    <span class="badge badge-info">
-                                        <i class="fas fa-store mr-1"></i>{{ __('Marketplace') }}
-                                    </span>
-                                @elseif($customRequest->type == 'private')
-                                    <span class="badge badge-warning">
-                                        <i class="fas fa-lock mr-1"></i>{{ __('Private') }}
-                                    </span>
-                                @else
-                                    <span class="badge badge-success">
-                                        <i class="fas fa-globe mr-1"></i>{{ __('Public') }}
-                                    </span>
+                <div class="cd-vote-bar" role="progressbar" aria-valuenow="{{ $approval }}" aria-valuemin="0" aria-valuemax="100">
+                    <span class="cd-vote-bar__yes" style="width: {{ min(100, $approval) }}%"></span>
+                </div>
+                <div class="cd-vote-counts">
+                    <span><strong class="is-win">{{ $cr->approval_votes ?? 0 }}</strong> {{ __('approve') }}</span>
+                    <span><strong class="is-hot">{{ $cr->rejection_votes ?? 0 }}</strong> {{ __('reject') }}</span>
+                    <span class="cd-vote-counts__rule">{{ $cr->hasMajorityApproval() ? __('Majority reached — funds can be released.') : __('Needs over 50% to release funds.') }}</span>
+                </div>
+
+                @auth
+                    @if($cr->canUserVote(Auth::id()) && !$cr->hasUserVoted(Auth::id()))
+                        <div class="cd-actions cd-actions--split">
+                            <button type="button" class="dx-btn cd-btn-win" onclick="castVote({{ $cr->id }}, 'approve')">{{ __('Approve release') }}</button>
+                            <button type="button" class="dx-btn dx-btn--ghost" onclick="castVote({{ $cr->id }}, 'reject')">{{ __('Reject') }}</button>
+                        </div>
+                    @elseif($cr->hasUserVoted(Auth::id()))
+                        @php $userVote = $cr->getUserVote(Auth::id()); @endphp
+                        <p class="cd-note">
+                            {{ __('You voted') }} <strong>{{ ucfirst($userVote->vote_type) }}</strong>
+                            @if($userVote->comment) — “{{ $userVote->comment }}” @endif
+                        </p>
+                    @endif
+
+                    @if($isCreator && $cr->canReleaseFunds() && !$cr->funds_released)
+                        <div class="cd-actions">
+                            <button type="button" class="dx-btn dx-btn--money" onclick="releaseFunds({{ $cr->id }})">{{ __('Release my funds') }}</button>
+                        </div>
+                    @endif
+                @endauth
+
+                @if($cr->votes && $cr->votes->count())
+                    <ul class="cd-list">
+                        @foreach($cr->votes as $vote)
+                            <li class="cd-list__row">
+                                <span class="cd-list__main">
+                                    <strong>{{ $vote->voter->name ?? __('Unknown') }}</strong>
+                                    @if($vote->is_requester) <span class="cd-tag">{{ __('Requester') }}</span> @endif
+                                    @if($vote->is_contributor) <span class="cd-tag">{{ __('Backer') }}</span> @endif
+                                    @if($vote->comment) <span class="cd-list__msg">“{{ $vote->comment }}”</span> @endif
+                                </span>
+                                <span class="cd-list__side {{ $vote->vote_type === 'approve' ? 'is-win' : ($vote->vote_type === 'reject' ? 'is-hot' : '') }}">
+                                    {{ $vote->vote_type === 'approve' ? __('Approved') : ($vote->vote_type === 'reject' ? __('Rejected') : __('Abstained')) }}
+                                </span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+            </section>
+        @endif
+
+        {{-- ============ Backers ============ --}}
+        @if($cr->is_marketplace)
+            <section class="cd-card">
+                <div class="cd-card__head">
+                    <h2 class="cd-card__title">{{ __('Backers') }}</h2>
+                    @if($backers)
+                        <span class="cd-card__aside">{{ trans_choice('{1} :count fan|[2,*] :count fans', $backers, ['count' => $backers]) }}</span>
+                    @endif
+                </div>
+                @if($backing->count())
+                    <ul class="cd-list">
+                        @foreach($backing->take(20) as $contribution)
+                            <li class="cd-list__row">
+                                @if($contribution->contributor)
+                                    <img src="{{ $contribution->contributor->avatar }}" alt="" class="dx-avatar">
                                 @endif
-                            </div>
-                        </div>
-
-                        <div class="detail-item mb-3">
-                            <div class="detail-label text-muted small">{{ __('Status') }}</div>
-                            <div class="detail-value">
-                                @if($customRequest->status == 'accepted')
-                                    <span class="badge badge-success">
-                                        <i class="fas fa-play-circle mr-1"></i>{{ __('Active') }}
-                                    </span>
-                                @elseif($customRequest->status == 'completed')
-                                    <span class="badge badge-info">
-                                        <i class="fas fa-check-circle mr-1"></i>{{ __('Completed') }}
-                                    </span>
-                                @elseif($customRequest->status == 'rejected')
-                                    <span class="badge badge-danger">
-                                        <i class="fas fa-times-circle mr-1"></i>{{ __('Rejected') }}
-                                    </span>
-                                @elseif($customRequest->status == 'cancelled')
-                                    <span class="badge badge-secondary">
-                                        <i class="fas fa-ban mr-1"></i>{{ __('Cancelled') }}
-                                    </span>
-                                @else
-                                    <span class="badge badge-warning">
-                                        <i class="fas fa-clock mr-1"></i>{{ __('Pending') }}
-                                    </span>
-                                @endif
-                            </div>
-                        </div>
-
-                        <div class="detail-item mb-3">
-                            <div class="detail-label text-muted small">{{ __('Created') }}</div>
-                            <div class="detail-value">
-                                <i class="far fa-calendar-alt mr-2 text-muted"></i>
-                                {{ $customRequest->created_at->format('M d, Y \a\t g:i A') }}
-                            </div>
-                        </div>
-
-                        @if($customRequest->deadline)
-                            <div class="detail-item mb-3">
-                                <div class="detail-label text-muted small">{{ __('Deadline') }}</div>
-                                <div class="detail-value">
-                                    <i class="far fa-calendar-check mr-2 text-muted"></i>
-                                    {{ $customRequest->deadline->format('M d, Y') }}
-                                    @if($customRequest->deadline->isPast() && $customRequest->status == 'accepted')
-                                        <span class="badge badge-danger badge-sm ml-2">{{ __('Overdue') }}</span>
-                                    @elseif($customRequest->deadline->diffInDays() <= 7 && $customRequest->status == 'accepted')
-                                        <span class="badge badge-warning badge-sm ml-2">{{ __('Due Soon') }}</span>
+                                <span class="cd-list__main">
+                                    <strong>{{ $contribution->contributor->name ?? __('A fan') }}</strong>
+                                    <span class="cd-list__time">{{ $contribution->created_at->diffForHumans() }}</span>
+                                    @if($contribution->message)
+                                        <span class="cd-list__msg">“{{ Str::limit($contribution->message, 160) }}”</span>
                                     @endif
-                                </div>
-                            </div>
-                        @endif
-
-                        @if($customRequest->is_marketplace)
-                            <div class="detail-item">
-                                <div class="detail-label text-muted small">{{ __('Contributors') }}</div>
-                                <div class="detail-value">
-                                    <i class="fas fa-users mr-2 text-muted"></i>
-                                    {{ $customRequest->contributions->where('status', 'completed')->count() }} {{ __('supporters') }}
-                                </div>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
-
-            <!-- Quick Actions Card -->
-            @auth
-                <div class="card shadow-sm border-0">
-                    <div class="card-header bg-light border-0">
-                        <h5 class="mb-0">
-                            <i class="fas fa-bolt text-warning mr-2"></i>{{ __('Quick Actions') }}
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="quick-actions">
-                            <a href="{{ route('custom-requests.marketplace') }}" class="btn btn-outline-primary btn-block mb-2">
-                                <i class="fas fa-store mr-2"></i>{{ __('Browse Marketplace') }}
-                            </a>
-                            <a href="{{ route('custom-requests.my-requests') }}" class="btn btn-outline-secondary btn-block mb-2">
-                                <i class="fas fa-list mr-2"></i>{{ __('My Requests') }}
-                            </a>
-                            <button type="button" class="btn btn-outline-success btn-block" onclick="CustomRequest.showCreateModal()">
-                                <i class="fas fa-plus-circle mr-2"></i>{{ __('Create New Request') }}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            @endauth
-        </div>
+                                </span>
+                                <span class="cd-list__side is-money">{{ $money($contribution->amount, 2) }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                    @if($backing->count() > 20)
+                        <p class="cd-note">{{ __('And :count more backers.', ['count' => $backing->count() - 20]) }}</p>
+                    @endif
+                @else
+                    <p class="cd-note">
+                        {{ $canChipIn ? __('No backers yet. Be the first to put money on it.') : __('No one has backed this yet.') }}
+                    </p>
+                @endif
+            </section>
+        @endif
     </div>
+
+    {{-- ============ Money + actions ============ --}}
+    <aside class="cd-side">
+        <section class="cd-card cd-money">
+            @if($cr->is_marketplace && $goal > 0)
+                <div class="cd-money__amounts">
+                    <span class="cd-money__raised">{{ $money($raised) }}</span>
+                    <span class="cd-money__goal">{{ __('raised of') }} {{ $money($goal) }}</span>
+                </div>
+                <div class="dx-progress cd-money__bar" role="progressbar" aria-valuenow="{{ $pct }}" aria-valuemin="0" aria-valuemax="100">
+                    <div class="dx-progress__fill" style="width: {{ $pct }}%"></div>
+                </div>
+                <dl class="cd-money__stats">
+                    <div><dt>{{ __('Funded') }}</dt><dd>{{ $pct }}%</dd></div>
+                    <div><dt>{{ __('Backers') }}</dt><dd>{{ number_format($backers) }}</dd></div>
+                    <div><dt>{{ $left > 0 ? __('To go') : __('Goal') }}</dt><dd>{{ $left > 0 ? $money($left) : __('Hit') }}</dd></div>
+                </dl>
+            @else
+                <div class="cd-money__amounts">
+                    <span class="cd-money__raised">{{ $money($cr->price, 2) }}</span>
+                    <span class="cd-money__goal">{{ __('fixed price') }}</span>
+                </div>
+                @if((float) $cr->upfront_payment > 0)
+                    <p class="cd-note">{{ $money($cr->upfront_payment, 2) }} {{ __('paid up front') }}{{ $cr->payment_received ? ' · ' . __('received') : '' }}</p>
+                @endif
+            @endif
+
+            {{-- Primary action for whoever is looking --}}
+            <div class="cd-actions">
+                @auth
+                    @if($isRequester && (float) $cr->upfront_payment > 0 && !$cr->payment_received)
+                        <button type="button" class="dx-btn dx-btn--money dx-btn--block" onclick="processUpfrontPayment({{ $cr->id }})">
+                            {{ __('Pay :amount to start', ['amount' => $money($cr->upfront_payment, 2)]) }}
+                        </button>
+                    @endif
+
+                    @if($isCreator)
+                        @if($cr->status === 'pending')
+                            <button type="button" class="dx-btn dx-btn--primary dx-btn--block" onclick="handleRequestAction('accept', {{ $cr->id }})">{{ __('Accept the challenge') }}</button>
+                            <button type="button" class="dx-btn dx-btn--ghost dx-btn--block" onclick="handleRequestAction('reject', {{ $cr->id }})">{{ __('Decline') }}</button>
+                        @elseif($cr->status === 'accepted')
+                            <button type="button" class="dx-btn cd-btn-win dx-btn--block" onclick="handleRequestAction('complete', {{ $cr->id }})">{{ __('Mark as done') }}</button>
+                        @endif
+                        @if(in_array($cr->status, ['pending', 'accepted']))
+                            <button type="button" class="cd-link-btn" onclick="cancelRequest({{ $cr->id }})">{{ __('Cancel this challenge') }}</button>
+                        @endif
+                    @elseif($canChipIn)
+                        <button type="button" class="dx-btn dx-btn--money dx-btn--block contribute-btn" data-request-id="{{ $cr->id }}">
+                            {{ $left > 0 ? __('Chip in') : __('Chip in anyway') }}
+                        </button>
+                        <p class="cd-note cd-note--center">{{ __('Every backer helps make it happen.') }}</p>
+                    @elseif($isRequester && in_array($cr->status, ['pending', 'accepted']))
+                        <p class="cd-note">{{ __('You dared this. :name will respond soon.', ['name' => $cr->creator->name ?? __('The creator')]) }}</p>
+                        @if($cr->status === 'pending')
+                            <button type="button" class="cd-link-btn" onclick="cancelRequest({{ $cr->id }})">{{ __('Withdraw the dare') }}</button>
+                        @endif
+                    @elseif($cr->status === 'completed')
+                        <p class="cd-note cd-note--center">
+                            {{ $backers ? trans_choice('{1} Made happen by :count fan.|[2,*] Made happen by :count fans.', $backers, ['count' => $backers]) : __('This challenge is done.') }}
+                        </p>
+                    @endif
+                @else
+                    @if($canChipIn)
+                        <a href="{{ route('login') }}" class="dx-btn dx-btn--money dx-btn--block">{{ __('Log in to chip in') }}</a>
+                    @endif
+                @endauth
+            </div>
+        </section>
+
+        <nav class="cd-card cd-more" aria-label="{{ __('More') }}">
+            <a href="{{ route('custom-requests.marketplace') }}" class="cd-more__link">
+                <span>{{ __('Watch more challenges') }}</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+            </a>
+            @auth
+                <a href="{{ route('custom-requests.my-requests') }}" class="cd-more__link">
+                    <span>{{ __('My requests') }}</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+                </a>
+                <button type="button" class="cd-more__link" onclick="CustomRequest.showCreateModal()">
+                    <span>{{ __('Dare a creator') }}</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+                @if($cr->has_support_ticket)
+                    <button type="button" class="cd-more__link" onclick="showSupportTicket({{ $cr->id }})">
+                        <span>{{ __('View your support ticket') }}</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+                    </button>
+                @else
+                    <button type="button" class="cd-more__link" onclick="showCreateSupportTicketModal({{ $cr->id }})">
+                        <span>{{ __('Report a problem') }}</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+                    </button>
+                @endif
+            @endauth
+        </nav>
+    </aside>
+    </div>
+
+</div>
 </div>
 
 @auth
-<!-- Enhanced Contribution Modal -->
-<div class="modal fade" id="contributeModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-gradient border-0">
-                <h5 class="modal-title font-weight-bold text-white">
-                    <i class="fas fa-hand-holding-heart mr-2"></i>{{ __('Support This Request') }}
-                </h5>
-                <button type="button" class="close text-white" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
+{{-- Contribution sheet. Keeps #contributeModal / #contributeForm / #request_id / #amount /
+     #message, which the script below drives. --}}
+<div class="modal fade cd-modal" id="contributeModal" tabindex="-1" aria-labelledby="contributeTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
             <form id="contributeForm">
-                <div class="modal-body p-4">
-                    <div class="request-preview-card mb-4">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="preview-icon mr-3">
-                                <i class="fas fa-lightbulb text-warning fa-2x"></i>
-                            </div>
-                            <div>
-                                <h6 class="font-weight-bold mb-1" id="modal-request-title">{{ $customRequest->title }}</h6>
-                                <p class="text-muted small mb-0">{{ __('Your contribution helps bring this idea to life!') }}</p>
-                            </div>
-                        </div>
-                        <div class="progress progress-sm mb-2">
-                            <div class="progress-bar bg-success" role="progressbar"
-                                 style="width: {{ min(100, $customRequest->progress_percentage) }}%"
-                                 aria-valuenow="{{ $customRequest->progress_percentage }}"
-                                 aria-valuemin="0" aria-valuemax="100">
-                            </div>
-                        </div>
-                        <small class="text-muted">{{ number_format($customRequest->progress_percentage, 1) }}% {{ __('funded') }}</small>
+                <div class="cd-modal__head">
+                    <div>
+                        <span class="cd-modal__eyebrow">{{ __('Chip in') }}</span>
+                        <h2 class="cd-modal__title" id="contributeTitle">{{ $cr->title }}</h2>
                     </div>
-
-                    <input type="hidden" id="request_id" name="request_id">
-                    <div class="form-group">
-                        <label for="amount" class="font-weight-bold h6">
-                            <i class="fas fa-dollar-sign text-success mr-1"></i>{{ __('Your Contribution Amount') }}
-                        </label>
-                        <div class="input-group input-group-lg">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text">$</span>
-                            </div>
-                            <input type="number" class="form-control" id="amount" name="amount" step="0.01" min="0.01" required placeholder="0.00">
-                        </div>
-                        <small class="form-text text-muted">{{ __('Enter any amount you\'d like to contribute') }}</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="message" class="font-weight-bold h6">
-                            <i class="fas fa-comment-heart text-info mr-1"></i>{{ __('Encouraging Message') }} <small class="text-muted">({{ __('Optional') }})</small>
-                        </label>
-                        <textarea class="form-control" id="message" name="message" rows="3" placeholder="{{ __('Leave a supportive message for the creator...') }}"></textarea>
-                        <small class="form-text text-muted">{{ __('Your message will be displayed publicly with your contribution') }}</small>
-                    </div>
+                    <button type="button" class="cd-modal__close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="{{ __('Close') }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                    </button>
                 </div>
-                <div class="modal-footer border-0 bg-light">
-                    <button type="button" class="btn btn-outline-secondary btn-lg px-4" data-dismiss="modal">
-                        <i class="fas fa-times mr-1"></i>{{ __('Maybe Later') }}
-                    </button>
-                    <button type="submit" class="btn btn-success btn-lg px-4">
-                        <i class="fas fa-heart mr-1"></i>{{ __('Make My Contribution') }}
-                    </button>
+
+                @if($goal > 0)
+                    <div class="cd-modal__progress">
+                        <div class="dx-progress"><div class="dx-progress__fill" style="width: {{ $pct }}%"></div></div>
+                        <span>{{ $money($raised) }} {{ __('of') }} {{ $money($goal) }}{{ $left > 0 ? ' · ' . $money($left) . ' ' . __('to go') : '' }}</span>
+                    </div>
+                @endif
+
+                <input type="hidden" id="request_id" name="request_id">
+
+                <div class="cd-modal__amount">
+                    <span aria-hidden="true">$</span>
+                    <input type="number" id="amount" name="amount" step="0.01" min="0.01" required
+                           inputmode="decimal" placeholder="0" aria-label="{{ __('Amount') }}">
+                </div>
+                <div class="cd-modal__quick" role="group" aria-label="{{ __('Quick amounts') }}">
+                    @foreach([5, 10, 25, 50] as $q)
+                        <button type="button" data-amount="{{ $q }}">${{ $q }}</button>
+                    @endforeach
+                    @if($left > 0 && !in_array((int) ceil($left), [5, 10, 25, 50]))
+                        <button type="button" data-amount="{{ number_format($left, 2, '.', '') }}">{{ __('Finish it') }} · {{ $money($left) }}</button>
+                    @endif
+                </div>
+
+                <label class="cd-modal__label" for="message">{{ __('Say something') }} <span>{{ __('optional · shown publicly') }}</span></label>
+                <textarea id="message" name="message" rows="2" maxlength="500" placeholder="{{ __('Hype them up…') }}"></textarea>
+
+                <div class="cd-modal__foot">
+                    <button type="submit" class="dx-btn dx-btn--money dx-btn--block">{{ __('Put it in') }}</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.cd-modal__quick [data-amount]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            var input = document.getElementById('amount');
+            input.value = b.dataset.amount;
+            document.querySelectorAll('.cd-modal__quick [data-amount]').forEach(function (o) { o.classList.toggle('is-active', o === b); });
+            input.focus();
+        });
+    });
+});
+</script>
 @endauth
-
-<style>
-/* Hero Section */
-.request-hero-card {
-    position: relative;
-    border-radius: 20px;
-    overflow: hidden;
-    margin-bottom: 2rem;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-}
-
-.hero-background {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    position: relative;
-    min-height: 250px;
-}
-
-.hero-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.3);
-}
-
-.hero-content {
-    position: relative;
-    z-index: 2;
-    padding: 2rem;
-    color: white;
-}
-
-.hero-title {
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-}
-
-.hero-meta {
-    font-size: 0.9rem;
-}
-
-.status-badge-large .badge {
-    font-size: 1rem;
-    padding: 0.75rem 1.5rem;
-    border-radius: 25px;
-    font-weight: 600;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-}
-
-.hero-users {
-    margin-top: 2rem;
-}
-
-.user-avatar-lg img,
-.avatar-placeholder-lg {
-    width: 60px;
-    height: 60px;
-    border: 3px solid rgba(255,255,255,0.3);
-}
-
-.avatar-placeholder-lg {
-    font-size: 1.5rem;
-}
-
-/* Content Sections */
-.content-section {
-    padding: 1.5rem 0;
-    border-bottom: 1px solid #f1f3f4;
-}
-
-.content-section:last-child {
-    border-bottom: none;
-}
-
-.section-title {
-    color: #2d3748;
-    font-weight: 600;
-    margin-bottom: 1rem;
-}
-
-.description-content {
-    background: #f8f9fa;
-    padding: 1.5rem;
-    border-radius: 10px;
-    border-left: 4px solid #667eea;
-}
-
-/* Progress Hero */
-.progress-hero {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 50%, #4facfe 100%);
-    padding: 2rem;
-    border-radius: 15px;
-    color: white;
-    text-align: center;
-}
-
-.progress-amount {
-    font-size: 2.5rem;
-    font-weight: 700;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-}
-
-.progress-xl {
-    height: 12px;
-    border-radius: 10px;
-    background-color: rgba(255,255,255,0.3);
-    overflow: hidden;
-}
-
-.progress-bar-hero {
-    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-    border-radius: 10px;
-    transition: width 1s ease;
-}
-
-.progress-percentage {
-    margin-top: 1rem;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-}
-
-/* Price Display */
-.price-display {
-    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-    color: white;
-    padding: 2rem;
-    border-radius: 15px;
-    text-align: center;
-}
-
-.price-amount {
-    font-size: 3rem;
-    font-weight: 700;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-}
-
-/* Action Buttons */
-.btn-xl {
-    padding: 1rem 2rem;
-    font-size: 1.1rem;
-    border-radius: 12px;
-    font-weight: 600;
-    position: relative;
-    overflow: hidden;
-}
-
-.btn-xl::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    transition: left 0.5s;
-}
-
-.btn-xl:hover::before {
-    left: 100%;
-}
-
-/* Contributions List */
-.contributions-list {
-    max-height: 400px;
-    overflow-y: auto;
-}
-
-.contribution-item:hover {
-    background-color: #f8f9fa;
-}
-
-.contributor-avatar img,
-.avatar-placeholder-sm {
-    width: 40px;
-    height: 40px;
-}
-
-.contribution-amount .badge {
-    font-size: 0.9rem;
-    padding: 0.5rem 1rem;
-}
-
-.contribution-message {
-    background: #f8f9fa;
-    padding: 0.75rem;
-    border-radius: 8px;
-    margin-top: 0.5rem;
-}
-
-/* Details Sidebar */
-.details-list .detail-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-}
-
-.detail-label {
-    flex: 0 0 40%;
-    font-weight: 500;
-}
-
-.detail-value {
-    flex: 1;
-    text-align: right;
-}
-
-.detail-value .badge {
-    font-size: 0.8rem;
-}
-
-/* Quick Actions */
-.quick-actions .btn {
-    border-radius: 8px;
-    font-weight: 500;
-}
-
-/* Modal Styles */
-.bg-gradient {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.request-preview-card {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    color: white;
-    padding: 1.5rem;
-    border-radius: 12px;
-}
-
-.preview-icon {
-    opacity: 0.9;
-}
-
-.progress-sm {
-    height: 6px;
-    border-radius: 3px;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .hero-content {
-        padding: 1.5rem;
-    }
-
-    .hero-title {
-        font-size: 2rem;
-    }
-
-    .hero-users {
-        flex-direction: column;
-        gap: 1rem;
-        align-items: flex-start;
-    }
-
-    .progress-hero {
-        padding: 1.5rem;
-    }
-
-    .progress-amount {
-        font-size: 2rem;
-    }
-
-    .price-display {
-        padding: 1.5rem;
-    }
-
-    .price-amount {
-        font-size: 2rem;
-    }
-
-    .details-list .detail-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.25rem;
-    }
-
-    .detail-value {
-        text-align: left;
-    }
-}
-
-@media (max-width: 576px) {
-    .container-fluid {
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-
-    .hero-background {
-        min-height: 200px;
-    }
-
-    .hero-title {
-        font-size: 1.5rem;
-    }
-
-    .status-badge-large .badge {
-        font-size: 0.9rem;
-        padding: 0.5rem 1rem;
-    }
-
-    .btn-xl {
-        padding: 0.75rem 1.5rem;
-        font-size: 1rem;
-    }
-}
-
-/* Loading Animation */
-@keyframes shimmer {
-    0% { background-position: -200px 0; }
-    100% { background-position: calc(200px + 100%) 0; }
-}
-
-.btn-xl:hover {
-    animation: shimmer 1.5s infinite;
-}
-
-/* Badge enhancements */
-.badge-lg {
-    font-size: 0.85rem;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-}
-
-/* Payment Required Section */
-.payment-required-section .alert {
-    border-radius: 16px;
-    border-left: 4px solid #ffc107;
-}
-
-/* Voting Section */
-.voting-section .card-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 16px 16px 0 0;
-}
-
-.voting-stats .stat-box {
-    padding: 1rem;
-}
-
-.voting-stats h3 {
-    font-size: 2rem;
-    font-weight: 700;
-}
-
-.voting-actions .btn {
-    border-radius: 12px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-}
-
-.voting-actions .btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.votes-list .list-group-item {
-    border-radius: 8px;
-    margin-bottom: 0.5rem;
-    border: 1px solid #e2e8f0;
-}
-
-/* Support Section */
-.support-section .card-header {
-    background: #f7fafc;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.badge-sm {
-    font-size: 0.7rem;
-    padding: 0.25rem 0.5rem;
-}
-</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

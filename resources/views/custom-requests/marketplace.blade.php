@@ -130,24 +130,6 @@
             @endif
         @endif
 
-        {{-- ============ Almost funded rail ============ --}}
-        @if($almost->count())
-            <section>
-                <div class="dx-section__head">
-                    <div>
-                        <h2 class="dx-section__title">{{ __('Almost funded') }}</h2>
-                        <p class="dx-section__sub">{{ __('One more backer could make these happen') }}</p>
-                    </div>
-                    <a href="{{ $tabUrl('open') }}" class="dx-section__link">{{ __('See all') }}</a>
-                </div>
-                <div class="dx-rail">
-                    @foreach($almost as $cr)
-                        @include('custom-requests.partials.fund-card', ['cr' => $cr])
-                    @endforeach
-                </div>
-            </section>
-        @endif
-
         {{-- ============ Main list for the current tab ============ --}}
         @if($wall->count())
             <section>

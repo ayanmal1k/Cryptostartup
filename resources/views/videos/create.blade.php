@@ -11,7 +11,7 @@
 @endphp
 
 @section('styles')
-    <link rel="stylesheet" href="{{ asset('css/pages/video-upload.css') }}?v=20260817a">
+    <link rel="stylesheet" href="{{ asset('css/pages/video-upload.css') }}?v=20260917a">
 @endsection
 
 @section('content')
@@ -204,17 +204,10 @@
                 </div>
 
                 {{-- Price: only meaningful for the "paid" option, so it is revealed by JS. --}}
-                <div class="vu-field {{ old('visibility') === 'paid' ? '' : 'd-none' }}" id="priceField">
-                    <div class="vu-label-row">
-                        <label for="price" class="vu-label">{{ __('Price') }}<span class="vu-req">*</span></label>
-                        <span class="vu-count">{{ __('One-off unlock') }}</span>
-                    </div>
-                    <input type="number" class="vu-input @error('price') is-invalid @enderror"
-                           id="price" name="price" step="0.01" min="0.5" max="500"
-                           value="{{ old('price') }}" placeholder="4.99">
-                    <p class="vu-hint">{{ __('Fans pay this once to unlock the video. Minimum 0.50.') }}</p>
-                    @error('price')<span class="vu-error-text">{{ $message }}</span>@enderror
-                </div>
+                @include('videos.partials.price-field', [
+                    'value' => old('price'),
+                    'visible' => old('visibility') === 'paid',
+                ])
 
                 {{-- Upload Progress --}}
                 <div class="vu-field d-none" id="uploadProgress">

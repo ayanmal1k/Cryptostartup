@@ -1012,3 +1012,362 @@
         transition: none;
     }
 }
+
+/* ============================================
+   WALLET v2 — balance card, breakdown, tabs
+   Money reads as money (DESIGN-REFERENCE Pattern 2): a balance card with a
+   gold coin, a gold "Add funds" action, and a breakdown whose tiles are
+   shortcuts into their tabs. Overrides the hero/meta/tab rules above.
+   ============================================ */
+.wallet-page {
+    --w-money: #ffc53d;
+    --w-money-hover: #ffb800;
+    --w-money-ink: #ffc53d;
+    --w-win: #22e0a0;
+    --w-hot: #ff3b5c;
+}
+
+.wallet-page--light {
+    --w-money-ink: #9a6200;
+}
+
+/* --- Balance card ------------------------------------------------------- */
+.wallet-hero {
+    position: relative;
+    align-items: stretch;
+    text-align: left;
+    padding: 20px 18px 18px;
+    border-radius: var(--w-radius-lg);
+    background: var(--w-surface);
+    border: 1px solid var(--w-border);
+    overflow: hidden;
+}
+
+.wallet-hero::before {
+    content: '';
+    position: absolute;
+    left: 18px;
+    right: 18px;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(255, 197, 61, 0), rgba(255, 197, 61, 0.55), rgba(255, 197, 61, 0));
+}
+
+.wallet-hero__top {
+    display: flex;
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.wallet-hero__label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--w-text-muted);
+}
+
+.wallet-hero__addr {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: var(--w-surface-2);
+    border: 1px solid var(--w-border);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--w-text-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.wallet-hero__addr-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--w-win);
+}
+
+.wallet-hero__balance-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.wallet-hero__coin {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 197, 61, 0.14);
+    color: var(--w-money-ink);
+}
+
+.wallet-hero__coin svg {
+    width: 26px;
+    height: 26px;
+}
+
+.wallet-hero__balance {
+    margin: 0;
+    font-size: clamp(2.3rem, 11vw, 3.1rem);
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.wallet-hero__hint {
+    margin: 8px 0 0;
+}
+
+.wallet-hero__actions {
+    max-width: none;
+    margin-top: 20px;
+}
+
+.wallet-btn--money {
+    background: var(--w-money);
+    color: #1f1500;
+    box-shadow: 0 8px 22px -10px rgba(255, 197, 61, 0.75);
+}
+
+.wallet-btn--money:hover {
+    background: var(--w-money-hover);
+    color: #1f1500;
+}
+
+/* --- Breakdown ---------------------------------------------------------- */
+.wallet-breakdown {
+    list-style: none;
+    margin: -12px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.wallet-breakdown__item {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 14px;
+    border: 1px solid var(--w-border);
+    border-radius: var(--w-radius-md);
+    background: var(--w-surface);
+    color: inherit;
+    font-family: var(--w-font);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+}
+
+.wallet-breakdown__item:hover {
+    border-color: var(--w-border-strong);
+    background: var(--w-surface-hover);
+}
+
+.wallet-breakdown__item:focus-visible {
+    outline: 2px solid var(--w-brand-neon);
+    outline-offset: 2px;
+}
+
+.wallet-breakdown__label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--w-text-muted);
+}
+
+.wallet-breakdown__value {
+    font-family: var(--w-font-display);
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--w-text);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.wallet-breakdown__value.is-money {
+    color: var(--w-money-ink);
+}
+
+.wallet-breakdown__sub {
+    font-size: 12px;
+    color: var(--w-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.wallet-page.is-balance-hidden .wallet-breakdown__value,
+.wallet-page.is-balance-hidden .wallet-breakdown__sub {
+    filter: blur(7px);
+    user-select: none;
+}
+
+@media (min-width: 600px) {
+    .wallet-breakdown {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+/* --- Tabs: underline, like the discover pages ---------------------------- */
+.wallet-tabs {
+    gap: 22px;
+    padding-bottom: 0;
+    border-bottom: 1px solid var(--w-border);
+    margin-bottom: -8px;
+}
+
+.wallet-tab,
+.wallet-tab:hover {
+    position: relative;
+    padding: 12px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.wallet-tab {
+    color: var(--w-text-muted);
+    font-family: var(--w-font-display);
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.wallet-tab:hover {
+    color: var(--w-text);
+}
+
+.wallet-tab.is-active {
+    background: transparent;
+    color: var(--w-text);
+}
+
+.wallet-tab.is-active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: var(--w-brand-neon);
+}
+
+.wallet-tab.is-active .wallet-tab__count {
+    background: var(--w-surface-2);
+    color: var(--w-text);
+}
+
+/* --- Tokens --------------------------------------------------------------- */
+.token-item__symbol-circle {
+    background: var(--w-surface-2);
+    color: var(--w-text);
+    border: 1px solid var(--w-border-strong);
+}
+
+.token-item__delta--flat {
+    color: var(--w-text-muted);
+}
+
+.token-item__delta--up {
+    color: var(--w-win);
+}
+
+.token-item__delta--down {
+    color: var(--w-hot);
+}
+
+.token-item__value {
+    font-family: var(--w-font-display);
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--w-money-ink);
+}
+
+/* --- Wallet-connect widget (nft/partials/wallet-connect), restyled in the wallet
+   only — the partial is Bootstrap markup shared with the NFT pages. ------------- */
+.wallet-page #wallet-connect-widget {
+    margin-bottom: 0 !important;
+    border: 1px solid var(--w-border) !important;
+    border-radius: var(--w-radius-md);
+    background: var(--w-surface);
+    box-shadow: none !important;
+    color: var(--w-text);
+}
+
+.wallet-page #wallet-connect-widget .card-body {
+    padding: 16px;
+}
+
+.wallet-page #wallet-connect-widget .d-flex {
+    gap: 12px;
+}
+
+.wallet-page #wallet-connect-widget h6 {
+    font-family: var(--w-font-display);
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--w-text);
+}
+
+.wallet-page #wallet-connect-widget .text-muted,
+.wallet-page #wallet-status-msg {
+    color: var(--w-text-muted) !important;
+    font-size: 13px;
+}
+
+.wallet-page #wallet-connect-widget .text-success {
+    color: var(--w-win) !important;
+    font-weight: 600;
+}
+
+.wallet-page #wallet-connect-widget code {
+    color: var(--w-text-2);
+    background: var(--w-surface-2);
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+
+.wallet-page #wallet-connect-widget .btn {
+    height: 38px;
+    padding: 0 16px;
+    border-radius: 999px;
+    font-family: var(--w-font);
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+    box-shadow: none;
+}
+
+.wallet-page #wallet-connect-widget .btn-primary {
+    background: var(--w-brand-neon);
+    border-color: var(--w-brand-neon);
+    color: #fff;
+}
+
+.wallet-page #wallet-connect-widget .btn-outline-secondary {
+    background: var(--w-surface-2);
+    border-color: var(--w-border-strong);
+    color: var(--w-text);
+}
+
+.wallet-page #wallet-connect-widget .btn-link {
+    color: var(--w-text-muted) !important;
+    text-decoration: underline;
+}

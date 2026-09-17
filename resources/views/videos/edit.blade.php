@@ -14,7 +14,7 @@
 @endphp
 
 @section('styles')
-    <link rel="stylesheet" href="{{ asset('css/pages/video-upload.css') }}?v=20260817a">
+    <link rel="stylesheet" href="{{ asset('css/pages/video-upload.css') }}?v=20260917a">
 @endsection
 
 @section('content')
@@ -118,17 +118,10 @@
             </div>
 
             {{-- Price --}}
-            <div class="vu-field {{ $currentVisibility === 'paid' ? '' : 'd-none' }}" id="priceField">
-                <div class="vu-label-row">
-                    <label for="price" class="vu-label">{{ __('Price') }}<span class="vu-req">*</span></label>
-                    <span class="vu-count">{{ __('One-off unlock') }}</span>
-                </div>
-                <input type="number" class="vu-input" id="price" name="price"
-                       step="0.01" min="0.5" max="500"
-                       value="{{ old('price', (float) ($video->price ?? 0) > 0 ? $video->price : '') }}"
-                       placeholder="4.99">
-                <p class="vu-hint">{{ __('Fans pay this once to unlock the video. Minimum 0.50.') }}</p>
-            </div>
+            @include('videos.partials.price-field', [
+                'value' => old('price', (float) ($video->price ?? 0) > 0 ? $video->price : ''),
+                'visible' => $currentVisibility === 'paid',
+            ])
 
             <div class="vu-actions">
                 <button type="submit" class="vu-btn vu-btn--primary">{{ __('Save changes') }}</button>
