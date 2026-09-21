@@ -840,9 +840,50 @@
     box-sizing: border-box;
 }
 
-.wallet-field input:focus {
+.wallet-field input:focus,
+.wallet-field select:focus {
     outline: none;
     border-color: var(--w-brand-neon);
+}
+
+.wallet-field select {
+    width: 100%;
+    padding: 11px 13px;
+    border: 1px solid var(--w-border);
+    border-radius: var(--w-radius-sm);
+    background: var(--w-input-bg);
+    color: var(--w-text);
+    font-family: var(--w-font);
+    font-size: 14px;
+}
+
+/* Dollar amount box: a fixed "$" so nobody wonders what unit they are typing. */
+.wallet-money-input {
+    position: relative;
+    display: block;
+}
+
+.wallet-money-input__sign {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-weight: 700;
+    color: var(--w-text-2);
+    pointer-events: none;
+}
+
+.wallet-field .wallet-money-input input {
+    padding-left: 28px;
+    /* 16px stops iOS zooming the page when the field is focused. */
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.wallet-send__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 /* --- Notes -------------------------------------------------------------- */

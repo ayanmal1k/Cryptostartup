@@ -50,7 +50,7 @@
 @endphp
 
 @section('styles')
-    <link rel="stylesheet" href="{{ asset('css/pages/wallet.css') }}?v=20260917c">
+    <link rel="stylesheet" href="{{ asset('css/pages/wallet.css') }}?v=20260921a">
     <link rel="stylesheet" href="{{ asset('css/pages/nft-marketplace.css') }}?v=20260917b">
 @endsection
 
@@ -294,6 +294,76 @@
                 </div>
             @endforelse
         </div>
+
+        @if(session('send_success'))
+            <p class="wallet-note wallet-note--boxed wallet-note--success" role="status">{{ session('send_success') }}</p>
+        @endif
+
+        {{-- Send to another member, in dollars. Units are worked out on the server
+             (CoinSendController); nothing here ever shows or asks for one. --}}
+        @if($tokenWallets->count())
+            @php
+                $sendable = $tokenWallets->filter(fn ($w) => $w->cryptocurrency->transferable)->values();
+                $firstSend = old('coin_id') ? $sendable->firstWhere('cryptocurrency_id', (int) old('coin_id')) : null;
+                $firstSend = $firstSend ?? $sendable->first();
+            @endphp
+            @if($firstSend)
+                <div class="wallet-block" id="wallet-send">
+                    <div class="wallet-block__head">
+                        <h2 class="wallet-block__title">{{ __('Send to someone') }}</h2>
+                    </div>
+                    <form method="POST" class="wallet-form" id="coinSendForm"
+                          action="{{ route('wallet.coins.send', $firstSend->cryptocurrency_id) }}">
+                        @csrf
+                        @if($sendable->count() > 1)
+                            <label class="wallet-field">
+                                <span>{{ __('Which coin') }}</span>
+                                <select name="coin_id" id="coinSendCoin">
+                                    @foreach($sendable as $w)
+                                        @php $worth = \App\Support\TokenMoney::toUsd((float) $w->balance, (float) $w->cryptocurrency->current_price); @endphp
+                                        <option value="{{ $w->cryptocurrency_id }}"
+                                                data-action="{{ route('wallet.coins.send', $w->cryptocurrency_id) }}"
+                                                data-worth="{{ \App\Support\TokenMoney::format($worth) }}"
+                                                @selected($w->is($firstSend))>
+                                            {{ $w->cryptocurrency->name }} — {{ \App\Support\TokenMoney::format($worth) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </label>
+                        @else
+                            <input type="hidden" name="coin_id" value="{{ $firstSend->cryptocurrency_id }}">
+                        @endif
+                        <label class="wallet-field">
+                            <span>{{ __('To') }}</span>
+                            <input type="text" name="recipient" value="{{ old('recipient') }}" placeholder="@username"
+                                   autocomplete="off" autocapitalize="none" spellcheck="false" required>
+                        </label>
+                        <label class="wallet-field">
+                            <span>{{ __('Amount') }}</span>
+                            <span class="wallet-money-input">
+                                <span class="wallet-money-input__sign" aria-hidden="true">$</span>
+                                <input type="number" name="amount_usd" id="coinSendAmount" inputmode="decimal"
+                                       step="0.01" min="1" placeholder="0.00" value="{{ old('amount_usd') }}">
+                            </span>
+                        </label>
+                        <p class="wallet-note">
+                            {{ __('You have') }} <strong id="coinSendWorth">{{ \App\Support\TokenMoney::format(\App\Support\TokenMoney::toUsd((float) $firstSend->balance, (float) $firstSend->cryptocurrency->current_price)) }}</strong>
+                            {{ __('to send. They get the same dollar value in their wallet, instantly and free.') }}
+                        </p>
+                        @if(session('send_error'))
+                            <p class="wallet-note wallet-note--error" role="alert">{{ session('send_error') }}</p>
+                        @endif
+                        @foreach(['recipient', 'amount_usd'] as $field)
+                            @error($field)<p class="wallet-note wallet-note--error" role="alert">{{ $message }}</p>@enderror
+                        @endforeach
+                        <div class="wallet-send__actions">
+                            <button type="submit" class="wallet-btn wallet-btn--primary wallet-btn--inline">{{ __('Send') }}</button>
+                            <button type="submit" name="send_all" value="1" class="wallet-btn wallet-btn--ghost wallet-btn--inline" formnovalidate>{{ __('Send all') }}</button>
+                        </div>
+                    </form>
+                </div>
+            @endif
+        @endif
     </section>
 
     {{-- ── NFTs ──────────────────────────────────────────────────────────────────── --}}
@@ -523,6 +593,27 @@
         }
     });
     @endif
+
+    // --- Send to someone: dollars only ----------------------------------------------
+    var sendForm = document.getElementById('coinSendForm');
+    if (sendForm) {
+        var coinSelect = document.getElementById('coinSendCoin');
+        var worthEl = document.getElementById('coinSendWorth');
+        if (coinSelect) coinSelect.addEventListener('change', function () {
+            var opt = coinSelect.options[coinSelect.selectedIndex];
+            sendForm.action = opt.getAttribute('data-action');
+            worthEl.textContent = opt.getAttribute('data-worth');
+        });
+        // Sends can't be undone, so read it back in plain words first.
+        sendForm.addEventListener('submit', function (e) {
+            var all = e.submitter && e.submitter.name === 'send_all';
+            var who = sendForm.recipient.value.trim().replace(/^@/, '');
+            if (!who) { e.preventDefault(); sendForm.recipient.focus(); return; }
+            var amount = all ? worthEl.textContent : '$' + (parseFloat(sendForm.amount_usd.value) || 0).toFixed(2);
+            if (!all && !(parseFloat(sendForm.amount_usd.value) >= 1)) { e.preventDefault(); sendForm.amount_usd.focus(); return; }
+            if (!window.confirm(@json(__('Send')) + ' ' + amount + ' ' + @json(__('to')) + ' @' + who + '?')) e.preventDefault();
+        });
+    }
 })();
 </script>
 @endsection

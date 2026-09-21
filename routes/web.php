@@ -801,6 +801,11 @@ Route::prefix('creator-coins')->name('creator-coins.')->middleware(['auth', 'ver
 Route::get('/wallet', [App\Http\Controllers\WalletHubController::class, 'index'])
     ->middleware(['auth', 'verified'])->name('wallet.hub');
 
+// Send coins to another member. They type dollars; the server moves the matching units.
+// Same KYC and AML limits as buying and selling.
+Route::post('/wallet/coins/{id}/send', [App\Http\Controllers\CoinSendController::class, 'store'])
+    ->middleware(['auth', 'verified', '2fa', 'kyc:1', 'transaction.limits'])->name('wallet.coins.send');
+
 // Continue cryptocurrency routes
 Route::prefix('cryptocurrency')->name('cryptocurrency.')->middleware(['auth', 'verified', '2fa'])->group(function () {
     // Superseded by the unified wallet — kept as a redirect so old links/bookmarks survive.

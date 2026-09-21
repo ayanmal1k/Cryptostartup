@@ -244,12 +244,9 @@ class CryptoOnRampController extends Controller
             ]);
             
             return redirect()->route('cryptocurrency.wallet')
-                ->with('success', sprintf(
-                    'Successfully purchased %s %s tokens! Your %s payment has been added to your wallet.',
-                    number_format($tokensToReceive, 4),
-                    $platformToken->symbol,
-                    strtoupper($paymentCrypto)
-                ));
+                // Dollars and the coin's name only, never a unit count or ticker.
+                ->with('success', 'You bought ' . \App\Support\TokenMoney::format($netAmount)
+                    . ' of ' . $platformToken->name . ". It's in your wallet now.");
                 
         } catch (\Exception $e) {
             \DB::rollBack();

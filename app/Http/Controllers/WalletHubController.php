@@ -139,21 +139,35 @@ class WalletHubController extends Controller
      */
     private function activityFeed(int $userId, ?string $address)
     {
-        $tokenRows = CryptoTransaction::with('cryptocurrency')
+        $tokenRows = CryptoTransaction::with(['cryptocurrency', 'buyer', 'seller'])
             ->where(fn ($q) => $q->where('buyer_user_id', $userId)->orWhere('seller_user_id', $userId))
             ->latest()
             ->limit(25)
             ->get()
-            ->map(fn ($t) => [
-                'kind' => 'token',
-                'type' => $t->type,
+            ->map(function ($t) use ($userId) {
                 // Dollars and names only, never a ticker or a unit count.
-                'label' => (['buy' => 'Bought', 'sell' => 'Sold', 'transfer' => 'Sent'][$t->type] ?? ucfirst((string) $t->type))
-                    . ' ' . (optional($t->cryptocurrency)->name ?? 'coins'),
-                'amount' => TokenMoney::format((float) $t->total_price),
-                'in' => $t->type === 'buy',
-                'at' => $t->created_at,
-            ]);
+                $coin = optional($t->cryptocurrency)->name ?? 'coins';
+
+                if ($t->type === CryptoTransaction::TYPE_TRANSFER) {
+                    // One row, two readings: the recipient is the buyer, the sender the seller.
+                    $in = (int) $t->buyer_user_id === $userId;
+                    $other = optional($in ? $t->seller : $t->buyer)->username;
+                    $label = ($in ? __('Received') : __('Sent')) . ' ' . $coin
+                        . ($other ? ' ' . ($in ? __('from') : __('to')) . ' @' . $other : '');
+                } else {
+                    $in = $t->type === CryptoTransaction::TYPE_BUY;
+                    $label = (['buy' => __('Bought'), 'sell' => __('Sold')][$t->type] ?? ucfirst((string) $t->type)) . ' ' . $coin;
+                }
+
+                return [
+                    'kind' => 'token',
+                    'type' => $t->type,
+                    'label' => $label,
+                    'amount' => TokenMoney::format((float) $t->total_price),
+                    'in' => $in,
+                    'at' => $t->created_at,
+                ];
+            });
 
         $coinRows = CreatorCoinTransaction::with('coin')
             ->where('user_id', $userId)

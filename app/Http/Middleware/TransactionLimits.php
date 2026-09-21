@@ -25,8 +25,8 @@ class TransactionLimits
 
         $user = Auth::user();
         // Coin buy/sell forms post a dollar amount (amount_usd); older forms post units x price.
-        if ($request->input('sell_all') === '1' && $request->route('id')) {
-            // "Sell all" posts no amount: it is worth the whole holding at today's price.
+        if (($request->input('sell_all') === '1' || $request->input('send_all') === '1') && $request->route('id')) {
+            // "Sell all" / "Send all" post no amount: worth the whole holding at today's price.
             $wallet = \App\Models\CryptoWallet::with('cryptocurrency')
                 ->where('user_id', $user->id)->where('cryptocurrency_id', $request->route('id'))->first();
             $totalValue = $wallet && $wallet->cryptocurrency
