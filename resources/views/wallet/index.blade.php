@@ -50,8 +50,13 @@
 @endphp
 
 @section('styles')
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap">
     <link rel="stylesheet" href="{{ asset('css/pages/wallet.css') }}?v=20260921a">
     <link rel="stylesheet" href="{{ asset('css/pages/nft-marketplace.css') }}?v=20260917b">
+    {{-- The loot-world skin. Loads last: it re-skins wallet.css rather than forking it. --}}
+    <link rel="stylesheet" href="{{ asset('css/pages/wallet-hud.css') }}?v=20260923a">
 @endsection
 
 @section('content')
@@ -84,9 +89,29 @@
             <span class="wallet-hero__coin" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 6.5v11M14.6 9.3c-.5-.8-1.5-1.3-2.6-1.3-1.5 0-2.6.8-2.6 2s1.1 1.7 2.6 2c1.5.3 2.6.8 2.6 2s-1.1 2-2.6 2c-1.1 0-2.1-.5-2.6-1.3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
             </span>
-            <div class="wallet-hero__balance" data-balance="${{ number_format($totalBalance, 2) }}">${{ number_format($totalBalance, 2) }}</div>
+            <div class="wallet-hero__balance hud-count" data-balance="${{ number_format($totalBalance, 2) }}"
+                 data-count-to="{{ number_format($totalBalance, 2, '.', '') }}">${{ number_format($totalBalance, 2) }}</div>
         </div>
         <p class="wallet-hero__hint">{{ __("Your spendable balance plus what your coins are worth today") }}</p>
+
+        {{-- Rank strip: the same level, streak and sparks the Rewards hub tracks. --}}
+        @php
+            $perLevel = \App\Services\GamificationService::XP_PER_LEVEL;
+            $xp = (int) ($user->xp ?? 0);
+            $intoLevel = $perLevel > 0 ? $xp % $perLevel : 0;
+            $levelPct = $perLevel > 0 ? round($intoLevel / $perLevel * 100) : 0;
+        @endphp
+        <div class="hud-rank">
+            <span class="hud-rank__lvl">{{ __('LVL') }} {{ (int) ($user->level ?? 1) }}</span>
+            <span class="hud-rank__bar" role="progressbar" aria-valuenow="{{ $levelPct }}" aria-valuemin="0" aria-valuemax="100"
+                  aria-label="{{ __('Progress to the next level') }}">
+                <span class="hud-rank__fill" style="width: {{ $levelPct }}%"></span>
+            </span>
+            <span class="hud-rank__stats">
+                <span>🔥 <b>{{ number_format((int) ($user->streak_count ?? 0)) }}</b></span>
+                <span>✨ <b>{{ number_format((int) ($user->sparks ?? 0)) }}</b></span>
+            </span>
+        </div>
 
         {{-- Deposit/withdraw route to the REAL payment flow (Stripe/PayPal via my.settings),
              not CryptocurrencyController's stub which records a "completed" deposit without
@@ -108,14 +133,14 @@
         <li>
             <button type="button" class="wallet-breakdown__item" data-open-panel="overview">
                 <span class="wallet-breakdown__label">{{ __('Credits') }}</span>
-                <span class="wallet-breakdown__value is-money">${{ number_format($credits, 2) }}</span>
+                <span class="wallet-breakdown__value is-money hud-count" data-count-to="{{ number_format($credits, 2, '.', '') }}">${{ number_format($credits, 2) }}</span>
                 <span class="wallet-breakdown__sub">{{ __('Ready to spend') }}</span>
             </button>
         </li>
         <li>
             <button type="button" class="wallet-breakdown__item" data-open-panel="tokens">
                 <span class="wallet-breakdown__label">{{ __('Coins') }}</span>
-                <span class="wallet-breakdown__value is-money">${{ number_format($tokenValue, 2) }}</span>
+                <span class="wallet-breakdown__value is-money hud-count" data-count-to="{{ number_format($tokenValue, 2, '.', '') }}">${{ number_format($tokenValue, 2) }}</span>
                 <span class="wallet-breakdown__sub">{{ trans_choice('{0} None held|{1} :count coin|[2,*] :count coins', $tokenWallets->count(), ['count' => $tokenWallets->count()]) }}</span>
             </button>
         </li>
@@ -487,6 +512,7 @@
 @if($address)
 <script src="{{ asset('libs/easyqrcodejs/dist/easy.qrcode.min.js') }}"></script>
 @endif
+<script src="{{ asset('js/pages/wallet-hud.js') }}?v=20260923a" defer></script>
 <script>
 (function () {
     // --- Balance visibility ---------------------------------------------------------

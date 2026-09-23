@@ -1,0 +1,452 @@
+/* =============================================================================
+   Wallet HUD — the loot-world skin for the wallet and coin pages.
+   =============================================================================
+
+   Loaded AFTER wallet.css and deliberately reuses its class names, so this file
+   re-skins the existing markup instead of forking it. Everything here is the
+   same family as the supply drop: dark metal panels, bracketed corners, rarity
+   colours, stencil labels.
+
+   Rules kept throughout:
+   - only transform/opacity animate, and hover effects are gated behind
+     (hover: hover) so a tap on a phone never sticks in a hover state;
+   - every glow is a box-shadow on a surface, never an animated blur;
+   - the light theme gets a "daylight tactical" variant rather than being
+     forced dark, since the wallet honours the site-wide theme cookie.
+   ========================================================================== */
+
+.wallet-page {
+    --hud-gold: #ffc53d;
+    --hud-gold-soft: rgba(255, 197, 61, .45);
+    --hud-cyan: #38bdf8;
+    --hud-green: #22e0a0;
+    --hud-violet: #a855f7;
+    --hud-edge: rgba(203, 12, 159, .55);
+    --hud-stencil: 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+
+.wallet-page--dark {
+    --hud-panel: linear-gradient(180deg, #16161d 0%, #0e0e13 100%);
+    --hud-panel-2: linear-gradient(180deg, #1d1d26 0%, #14141b 100%);
+    --hud-rivet: rgba(255, 255, 255, .14);
+    --hud-grid: rgba(255, 255, 255, .028);
+    --hud-ink: #f5f5f7;
+    --hud-mute: #8b8b98;
+}
+
+.wallet-page--light {
+    --hud-panel: linear-gradient(180deg, #ffffff 0%, #f1f1f5 100%);
+    --hud-panel-2: linear-gradient(180deg, #ffffff 0%, #ebebf1 100%);
+    --hud-rivet: rgba(9, 9, 11, .16);
+    --hud-grid: rgba(9, 9, 11, .03);
+    --hud-ink: #0f0f12;
+    --hud-mute: #61616d;
+    --hud-gold: #a06a00;
+    --hud-gold-soft: rgba(160, 106, 0, .3);
+}
+
+/* Faint grid behind everything, so panels read as sitting on a surface. */
+.wallet-page {
+    position: relative;
+    background-image:
+        linear-gradient(var(--hud-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--hud-grid) 1px, transparent 1px);
+    background-size: 44px 44px, 44px 44px;
+}
+
+/* --- Bracketed corners: the HUD signature ---------------------------------- */
+.wallet-hero,
+.wallet-block,
+.wallet-breakdown__item {
+    position: relative;
+}
+
+.wallet-hero::before,
+.wallet-hero::after,
+.wallet-breakdown__item::before,
+.wallet-breakdown__item::after {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--hud-gold-soft);
+    pointer-events: none;
+}
+
+.wallet-hero::before,
+.wallet-breakdown__item::before {
+    top: 8px;
+    left: 8px;
+    border-right: 0;
+    border-bottom: 0;
+    border-top-left-radius: 4px;
+}
+
+.wallet-hero::after,
+.wallet-breakdown__item::after {
+    right: 8px;
+    bottom: 8px;
+    border-left: 0;
+    border-top: 0;
+    border-bottom-right-radius: 4px;
+}
+
+/* --- Hero ------------------------------------------------------------------ */
+.wallet-hero {
+    background: var(--hud-panel);
+    border: 1px solid var(--w-border-strong);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, .06),
+        0 18px 40px rgba(0, 0, 0, .45);
+}
+
+.wallet-hero__label {
+    font-family: var(--hud-stencil);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--hud-mute);
+}
+
+.wallet-hero__balance {
+    font-family: var(--hud-stencil);
+    font-size: clamp(40px, 12vw, 62px);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    color: var(--hud-ink);
+    /* Digits must not jiggle while the number counts up. */
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 26px var(--hud-gold-soft);
+}
+
+.wallet-hero__hint {
+    font-size: 12.5px;
+    letter-spacing: .04em;
+    color: var(--hud-mute);
+}
+
+/* --- Rank strip: level, XP, streak, sparks --------------------------------- */
+.hud-rank {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0 2px;
+    padding: 10px 12px;
+    border-radius: var(--w-radius-sm);
+    background: var(--hud-panel-2);
+    border: 1px solid var(--w-border);
+}
+
+.hud-rank__lvl {
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #cb0c9f, #830866);
+    color: #fff;
+    font-family: var(--hud-stencil);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .1em;
+}
+
+.hud-rank__bar {
+    position: relative;
+    flex: 1;
+    height: 8px;
+    min-width: 0;
+    border-radius: 999px;
+    background: rgba(127, 127, 140, .25);
+    overflow: hidden;
+}
+
+.hud-rank__fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--hud-cyan), var(--hud-green));
+    transform-origin: left center;
+}
+
+.hud-rank__stats {
+    flex-shrink: 0;
+    display: flex;
+    gap: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--hud-mute);
+}
+
+.hud-rank__stats b {
+    color: var(--hud-ink);
+}
+
+/* --- Action buttons: clipped corners, lit edge ----------------------------- */
+.wallet-btn {
+    border-radius: 10px;
+    font-family: var(--hud-stencil);
+    font-weight: 800;
+    letter-spacing: .04em;
+    /* Angular corner, so buttons read as panel hardware rather than pills. */
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+
+.wallet-btn--money,
+.wallet-btn--primary {
+    background: linear-gradient(135deg, #cb0c9f 0%, #830866 100%);
+    color: #fff;
+    box-shadow: 0 0 22px rgba(203, 12, 159, .35);
+}
+
+.wallet-btn--ghost {
+    background: var(--hud-panel-2);
+    border: 1px solid var(--w-border-strong);
+    color: var(--hud-ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .wallet-btn--money:hover,
+    .wallet-btn--primary:hover { box-shadow: 0 0 30px rgba(203, 12, 159, .55); }
+    .wallet-btn--ghost:hover { border-color: var(--hud-gold-soft); }
+}
+
+.wallet-btn:active { transform: scale(.97); }
+
+/* --- Breakdown tiles: ammo slots ------------------------------------------- */
+.wallet-breakdown {
+    gap: 10px;
+}
+
+.wallet-breakdown__item {
+    padding: 14px 12px;
+    background: var(--hud-panel);
+    border: 1px solid var(--w-border-strong);
+    border-radius: var(--w-radius-md);
+    transition: transform .15s cubic-bezier(.19, 1, .22, 1), box-shadow .15s ease;
+}
+
+.wallet-breakdown__label {
+    font-family: var(--hud-stencil);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--hud-mute);
+}
+
+.wallet-breakdown__value {
+    font-family: var(--hud-stencil);
+    font-size: 20px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--hud-ink);
+}
+
+.wallet-breakdown__value.is-money { color: var(--hud-gold); }
+
+.wallet-breakdown__sub {
+    font-size: 11px;
+    color: var(--hud-mute);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .wallet-breakdown__item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, .4), 0 0 0 1px var(--hud-gold-soft);
+    }
+}
+
+.wallet-breakdown__item:active { transform: scale(.98); }
+
+/* --- Tabs: segmented HUD control --------------------------------------------
+   wallet.css later turns these into underline tabs (padding: 12px 0, no
+   background). The HUD wants pills again, so the box has to be restored here
+   rather than only recoloured. */
+.wallet-tabs {
+    gap: 6px;
+    padding: 4px;
+    border: 1px solid var(--w-border);
+    border-bottom: 1px solid var(--w-border);
+    border-radius: 12px;
+    margin-bottom: 0;
+    background: var(--hud-panel-2);
+    /* Stops the first pill being cut off when the strip is scrolled. */
+    scroll-padding: 0 4px;
+}
+
+.wallet-tab,
+.wallet-tab:hover {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-family: var(--hud-stencil);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--hud-mute);
+}
+
+.wallet-tab.is-active {
+    background: linear-gradient(180deg, rgba(203, 12, 159, .28), rgba(203, 12, 159, .12));
+    border: 1px solid var(--hud-edge);
+    color: #fff;
+    box-shadow: inset 0 0 18px rgba(203, 12, 159, .25);
+}
+
+.wallet-tab__count {
+    background: rgba(255, 197, 61, .18);
+    color: var(--hud-gold);
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- Panels and blocks ------------------------------------------------------- */
+.wallet-block {
+    background: var(--hud-panel);
+    border: 1px solid var(--w-border-strong);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+
+.wallet-block__title {
+    font-family: var(--hud-stencil);
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--hud-ink);
+}
+
+.wallet-block__link {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--hud-gold);
+}
+
+/* --- Coin rows: loot entries -------------------------------------------------- */
+.token-item {
+    position: relative;
+    background: var(--hud-panel-2);
+    border: 1px solid var(--w-border);
+    border-left: 3px solid var(--hud-gold);
+    border-radius: 12px;
+    transition: transform .15s cubic-bezier(.19, 1, .22, 1), border-color .15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .token-item:hover {
+        transform: translateX(2px);
+        border-color: var(--hud-gold-soft);
+    }
+}
+
+.token-item__symbol-circle {
+    background: linear-gradient(135deg, #cb0c9f, #830866);
+    color: #fff;
+    font-family: var(--hud-stencil);
+    font-weight: 800;
+    /* Hex-ish plate instead of a plain circle. */
+    border-radius: 12px;
+    clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+
+.token-item__name {
+    font-family: var(--hud-stencil);
+    font-weight: 800;
+    letter-spacing: .02em;
+    color: var(--hud-ink);
+}
+
+.token-item__value {
+    font-family: var(--hud-stencil);
+    font-size: 17px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--hud-gold);
+}
+
+.token-item__amount {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--hud-mute);
+}
+
+.token-item__delta--up { color: var(--hud-green); }
+.token-item__delta--down { color: #ff3b5c; }
+.token-item__delta--flat { color: var(--hud-mute); }
+
+/* --- Empty states ------------------------------------------------------------- */
+.wallet-empty h4 {
+    font-family: var(--hud-stencil);
+    letter-spacing: .04em;
+}
+
+/* --- Send form ----------------------------------------------------------------- */
+.wallet-field > span {
+    font-family: var(--hud-stencil);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--hud-mute);
+}
+
+/* app.css sets `input[type="text"] { background: #fff !important }` site-wide, which
+   left these fields white-on-dark. !important is the only way past it. */
+.wallet-page .wallet-field input,
+.wallet-page .wallet-field select {
+    border-radius: 10px;
+    border-color: var(--w-border-strong);
+    background: rgba(0, 0, 0, .28) !important;
+    color: var(--hud-ink) !important;
+}
+
+.wallet-page--light .wallet-field input,
+.wallet-page--light .wallet-field select {
+    background: #fff !important;
+}
+
+.wallet-page .wallet-field input::placeholder {
+    color: var(--hud-mute);
+    opacity: 1;
+}
+
+.wallet-page .wallet-field input:focus,
+.wallet-page .wallet-field select:focus {
+    border-color: var(--hud-gold);
+    box-shadow: 0 0 0 3px var(--hud-gold-soft);
+}
+
+/* --- Activity rows -------------------------------------------------------------- */
+.txn-item__title {
+    font-weight: 700;
+    color: var(--hud-ink);
+}
+
+.txn-item__amount {
+    font-family: var(--hud-stencil);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.txn-item__amount--in { color: var(--hud-green); }
+.txn-item__amount--out { color: var(--hud-mute); }
+
+/* --- Number count-up ------------------------------------------------------------
+   The JS writes the value; this only stops the layout jumping while it runs. */
+.hud-count { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+    .wallet-breakdown__item,
+    .token-item,
+    .wallet-btn {
+        transition: none;
+    }
+
+    .wallet-breakdown__item:hover,
+    .token-item:hover {
+        transform: none;
+    }
+}

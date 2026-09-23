@@ -25,6 +25,7 @@
     <link rel="stylesheet" href="{{ asset('css/pages/discover.css') }}?v=20260917a">
     <link rel="stylesheet" href="{{ asset('css/frames.css') }}?v=20260917a">
     <link rel="stylesheet" href="{{ asset('css/pages/rewards.css') }}?v=20260917a">
+    <link rel="stylesheet" href="{{ asset('css/pages/supply-drop.css') }}?v=20260923a">
 @endsection
 
 @section('content')
@@ -380,7 +381,54 @@
     </main>
 </div>
 
-{{-- Reveal: drops and spin prizes. --}}
+{{-- Opening a drop: the crate is airdropped in, lands, and bursts open.
+     Every step is timed in CSS (supply-drop.css); rewards.js only fills in the
+     reward and starts it. --}}
+<div class="rw-air" id="rw-air" hidden aria-live="polite">
+    <button type="button" class="rw-air__skip" id="rw-air-skip">{{ __('Skip') }}</button>
+    <div class="rw-air__scene" role="dialog" aria-modal="true">
+        <div class="rw-air__ground" aria-hidden="true"></div>
+
+        <div class="rw-air__dust" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="rw-air__beam" aria-hidden="true"></div>
+
+        <div class="rw-air__rig" aria-hidden="true">
+            <div class="rw-air__swing">
+                <div class="rw-air__chute">
+                    <svg viewBox="0 0 190 120" fill="none" aria-hidden="true">
+                        <path d="M5 54a90 90 0 0 1 180 0c0 6-8 10-18 10H23C13 64 5 60 5 54Z" fill="#d8d6d0"/>
+                        <path d="M5 54a90 90 0 0 1 45-46c-8 14-12 30-12 46 0 6-4 10-10 10h-5C13 64 5 60 5 54Z" fill="#b9b6ae"/>
+                        <path d="M185 54a90 90 0 0 0-45-46c8 14 12 30 12 46 0 6 4 10 10 10h5c10 0 18-4 18-10Z" fill="#b9b6ae"/>
+                        <path d="M95 8c-10 14-16 30-16 46 0 6 3 10 7 10h18c4 0 7-4 7-10 0-16-6-32-16-46Z" fill="#c7c4bc"/>
+                        <path d="M28 64 78 112M95 64v48M162 64l-50 48" stroke="rgba(255,255,255,.5)" stroke-width="2"/>
+                    </svg>
+                </div>
+                <div class="rw-air__crate-wrap">
+                    <div class="rw-air__crate">
+                        <div class="rw-air__lid"></div>
+                        <div class="rw-air__body">
+                            <span class="rw-air__stencil" id="rw-air-stencil">📦</span>
+                        </div>
+                        <div class="rw-air__seam"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rw-air__flash" aria-hidden="true"></div>
+
+        <div class="rw-air__loot">
+            <div class="rw-air__icon" id="rw-air-icon">🎁</div>
+            <p class="rw-air__rarity" id="rw-air-rarity"></p>
+            <p class="rw-air__name" id="rw-air-name"></p>
+        </div>
+        <div class="rw-air__actions">
+            <button type="button" class="dx-btn dx-btn--primary dx-btn--block" id="rw-air-close">{{ __('Nice') }}</button>
+        </div>
+    </div>
+</div>
+
+{{-- Reveal: spin prizes. --}}
 <div class="rw-reveal" id="rw-reveal" hidden aria-live="polite">
     <div class="rw-reveal__box" role="dialog" aria-modal="true">
         <div class="rw-reveal__burst" id="rw-reveal-burst">🎁</div>
@@ -434,5 +482,5 @@
         };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
-    <script src="{{ asset('js/rewards.js') }}?v=20260917a"></script>
+    <script src="{{ asset('js/rewards.js') }}?v=20260923a"></script>
 @endsection

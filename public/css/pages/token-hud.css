@@ -1,0 +1,209 @@
+/* =============================================================================
+   Coin page HUD — the loot-world skin for a single coin.
+   =============================================================================
+
+   Same approach as wallet-hud.css: loads after token-show.css and re-skins its
+   classes, so the markup is untouched. Kept visually identical to the wallet so
+   moving between the two reads as one system.
+   ========================================================================== */
+
+.ts-page {
+    --hud-gold: #ffc53d;
+    --hud-gold-soft: rgba(255, 197, 61, .45);
+    --hud-green: #22e0a0;
+    --hud-stencil: 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+
+.ts-page--dark {
+    --hud-panel: linear-gradient(180deg, #16161d 0%, #0e0e13 100%);
+    --hud-panel-2: linear-gradient(180deg, #1d1d26 0%, #14141b 100%);
+    --hud-grid: rgba(255, 255, 255, .028);
+    --hud-ink: #f5f5f7;
+    --hud-mute: #8b8b98;
+    --hud-line: rgba(255, 255, 255, .12);
+}
+
+.ts-page--light {
+    --hud-panel: linear-gradient(180deg, #ffffff 0%, #f1f1f5 100%);
+    --hud-panel-2: linear-gradient(180deg, #ffffff 0%, #ebebf1 100%);
+    --hud-grid: rgba(9, 9, 11, .03);
+    --hud-ink: #0f0f12;
+    --hud-mute: #61616d;
+    --hud-line: rgba(9, 9, 11, .14);
+    --hud-gold: #a06a00;
+    --hud-gold-soft: rgba(160, 106, 0, .3);
+}
+
+.ts-page {
+    background-image:
+        linear-gradient(var(--hud-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--hud-grid) 1px, transparent 1px);
+    background-size: 44px 44px, 44px 44px;
+}
+
+/* --- Hero ------------------------------------------------------------------- */
+.ts-hero {
+    position: relative;
+    background: var(--hud-panel);
+    border: 1px solid var(--hud-line);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 18px 40px rgba(0, 0, 0, .45);
+}
+
+.ts-hero::before,
+.ts-hero::after {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--hud-gold-soft);
+    pointer-events: none;
+}
+
+.ts-hero::before {
+    top: 8px;
+    left: 8px;
+    border-right: 0;
+    border-bottom: 0;
+    border-top-left-radius: 4px;
+}
+
+.ts-hero::after {
+    right: 8px;
+    bottom: 8px;
+    border-left: 0;
+    border-top: 0;
+    border-bottom-right-radius: 4px;
+}
+
+.ts-hero__name {
+    font-family: var(--hud-stencil);
+    font-weight: 800;
+    letter-spacing: .01em;
+    color: var(--hud-ink);
+}
+
+.ts-hero__price {
+    font-family: var(--hud-stencil);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--hud-gold);
+    text-shadow: 0 0 24px var(--hud-gold-soft);
+}
+
+.ts-hero__logo--fallback {
+    background: linear-gradient(135deg, #cb0c9f, #830866);
+    color: #fff;
+    font-family: var(--hud-stencil);
+    font-weight: 800;
+    border-radius: 12px;
+    clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+
+.ts-hero__change--up { color: var(--hud-green); }
+.ts-hero__change--down { color: #ff3b5c; }
+
+/* --- Buttons ----------------------------------------------------------------- */
+.ts-btn {
+    font-family: var(--hud-stencil);
+    font-weight: 800;
+    letter-spacing: .04em;
+    border-radius: 10px;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+
+.ts-btn--primary {
+    background: linear-gradient(135deg, #cb0c9f 0%, #830866 100%);
+    color: #fff;
+    box-shadow: 0 0 22px rgba(203, 12, 159, .35);
+}
+
+.ts-btn--ghost {
+    background: var(--hud-panel-2);
+    border: 1px solid var(--hud-line);
+    color: var(--hud-ink);
+}
+
+.ts-btn:active { transform: scale(.97); }
+
+@media (hover: hover) and (pointer: fine) {
+    .ts-btn--primary:hover { box-shadow: 0 0 30px rgba(203, 12, 159, .55); }
+    .ts-btn--ghost:hover { border-color: var(--hud-gold-soft); }
+}
+
+/* --- Stat tiles: the same ammo slots as the wallet ---------------------------- */
+.ts-stat {
+    position: relative;
+    background: var(--hud-panel);
+    border: 1px solid var(--hud-line);
+}
+
+.ts-stat::before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--hud-gold-soft);
+    border-right: 0;
+    border-bottom: 0;
+    border-top-left-radius: 4px;
+    pointer-events: none;
+}
+
+.ts-stat__label {
+    font-family: var(--hud-stencil);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--hud-mute);
+}
+
+.ts-stat__value {
+    font-family: var(--hud-stencil);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--hud-ink);
+}
+
+/* --- Cards, sections and lists ------------------------------------------------ */
+.ts-card {
+    background: var(--hud-panel);
+    border: 1px solid var(--hud-line);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+
+.ts-card__title,
+.ts-section__title {
+    font-family: var(--hud-stencil);
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--hud-ink);
+}
+
+.ts-txn {
+    background: var(--hud-panel-2);
+    border: 1px solid var(--hud-line);
+    border-left: 3px solid var(--hud-gold);
+    border-radius: 12px;
+}
+
+.ts-txn__title {
+    font-family: var(--hud-stencil);
+    font-weight: 800;
+    color: var(--hud-ink);
+}
+
+.ts-txn__total {
+    font-family: var(--hud-stencil);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--hud-gold);
+}
+
+.ts-dl__row {
+    border-color: var(--hud-line);
+}

@@ -116,6 +116,74 @@
     $(document).on('click', '#rw-reveal-close', function () { $('#rw-reveal').prop('hidden', true); });
     $(document).on('click', '#rw-reveal', function (e) { if (e.target === this) $(this).prop('hidden', true); });
 
+    /* ------------------------------------------------------------- airdrop -- */
+
+    /* When the crate bursts open, in ms from the start of the sequence. Must match
+       the burst delay in supply-drop.css -- confetti lands with the flash. */
+    var AIR_BURST_MS = 1980;
+
+    /**
+     * Open a drop as a supply drop: the crate falls in, lands, and bursts.
+     * `stencil` is the tier icon printed on the crate (🥉 🥈 🥇).
+     */
+    function playAirdrop(reward, stencil) {
+        var air = document.getElementById('rw-air');
+        if (!air) { return showReveal(reward); }
+
+        $('#rw-air-stencil').text(stencil || '📦');
+        $('#rw-air-icon').text(reward.icon || '🎁');
+        $('#rw-air-rarity').text(reward.rarity || '');
+        $('#rw-air-name').text(reward.name || '');
+        air.setAttribute('data-rarity', reward.rarity || 'common');
+        air.classList.remove('is-done', 'is-playing');
+        air.hidden = false;
+
+        // Re-trigger the CSS timeline: without a reflow between removing and adding
+        // the class, the browser never sees the animations restart.
+        void air.offsetWidth;
+        air.classList.add('is-playing');
+
+        var burst = null;
+        function celebrate() {
+            if (window.confetti && !reduceMotion && (reward.rarity === 'epic' || reward.rarity === 'legendary')) {
+                window.confetti({
+                    particleCount: reward.rarity === 'legendary' ? 170 : 90,
+                    spread: 80,
+                    startVelocity: 42,
+                    origin: { y: 0.62 }
+                });
+            }
+        }
+
+        var settle = null;
+        if (reduceMotion) {
+            air.classList.add('is-done');
+        } else {
+            burst = setTimeout(celebrate, AIR_BURST_MS);
+            // Once the reward is on screen there is nothing left to skip.
+            settle = setTimeout(function () { air.classList.add('is-settled'); }, 2600);
+        }
+
+        // Skip jumps to the end state rather than rewinding -- someone opening ten
+        // drops should not have to sit through the fall each time.
+        $('#rw-air-skip').off('click.air').on('click.air', function () {
+            clearTimeout(burst);
+            clearTimeout(settle);
+            air.classList.add('is-done');
+            celebrate();
+        });
+    }
+
+    function closeAirdrop() {
+        var air = document.getElementById('rw-air');
+        if (!air) { return; }
+        air.hidden = true;
+        air.classList.remove('is-playing', 'is-done', 'is-settled');
+    }
+
+    $(document).on('click', '#rw-air-close', closeAirdrop);
+    $(document).on('click', '#rw-air', function (e) { if (e.target === this) { closeAirdrop(); } });
+
     /* ----------------------------------------------------------------- spin -- */
 
     $(document).on('click', '.js-spin', function () {
@@ -378,7 +446,7 @@
                 $drop.prop('disabled', false);
                 return toast((res && res.message) || TEXT.error);
             }
-            showReveal(res.reward);
+            playAirdrop(res.reward, $drop.find('.rw-drop__icon').text().trim());
             applyBalance(res.balance);
             $drop.fadeOut(220, function () {
                 $(this).remove();

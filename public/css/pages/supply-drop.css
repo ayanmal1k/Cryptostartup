@@ -1,0 +1,504 @@
+/* =============================================================================
+   Supply drop — the airdrop crate reveal for opening a drop.
+   =============================================================================
+
+   One autonomous, one-shot sequence, so it is built from @keyframes and every
+   step is timed with animation-delay off a single `is-playing` class. Nothing
+   here is interruptible by design: the only interruption we support is "skip",
+   which jumps to the end state (.is-done) rather than rewinding.
+
+   Only transform, opacity and filter animate. The crate, chute, dust and beam
+   are drawn in CSS — no images to load before the reveal can start.
+
+   Timeline (ms from the moment the scene opens):
+        0  crate + chute fall in from above, swinging
+      950  impact: dust ring, screen shake, crate squashes
+     1000  chute detaches and drifts away
+     1450  crate rattles, its seams start to glow
+     1980  burst: lid flies off, light beam, rarity flash
+     2120  the reward card rises out of the crate
+     2320  the close button fades in
+   ========================================================================== */
+
+.rw-air {
+    position: fixed;
+    inset: 0;
+    z-index: 2400;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow: hidden;
+    background: radial-gradient(120% 90% at 50% 40%, rgba(24, 24, 32, .82) 0%, rgba(4, 4, 8, .96) 70%);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    /* Rarity drives every colour in the scene. Overridden per data-rarity below. */
+    --rw-rare-1: #9ca3af;
+    --rw-rare-2: rgba(156, 163, 175, .5);
+}
+
+.rw-air[hidden] { display: none; }
+
+.rw-air[data-rarity="rare"]      { --rw-rare-1: #38bdf8; --rw-rare-2: rgba(56, 189, 248, .55); }
+.rw-air[data-rarity="epic"]      { --rw-rare-1: #a855f7; --rw-rare-2: rgba(168, 85, 247, .55); }
+.rw-air[data-rarity="legendary"] { --rw-rare-1: #ffc53d; --rw-rare-2: rgba(255, 197, 61, .6); }
+
+/* The scene shakes on impact, so the shake lives on a wrapper and never on the
+   elements that are running their own transforms. */
+.rw-air__scene {
+    position: relative;
+    width: min(100%, 420px);
+    height: min(76vh, 560px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding-bottom: 8px;
+}
+
+.rw-air.is-playing .rw-air__scene {
+    animation: rwShake .36s cubic-bezier(.36, .07, .19, .97) .95s both;
+}
+
+/* Ground haze the crate lands into. */
+.rw-air__ground {
+    position: absolute;
+    left: 50%;
+    bottom: 96px;
+    width: 300px;
+    height: 70px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: radial-gradient(closest-side, var(--rw-rare-2), transparent 72%);
+    opacity: 0;
+    filter: blur(10px);
+}
+
+.rw-air.is-playing .rw-air__ground {
+    animation: rwGround .8s ease-out .95s forwards;
+}
+
+/* --- Rig: crate + parachute, falls as one -------------------------------- */
+.rw-air__rig {
+    position: absolute;
+    bottom: 120px;
+    left: 50%;
+    margin-left: -80px;
+    width: 160px;
+    transform: translate3d(0, -88vh, 0);
+}
+
+.rw-air.is-playing .rw-air__rig {
+    /* Chute drag: quick at first, easing into the landing. */
+    animation: rwFall .95s cubic-bezier(.4, .05, .55, 1) both;
+}
+
+/* Swing hangs off its own element so the fall transform stays untouched. */
+.rw-air__swing {
+    transform-origin: 50% -60px;
+}
+
+.rw-air.is-playing .rw-air__swing {
+    animation: rwSway 1.5s ease-in-out infinite alternate;
+}
+
+.rw-air.is-playing .rw-air__crate-wrap {
+    animation: rwSquash .34s cubic-bezier(.2, .8, .2, 1) .95s both;
+}
+
+/* --- Parachute ------------------------------------------------------------ */
+.rw-air__chute {
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    width: 190px;
+    height: 120px;
+    margin-left: -95px;
+    margin-bottom: -6px;
+}
+
+.rw-air__chute svg { width: 100%; height: 100%; display: block; }
+
+.rw-air.is-playing .rw-air__chute {
+    animation: rwChuteAway .7s cubic-bezier(.19, 1, .22, 1) 1s forwards;
+}
+
+/* --- Crate ---------------------------------------------------------------- */
+.rw-air__crate {
+    position: relative;
+    width: 160px;
+    height: 118px;
+}
+
+.rw-air__body {
+    position: absolute;
+    inset: 22px 0 0;
+    border-radius: 8px;
+    background:
+        repeating-linear-gradient(135deg, rgba(0, 0, 0, .16) 0 12px, transparent 12px 24px),
+        linear-gradient(180deg, #4a4a52 0%, #303038 55%, #23232a 100%);
+    border: 1px solid rgba(0, 0, 0, .5);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, .16),
+        inset 0 -10px 18px rgba(0, 0, 0, .45),
+        0 16px 30px rgba(0, 0, 0, .55);
+    overflow: hidden;
+}
+
+/* Hazard stripe across the crate face. */
+.rw-air__body::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 34px;
+    height: 16px;
+    background: repeating-linear-gradient(135deg, var(--rw-rare-1) 0 10px, #17171c 10px 20px);
+    opacity: .85;
+}
+
+/* The seam that splits open — glows with the rarity colour before the burst. */
+.rw-air__seam {
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    top: 20px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--rw-rare-1);
+    opacity: 0;
+}
+
+.rw-air.is-playing .rw-air__seam {
+    animation: rwSeam .5s ease-out 1.48s forwards;
+}
+
+.rw-air__lid {
+    position: absolute;
+    left: -4px;
+    right: -4px;
+    top: 0;
+    height: 26px;
+    border-radius: 7px;
+    background: linear-gradient(180deg, #5a5a64 0%, #3a3a43 100%);
+    border: 1px solid rgba(0, 0, 0, .5);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2), 0 6px 14px rgba(0, 0, 0, .45);
+}
+
+.rw-air.is-playing .rw-air__lid {
+    animation: rwLid .55s cubic-bezier(.19, 1, .22, 1) 1.98s forwards;
+}
+
+.rw-air.is-playing .rw-air__crate {
+    animation: rwRattle .48s ease-in-out 1.45s both;
+}
+
+/* Tier stencil on the crate face. */
+.rw-air__stencil {
+    position: absolute;
+    inset: auto 0 12px;
+    text-align: center;
+    font-size: 26px;
+    line-height: 1;
+    filter: saturate(.85);
+}
+
+/* --- Impact dust ---------------------------------------------------------- */
+.rw-air__dust {
+    position: absolute;
+    left: 50%;
+    bottom: 112px;
+    width: 220px;
+    height: 220px;
+    margin-left: -110px;
+    pointer-events: none;
+}
+
+.rw-air__dust span {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 120px;
+    height: 120px;
+    margin-left: -60px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(216, 214, 208, .5), rgba(216, 214, 208, 0) 72%);
+    opacity: 0;
+}
+
+/* Three puffs, each thrown a different way, so the cloud is not one blob. */
+.rw-air.is-playing .rw-air__dust span:nth-child(1) { animation: rwDustMid .75s ease-out .95s forwards; }
+.rw-air.is-playing .rw-air__dust span:nth-child(2) { animation: rwDustL .85s ease-out .97s forwards; }
+.rw-air.is-playing .rw-air__dust span:nth-child(3) { animation: rwDustR .85s ease-out .99s forwards; }
+
+/* --- Burst: beam + flash --------------------------------------------------- */
+.rw-air__beam {
+    position: absolute;
+    left: 50%;
+    bottom: 150px;
+    width: 180px;
+    height: 300px;
+    margin-left: -90px;
+    transform-origin: 50% 100%;
+    transform: scaleY(.12);
+    opacity: 0;
+    background: linear-gradient(0deg, var(--rw-rare-2) 0%, rgba(255, 255, 255, .22) 45%, transparent 100%);
+    -webkit-mask-image: linear-gradient(0deg, #000 30%, transparent 100%);
+    mask-image: linear-gradient(0deg, #000 30%, transparent 100%);
+    filter: blur(6px);
+    pointer-events: none;
+}
+
+.rw-air.is-playing .rw-air__beam {
+    animation: rwBeam 1s cubic-bezier(.19, 1, .22, 1) 1.98s forwards;
+}
+
+.rw-air__flash {
+    position: absolute;
+    left: 50%;
+    bottom: 132px;
+    width: 200px;
+    height: 200px;
+    margin-left: -100px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, #fff 0%, var(--rw-rare-1) 38%, transparent 72%);
+    opacity: 0;
+    transform: scale(.5);
+    pointer-events: none;
+}
+
+.rw-air.is-playing .rw-air__flash {
+    animation: rwFlash .55s ease-out 1.98s forwards;
+}
+
+/* --- The reward itself ------------------------------------------------------ */
+.rw-air__loot {
+    position: relative;
+    z-index: 3;
+    width: min(100%, 300px);
+    padding: 20px 18px 16px;
+    border-radius: 20px;
+    text-align: center;
+    background: linear-gradient(180deg, rgba(30, 30, 38, .96), rgba(16, 16, 22, .96));
+    border: 1px solid var(--rw-rare-2);
+    box-shadow: 0 0 34px var(--rw-rare-2), 0 20px 50px rgba(0, 0, 0, .6);
+    opacity: 0;
+    transform: translate3d(0, 26px, 0) scale(.94);
+}
+
+.rw-air.is-playing .rw-air__loot {
+    animation: rwLoot .45s cubic-bezier(.19, 1, .22, 1) 2.12s forwards;
+}
+
+.rw-air__icon {
+    font-size: 58px;
+    line-height: 1.05;
+}
+
+.rw-air__rarity {
+    margin: 8px 0 0;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--rw-rare-1);
+}
+
+.rw-air__name {
+    margin: 4px 0 0;
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    font-size: 25px;
+    font-weight: 800;
+    color: #fafafa;
+}
+
+.rw-air__actions {
+    position: relative;
+    z-index: 3;
+    width: min(100%, 300px);
+    margin-top: 14px;
+    opacity: 0;
+}
+
+.rw-air.is-playing .rw-air__actions {
+    animation: rwLoot .4s ease-out 2.32s forwards;
+}
+
+.rw-air__skip {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    z-index: 4;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .1);
+    color: #d6d6de;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.rw-air__skip:hover { background: rgba(255, 255, 255, .18); }
+
+.rw-air.is-done .rw-air__skip,
+.rw-air.is-settled .rw-air__skip { display: none; }
+
+/* --- End state: what "skip" jumps to, and where the sequence settles -------- */
+.rw-air.is-done .rw-air__rig,
+.rw-air.is-done .rw-air__dust,
+.rw-air.is-done .rw-air__flash,
+.rw-air.is-done .rw-air__chute {
+    display: none;
+}
+
+.rw-air.is-done .rw-air__loot,
+.rw-air.is-done .rw-air__actions {
+    animation: none;
+    opacity: 1;
+    transform: none;
+}
+
+.rw-air.is-done .rw-air__beam {
+    animation: none;
+    opacity: .4;
+    transform: scaleY(1);
+}
+
+/* --- Keyframes -------------------------------------------------------------- */
+@keyframes rwFall {
+    from { transform: translate3d(0, -88vh, 0); }
+    to   { transform: translate3d(0, 0, 0); }
+}
+
+@keyframes rwSway {
+    from { transform: rotate(-5deg); }
+    to   { transform: rotate(5deg); }
+}
+
+@keyframes rwShake {
+    0%   { transform: translate3d(0, 0, 0); }
+    20%  { transform: translate3d(-7px, 4px, 0); }
+    40%  { transform: translate3d(6px, -3px, 0); }
+    60%  { transform: translate3d(-4px, 2px, 0); }
+    80%  { transform: translate3d(3px, -1px, 0); }
+    100% { transform: translate3d(0, 0, 0); }
+}
+
+/* Weight landing: the crate compresses, then settles. */
+@keyframes rwSquash {
+    0%   { transform: scale(1, 1); }
+    35%  { transform: scale(1.12, .86); }
+    70%  { transform: scale(.97, 1.03); }
+    100% { transform: scale(1, 1); }
+}
+
+@keyframes rwChuteAway {
+    to { transform: translate3d(26px, -46px, 0) rotate(16deg) scale(.86); opacity: 0; }
+}
+
+@keyframes rwGround {
+    0%   { opacity: 0; transform: translateX(-50%) scale(.6); }
+    30%  { opacity: .85; }
+    100% { opacity: .5; transform: translateX(-50%) scale(1); }
+}
+
+@keyframes rwDustMid {
+    0%   { opacity: .75; transform: scale(.35); }
+    100% { opacity: 0; transform: scale(2.1) translateY(-14px); }
+}
+
+@keyframes rwDustL {
+    0%   { opacity: .6; transform: scale(.3); }
+    100% { opacity: 0; transform: scale(1.8) translate3d(-70px, -10px, 0); }
+}
+
+@keyframes rwDustR {
+    0%   { opacity: .6; transform: scale(.3); }
+    100% { opacity: 0; transform: scale(1.8) translate3d(70px, -10px, 0); }
+}
+
+@keyframes rwRattle {
+    0%, 100% { transform: translate3d(0, 0, 0) rotate(0); }
+    20% { transform: translate3d(-3px, 0, 0) rotate(-1.6deg); }
+    45% { transform: translate3d(3px, 0, 0) rotate(1.6deg); }
+    70% { transform: translate3d(-2px, 0, 0) rotate(-1deg); }
+}
+
+@keyframes rwSeam {
+    0%   { opacity: 0; box-shadow: 0 0 0 var(--rw-rare-2); }
+    100% { opacity: 1; box-shadow: 0 0 18px 3px var(--rw-rare-2); }
+}
+
+@keyframes rwLid {
+    0%   { transform: translate3d(0, 0, 0) rotate(0); opacity: 1; }
+    100% { transform: translate3d(14px, -170px, 0) rotate(-22deg); opacity: 0; }
+}
+
+@keyframes rwBeam {
+    0%   { opacity: 0; transform: scaleY(.12); }
+    30%  { opacity: .95; transform: scaleY(1.05); }
+    100% { opacity: .42; transform: scaleY(1); }
+}
+
+@keyframes rwFlash {
+    0%   { opacity: .95; transform: scale(.5); }
+    100% { opacity: 0; transform: scale(1.9); }
+}
+
+@keyframes rwLoot {
+    to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* --- Reduced motion --------------------------------------------------------
+   No falling, shaking or flashing: the reward simply fades up. The crate is
+   removed rather than left hanging, since a static crate reads as tappable. */
+@media (prefers-reduced-motion: reduce) {
+    .rw-air.is-playing .rw-air__scene,
+    .rw-air.is-playing .rw-air__rig,
+    .rw-air.is-playing .rw-air__swing,
+    .rw-air.is-playing .rw-air__crate,
+    .rw-air.is-playing .rw-air__crate-wrap,
+    .rw-air.is-playing .rw-air__lid,
+    .rw-air.is-playing .rw-air__chute,
+    .rw-air.is-playing .rw-air__dust span,
+    .rw-air.is-playing .rw-air__flash,
+    .rw-air.is-playing .rw-air__ground,
+    .rw-air.is-playing .rw-air__seam {
+        animation: none;
+    }
+
+    .rw-air .rw-air__rig,
+    .rw-air .rw-air__dust,
+    .rw-air .rw-air__flash {
+        display: none;
+    }
+
+    .rw-air.is-playing .rw-air__beam {
+        animation: none;
+        opacity: .35;
+        transform: scaleY(1);
+    }
+
+    .rw-air.is-playing .rw-air__loot,
+    .rw-air.is-playing .rw-air__actions {
+        animation: rwFadeOnly .25s ease-out both;
+    }
+
+    .rw-air.is-playing .rw-air__actions { animation-delay: .1s; }
+
+    @keyframes rwFadeOnly {
+        from { opacity: 0; transform: none; }
+        to   { opacity: 1; transform: none; }
+    }
+}
+
+/* --- Small phones ----------------------------------------------------------- */
+@media (max-width: 380px) {
+    .rw-air__rig { width: 132px; margin-left: -66px; }
+    .rw-air__crate { width: 132px; height: 100px; }
+    .rw-air__chute { width: 156px; margin-left: -78px; height: 100px; }
+    .rw-air__icon { font-size: 48px; }
+    .rw-air__name { font-size: 22px; }
+}
