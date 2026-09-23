@@ -100,7 +100,17 @@ class CustomRequestController extends Controller
             return redirect()->route('login');
         }
 
-        return view('custom-requests.show', compact('customRequest'));
+        // Other challenges anyone can see from the same creator, for the "More from" rail.
+        $moreFromCreator = CustomRequest::with('creator')
+            ->where('creator_id', $customRequest->creator_id)
+            ->where('id', '!=', $customRequest->id)
+            ->where(fn ($q) => $q->where('is_marketplace', true)->orWhere('type', 'public'))
+            ->whereNotIn('status', ['rejected', 'cancelled'])
+            ->latest()
+            ->limit(4)
+            ->get();
+
+        return view('custom-requests.show', compact('customRequest', 'moreFromCreator'));
     }
 
     /**

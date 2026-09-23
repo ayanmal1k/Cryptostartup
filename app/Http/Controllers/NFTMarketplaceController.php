@@ -259,7 +259,22 @@ class NFTMarketplaceController extends Controller
         $balance = (float) (optional(Auth::user()->wallet)->total ?? 0);
         $feePct = (int) config('web3.marketplace_fee_bps', 250) / 100;
 
-        return view('nft.show', compact('nft', 'listing', 'sales', 'buyers', 'balance', 'feePct'));
+        // Every sale ever (the list above is only the latest 10) for the Details card.
+        $saleStats = $nft->transactions()
+            ->whereIn('type', ['sale', 'resale'])
+            ->where('status', 'confirmed')
+            ->selectRaw('COUNT(*) as times, MAX(price) as highest')
+            ->first();
+
+        $moreFromCreator = NFT::with(['creator', 'activeListing'])
+            ->where('user_id', $nft->user_id)
+            ->where('id', '!=', $nft->id)
+            ->where('status', '!=', NFT::STATUS_MINT_FAILED)
+            ->latest()
+            ->limit(4)
+            ->get();
+
+        return view('nft.show', compact('nft', 'listing', 'sales', 'buyers', 'balance', 'feePct', 'saleStats', 'moreFromCreator'));
     }
 
     /**

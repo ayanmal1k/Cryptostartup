@@ -752,3 +752,239 @@ html:not([data-theme="light"]) .cd-modal input#amount {
         aspect-ratio: 3 / 1;
     }
 }
+
+/* --- Details: label on the left, value on the right ------------------------- */
+.cd-facts {
+    margin: 0;
+}
+
+.cd-facts > div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 11px 0;
+    border-top: 1px solid var(--dx-line);
+}
+
+.cd-facts > div:first-child {
+    border-top: 0;
+    padding-top: 2px;
+}
+
+.cd-facts dt {
+    flex-shrink: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--dx-muted);
+}
+
+.cd-facts dd {
+    margin: 0;
+    min-width: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--dx-ink);
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.cd-facts dd.is-money { color: var(--dx-money-ink); }
+.cd-facts dd.is-win { color: var(--dx-win); }
+.cd-facts dd.is-hot { color: var(--dx-hot); }
+
+.cd-facts dd a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* Tighter version inside the money card (price breakdowns). */
+.dx .cd-facts--tight {
+    margin-top: 14px;
+}
+
+.cd-facts--tight > div {
+    padding: 7px 0;
+}
+
+.cd-facts--tight > div:last-child dd {
+    font-size: 16px;
+}
+
+/* --- Steps: where a challenge is in its life -------------------------------- */
+.cd-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.cd-steps li {
+    position: relative;
+    display: flex;
+    gap: 12px;
+    padding-bottom: 16px;
+}
+
+.cd-steps li:last-child {
+    padding-bottom: 0;
+}
+
+/* The line joining one dot to the next. */
+.cd-steps li:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    left: 11px;
+    top: 24px;
+    bottom: 0;
+    width: 2px;
+    background: var(--dx-line-strong);
+}
+
+.cd-steps li.is-done:not(:last-child)::before {
+    background: var(--dx-win);
+}
+
+.cd-steps__dot {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 2px solid var(--dx-line-strong);
+    background: var(--dx-surface);
+    color: var(--dx-bg);
+}
+
+.cd-steps__dot svg {
+    width: 14px;
+    height: 14px;
+}
+
+.cd-steps li.is-done .cd-steps__dot {
+    border-color: var(--dx-win);
+    background: var(--dx-win);
+}
+
+.cd-steps li.is-now .cd-steps__dot {
+    border-color: var(--dx-money);
+    box-shadow: 0 0 0 4px rgba(255, 197, 61, 0.18);
+}
+
+.cd-steps li.is-stopped .cd-steps__dot {
+    border-color: var(--dx-hot);
+    background: var(--dx-hot);
+}
+
+.cd-steps__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding-top: 1px;
+}
+
+.cd-steps__text strong {
+    font-size: 15px;
+    color: var(--dx-ink);
+}
+
+.cd-steps li:not(.is-done):not(.is-now):not(.is-stopped) .cd-steps__text strong {
+    color: var(--dx-muted);
+}
+
+.cd-steps__text span {
+    font-size: 13px;
+    color: var(--dx-muted);
+}
+
+/* --- Quick price chips (same look as the chip-in sheet) --------------------- */
+.cd-quick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.dx .cd-quick button {
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid var(--dx-line-strong);
+    background: transparent;
+    color: var(--dx-body);
+    font-family: var(--dx-font);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.dx .cd-quick button.is-active {
+    background: var(--dx-money);
+    border-color: var(--dx-money);
+    color: var(--dx-money-on);
+}
+
+/* --- Your stake, inside the money card -------------------------------------- */
+.dx .cd-mine {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--dx-surface-2);
+    font-size: 14px;
+    color: var(--dx-body);
+}
+
+.cd-mine strong {
+    color: var(--dx-money-ink);
+}
+
+/* --- More from this creator -------------------------------------------------- */
+.cd-related {
+    order: 10;
+    margin-top: 28px;
+}
+
+.cd-related__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.dx .cd-related__title {
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.dx .cd-related__link {
+    flex-shrink: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--dx-muted);
+}
+
+/* "Link copied" confirmation for Share / Copy link. */
+.cd-toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    z-index: 1080;
+    transform: translate(-50%, 12px);
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: var(--dx-ink);
+    color: var(--dx-bg);
+    font-size: 14px;
+    font-weight: 700;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+}
+
+.cd-toast.is-on {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}

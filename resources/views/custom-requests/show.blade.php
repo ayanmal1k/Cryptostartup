@@ -7,7 +7,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap">
     <link rel="stylesheet" href="{{ asset('css/pages/discover.css') }}?v=20260917a">
-    <link rel="stylesheet" href="{{ asset('css/pages/challenge-detail.css') }}?v=20260917a">
+    <link rel="stylesheet" href="{{ asset('css/pages/challenges.css') }}?v=20260917a">
+    <link rel="stylesheet" href="{{ asset('css/pages/challenge-detail.css') }}?v=20260921a">
 @endsection
 
 @php
@@ -52,6 +53,50 @@
 
     $money = fn ($v, $d = 0) => '$' . number_format((float) $v, $d);
     $canChipIn = $cr->is_marketplace && $cr->status === 'accepted' && !$isCreator;
+
+    // What the viewer has put in themselves, and a few plain numbers about the backing.
+    $myStake = $me ? (float) $backing->where('contributor_id', $me)->sum('amount') : 0;
+    $biggest = (float) $backing->max('amount');
+    $average = $backing->count() ? (float) $backing->avg('amount') : 0;
+    $views = (int) ($cr->views_count ?? 0);
+    $creatorName = $cr->creator->name ?? __('the creator');
+    $stopped = in_array($cr->status, ['rejected', 'cancelled'], true);
+
+    // The life of a challenge, in plain steps. Each is done, happening now, or still to come.
+    $steps = [[
+        'title' => __('Dared'),
+        'sub' => ($cr->requester ? __('By :name', ['name' => $cr->requester->name]) . ' · ' : '') . $cr->created_at->format('M j, Y'),
+        'done' => true,
+    ], [
+        'title' => __(':name says yes', ['name' => $creatorName]),
+        'sub' => in_array($cr->status, ['accepted', 'completed'], true) ? __('Accepted')
+            : ($cr->status === 'rejected' ? __('Declined') : ($cr->status === 'cancelled' ? __('Cancelled') : __('Waiting for an answer'))),
+        'done' => in_array($cr->status, ['accepted', 'completed'], true),
+    ]];
+    if ($cr->is_marketplace && $goal > 0) {
+        $steps[] = [
+            'title' => __('Fans fund it'),
+            'sub' => $left > 0 && $cr->status !== 'completed'
+                ? __(':raised raised · :left to go', ['raised' => $money($raised), 'left' => $money($left)])
+                : __(':raised raised', ['raised' => $money($raised)]),
+            'done' => $left <= 0 || $cr->status === 'completed',
+        ];
+    }
+    $steps[] = [
+        'title' => __(':name does it', ['name' => $creatorName]),
+        'sub' => $cr->status === 'completed'
+            ? __('Done') . ($cr->delivered_at ? ' · ' . $cr->delivered_at->format('M j, Y') : '')
+            : ($cr->deadline ? __('Due :date', ['date' => $cr->deadline->format('M j, Y')]) : __('No deadline set')),
+        'done' => $cr->status === 'completed',
+    ];
+    $steps[] = [
+        'title' => __(':name gets paid', ['name' => $creatorName]),
+        'sub' => $cr->funds_released
+            ? __('Paid out') . ($cr->funds_released_at ? ' · ' . $cr->funds_released_at->format('M j, Y') : '')
+            : ($cr->requires_voting ? __('Backers vote — over half must approve') : __('The money goes to the creator')),
+        'done' => (bool) $cr->funds_released,
+    ];
+    $nowIndex = collect($steps)->search(fn ($st) => !$st['done']);
 @endphp
 
 @section('content')
@@ -101,6 +146,9 @@
             <h1 class="cd-title">{{ $cr->title }}</h1>
             <p class="cd-meta">
                 <span>{{ __('Posted') }} {{ $cr->created_at->diffForHumans() }}</span>
+                @if($views > 0)
+                    <span>· {{ trans_choice('{1} :count view|[2,*] :count views', $views, ['count' => number_format($views)]) }}</span>
+                @endif
                 @if($cr->deadline)
                     <span class="cd-meta__due {{ $deadlineNote ? 'is-' . $deadlineNote : '' }}">
                         · {{ __('Due') }} {{ $cr->deadline->format('M j, Y') }}
@@ -139,6 +187,33 @@
                 <p class="cd-story">{{ $cr->description }}</p>
             </section>
         @endif
+
+        {{-- ============ Where it's at ============ --}}
+        <section class="cd-card">
+            <h2 class="cd-card__title">{{ __("Where it's at") }}</h2>
+            <ol class="cd-steps">
+                @foreach($steps as $i => $step)
+                    @php
+                        $state = $step['done'] ? 'is-done'
+                            : ($i === $nowIndex ? ($stopped ? 'is-stopped' : 'is-now') : '');
+                    @endphp
+                    <li class="{{ $state }}" @if($i === $nowIndex) aria-current="step" @endif>
+                        <span class="cd-steps__dot" aria-hidden="true">
+                            @if($step['done'])
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17 19 7"/></svg>
+                            @elseif($state === 'is-stopped')
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                            @endif
+                        </span>
+                        <span class="cd-steps__text">
+                            <strong>{{ $step['title'] }}</strong>
+                            <span>{{ $step['sub'] }}</span>
+                        </span>
+                    </li>
+                    @break($state === 'is-stopped')
+                @endforeach
+            </ol>
+        </section>
 
         {{-- ============ Voting & fund release ============ --}}
         @if($cr->requires_voting && in_array($cr->status, ['accepted', 'completed']))
@@ -235,6 +310,37 @@
                 @endif
             </section>
         @endif
+
+        {{-- ============ Details ============ --}}
+        <section class="cd-card">
+            <h2 class="cd-card__title">{{ __('Details') }}</h2>
+            <dl class="cd-facts">
+                <div><dt>{{ __('Kind') }}</dt><dd>{{ $type }}</dd></div>
+                <div><dt>{{ __('Status') }}</dt><dd class="{{ $status['tone'] === 'win' ? 'is-win' : ($status['tone'] === 'hot' ? 'is-hot' : '') }}">{{ $status['label'] }}</dd></div>
+                <div><dt>{{ __('Posted') }}</dt><dd>{{ $cr->created_at->format('M j, Y') }}</dd></div>
+                <div><dt>{{ __('Deadline') }}</dt><dd>{{ $cr->deadline ? $cr->deadline->format('M j, Y') : __('None') }}</dd></div>
+                @if($cr->is_marketplace && $goal > 0)
+                    <div><dt>{{ __('Goal') }}</dt><dd class="is-money">{{ $money($goal, 2) }}</dd></div>
+                    <div><dt>{{ __('Raised so far') }}</dt><dd class="is-money">{{ $money($raised, 2) }}</dd></div>
+                @elseif((float) $cr->price > 0)
+                    <div><dt>{{ __('Price') }}</dt><dd class="is-money">{{ $money($cr->price, 2) }}</dd></div>
+                @endif
+                @if((float) $cr->upfront_payment > 0)
+                    <div><dt>{{ __('Paid up front') }}</dt><dd>{{ $money($cr->upfront_payment, 2) }} · {{ $cr->payment_received ? __('received') : __('not yet') }}</dd></div>
+                @endif
+                @if($backing->count())
+                    <div><dt>{{ __('Average backing') }}</dt><dd class="is-money">{{ $money($average, 2) }}</dd></div>
+                    <div><dt>{{ __('Biggest backing') }}</dt><dd class="is-money">{{ $money($biggest, 2) }}</dd></div>
+                @endif
+                <div><dt>{{ __('How the payout works') }}</dt><dd>{{ $cr->requires_voting ? __('Backers vote on it') : __('Straight to the creator') }}</dd></div>
+                @if(in_array($cr->status, ['accepted', 'completed'], true))
+                    <div><dt>{{ __('Money released') }}</dt><dd class="{{ $cr->funds_released ? 'is-win' : '' }}">{{ $cr->funds_released ? ($cr->funds_released_at ? $cr->funds_released_at->format('M j, Y') : __('Yes')) : __('Not yet') }}</dd></div>
+                @endif
+                @if($cr->delivered_at)
+                    <div><dt>{{ __('Video posted') }}</dt><dd>{{ $cr->delivered_at->format('M j, Y') }}</dd></div>
+                @endif
+            </dl>
+        </section>
     </div>
 
     {{-- ============ Money + actions ============ --}}
@@ -261,6 +367,10 @@
                 @if((float) $cr->upfront_payment > 0)
                     <p class="cd-note">{{ $money($cr->upfront_payment, 2) }} {{ __('paid up front') }}{{ $cr->payment_received ? ' · ' . __('received') : '' }}</p>
                 @endif
+            @endif
+
+            @if($myStake > 0)
+                <p class="cd-mine">{{ __("You've put in") }} <strong>{{ $money($myStake, 2) }}</strong>{{ $goal > 0 ? ' · ' . __(':pct% of the goal', ['pct' => max(1, (int) round($myStake / $goal * 100))]) : '' }}</p>
             @endif
 
             {{-- Primary action for whoever is looking --}}
@@ -306,6 +416,20 @@
         </section>
 
         <nav class="cd-card cd-more" aria-label="{{ __('More') }}">
+            <button type="button" class="cd-more__link" data-share data-share-title="{{ $cr->title }}" data-copied="{{ __('Link copied') }}">
+                <span>{{ __('Share this challenge') }}</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></svg>
+            </button>
+            <button type="button" class="cd-more__link" data-copy-link data-copied="{{ __('Link copied') }}">
+                <span>{{ __('Copy link') }}</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
+            </button>
+            @if($cr->creator)
+                <a href="{{ route('profile', ['username' => $cr->creator->username]) }}" class="cd-more__link">
+                    <span>{{ __('See :name’s profile', ['name' => $cr->creator->name]) }}</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+                </a>
+            @endif
             <a href="{{ route('custom-requests.marketplace') }}" class="cd-more__link">
                 <span>{{ __('Watch more challenges') }}</span>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
@@ -335,8 +459,27 @@
     </aside>
     </div>
 
+    {{-- ============ More from this creator ============ --}}
+    @if($moreFromCreator->count())
+        <section class="cd-related">
+            <div class="cd-related__head">
+                <h2 class="cd-related__title">{{ __('More from :name', ['name' => $creatorName]) }}</h2>
+                @if($cr->creator)
+                    <a href="{{ route('profile', ['username' => $cr->creator->username]) }}" class="cd-related__link">{{ __('See profile') }}</a>
+                @endif
+            </div>
+            <div class="ch-grid">
+                @foreach($moreFromCreator as $other)
+                    @include('custom-requests.partials.challenge-card', ['cr' => $other])
+                @endforeach
+            </div>
+        </section>
+    @endif
+
 </div>
 </div>
+
+<script src="{{ asset('js/pages/detail-share.js') }}?v=20260921a" defer></script>
 
 @auth
 {{-- Contribution sheet. Keeps #contributeModal / #contributeForm / #request_id / #amount /
