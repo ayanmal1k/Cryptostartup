@@ -1,0 +1,288 @@
+/* ==========================================================================
+   CREATOR OVERVIEW (the dashboard landing page)
+   Sits on the discover shell (discover.css) and borrows the challenge tiles and
+   spotlight (challenges.css), so it reads like the NFT and Challenges pages.
+   This file only adds the pieces those pages don't have: the creator strip,
+   task rows, stream cards and shortcuts.
+   ========================================================================== */
+
+/* --- Creator strip ------------------------------------------------------------ */
+.cr-me {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.dx .cr-me__id {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.cr-me__avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--dx-surface-3);
+    box-shadow: 0 0 0 2px var(--dx-line-strong);
+}
+
+.cr-me__name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--dx-font-display);
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--dx-ink);
+    letter-spacing: -0.01em;
+}
+
+.cr-me__check {
+    width: 18px;
+    height: 18px;
+    color: var(--dx-win);
+}
+
+.cr-me__handle {
+    display: block;
+    font-size: 13px;
+    color: var(--dx-muted);
+}
+
+.cr-me__views {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.cr-me__views strong {
+    font-family: var(--dx-font-display);
+    font-size: 44px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--dx-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.cr-me__views span {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--dx-muted);
+}
+
+.cr-me__actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.cr-me__actions .dx-btn {
+    flex: 1 1 160px;
+}
+
+.cr-live-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--dx-hot);
+    box-shadow: 0 0 0 3px rgba(255, 59, 92, 0.22);
+    flex-shrink: 0;
+}
+
+/* --- Task row (verification, live now) ---------------------------------------- */
+.cr-task {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--dx-radius);
+    background: var(--dx-surface);
+    border: 1px solid var(--dx-line);
+}
+
+.cr-task.is-bad {
+    border-color: rgba(255, 59, 92, 0.4);
+}
+
+.cr-task.is-live {
+    border-color: rgba(255, 59, 92, 0.45);
+}
+
+.cr-task__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    background: var(--dx-surface-2);
+    color: var(--dx-ink);
+}
+
+.cr-task__icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.cr-task__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.cr-task__body strong {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--dx-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cr-task__body span {
+    font-size: 13px;
+    color: var(--dx-muted);
+}
+
+/* --- Tiles without a thumbnail: the first frame stands in --------------------- */
+.ch-tile__media .cr-frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+}
+
+/* --- Stream cards in the rail --------------------------------------------------- */
+.dx .cr-stream {
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--dx-radius);
+    background: var(--dx-surface);
+    border: 1px solid var(--dx-line);
+    overflow: hidden;
+}
+
+.cr-stream__thumb {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    display: grid;
+    place-items: center;
+    background: var(--dx-surface-2);
+    color: var(--dx-muted);
+}
+
+.cr-stream__thumb img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.cr-stream__thumb svg {
+    width: 30px;
+    height: 30px;
+}
+
+.cr-stream__live {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: var(--dx-hot);
+    color: #fff;
+}
+
+.cr-stream__body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 12px 14px 14px;
+}
+
+.cr-stream__title {
+    font-weight: 700;
+    color: var(--dx-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cr-stream__meta {
+    font-size: 13px;
+    color: var(--dx-muted);
+}
+
+/* --- Shortcuts ------------------------------------------------------------------ */
+.cr-links {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.dx .cr-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 4px;
+    border-radius: var(--dx-radius);
+    background: var(--dx-surface);
+    border: 1px solid var(--dx-line);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--dx-body);
+    text-align: center;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.cr-link svg {
+    width: 22px;
+    height: 22px;
+    color: var(--dx-ink);
+}
+
+.dx .cr-link:active {
+    transform: scale(0.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .dx .cr-link:hover {
+        background: var(--dx-surface-2);
+        color: var(--dx-ink);
+    }
+}
+
+@media (min-width: 769px) {
+    .cr-me {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        column-gap: 24px;
+    }
+
+    .cr-me__id,
+    .cr-me .dx-pulse {
+        grid-column: 1;
+    }
+
+    .cr-me__views {
+        grid-column: 1;
+    }
+
+    .cr-me__actions {
+        grid-column: 2;
+        grid-row: 1 / span 3;
+        flex-direction: column;
+    }
+
+    .cr-me__views strong {
+        font-size: 56px;
+    }
+}

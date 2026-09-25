@@ -38,12 +38,15 @@
             '/libs/swiper/swiper-bundle.min.css',
             '/libs/photoswipe/dist/photoswipe.css',
             '/libs/photoswipe/dist/default-skin/default-skin.css',
-            '/css/pages/profile.css',
-            '/css/pages/lists.css',
             '/css/posts/post.css',
             '/css/frames.css'
          ])->withFullUrl()
     !!}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap">
+    <link rel="stylesheet" href="{{ asset('css/pages/nft-marketplace.css') }}?v=20260917b">
+    <link rel="stylesheet" href="{{ asset('css/pages/profile-v3.css') }}?v=20260924a">
     @if(getSetting('feed.post_box_max_height'))
         @include('elements.feed.fixed-height-feed-posts', ['height' => getSetting('feed.post_box_max_height')])
     @endif
@@ -62,505 +65,389 @@
     $isDarkTheme = Cookie::get('app_theme') == null
         ? getSetting('site.default_user_theme') == 'dark'
         : Cookie::get('app_theme') == 'dark';
+
+    $isOwner = Auth::check() && Auth::user()->id === $user->id;
+    $canChat = $hasSub || $viewerHasChatAccess;
+    $isVerified = $user->email_verified_at && $user->birthdate && ($user->verification && $user->verification->status == 'verified');
+    $profileFrame = \App\Services\PerkShopService::frameClass($user);
+
+    // The hero is the cover photo. With no cover of their own, the avatar is blown up and
+    // blurred behind them instead of the stock "Hello!" graphic.
+    $hasCover = (bool) $user->getRawOriginal('cover');
+    $hasAvatar = (bool) $user->getRawOriginal('avatar');
+
+    // Live state comes from the Live pages (App\Models\Stream), not the old JustFans
+    // streams the controller still checks, which nothing can start any more.
+    $liveStream = \App\Models\Stream::where('user_id', $user->id)
+        ->where('is_live', true)
+        ->where('is_public', true)
+        ->latest('started_at')
+        ->first();
+    $hasActiveStream = (bool) $liveStream;
+    $liveUrl = $liveStream ? route('streams.watch', $liveStream) : null;
+
+    $tab = in_array($activeFilter, ['reposts', 'shop'], true) ? $activeFilter : 'videos';
+
+    $userVideos = \App\Models\Video::where('user_id', $user->id)
+        ->when(!$isOwner, fn ($q) => $q->where('status', 'published'))
+        ->latest()
+        ->get();
+    $videoLikes = (int) $userVideos->sum(fn ($v) => (int) ($v->likes_count ?? 0));
+
+    $followers = \App\Model\UserListMember::join('user_lists', 'user_list_members.list_id', '=', 'user_lists.id')
+        ->where('user_list_members.user_id', $user->id)
+        ->where('user_lists.type', 'following')
+        ->count();
+
+    $shopItems = \App\Models\NFT::with(['creator', 'activeListing'])
+        ->where('user_id', $user->id)
+        ->where('status', '!=', \App\Models\NFT::STATUS_MINT_FAILED)
+        ->latest()
+        ->take(24)
+        ->get();
+
+    $repostCount = 0;
+    try {
+        $repostCount = \DB::table('video_reposts')->where('user_id', $user->id)->count();
+    } catch (\Throwable $e) {
+        $repostCount = 0;
+    }
+
+    $compact = fn ($n) => $n >= 1000000 ? round($n / 1000000, 1) . 'M' : ($n >= 1000 ? round($n / 1000, 1) . 'K' : number_format($n));
+    $tabUrl = fn ($key) => route('profile', $key === 'videos' ? ['username' => $user->username] : ['username' => $user->username, 'filter' => $key]);
 @endphp
 
 @section('content')
-    <div class="row profile-page-v2 {{ $isDarkTheme ? 'profile-page-v2--dark' : 'profile-page-v2--light' }}">
-        <div class="min-vh-100 col-12 col-md-8 border-right pr-md-0">
+    <div class="row profile-page-v2 pp {{ $isDarkTheme ? 'profile-page-v2--dark pp--dark' : 'profile-page-v2--light pp--light' }}">
+        <div class="min-vh-100 col-12 col-md-8 border-right px-0">
 
-            <div class="">
-                <div class="profile-cover-bg">
-                    <img class="card-img-top centered-and-cropped" src="{{$user->cover}}">
-                </div>
-            </div>
-
-            <div class="container d-flex justify-content-between align-items-center">
-                {{-- is-online drives the presence dot, and is only set when DMs are genuinely
-                     reachable for this viewer — not a decorative always-green badge. --}}
-                <div class="z-index-3 avatar-holder {{ ($hasSub || $viewerHasChatAccess) ? 'is-online' : '' }}">
-                    {{-- A frame from the rewards shop or a drop, when the user has one on. --}}
-                    @php
-                        $profileFrame = \App\Services\PerkShopService::frameClass($user);
-                    @endphp
-                    @if($profileFrame)
-                        <span class="{{ $profileFrame }}"><img src="{{$user->avatar}}" class="rounded-circle"></span>
-                    @else
-                        <img src="{{$user->avatar}}" class="rounded-circle">
+            {{-- ============ Hero: the cover fills the top, everything sits on it ============ --}}
+            <section class="pp-hero {{ $hasCover ? 'has-cover' : '' }}">
+                <div class="pp-hero__bg" aria-hidden="true">
+                    @if($hasCover)
+                        <img src="{{ $user->cover }}" alt="">
+                    @elseif($hasAvatar)
+                        <img src="{{ $user->avatar }}" alt="" class="is-blurred">
                     @endif
                 </div>
-                <div>
-                    @if(!Auth::check() || Auth::user()->id !== $user->id)
-                        <div class="d-flex flex-row">
-                            @if(Auth::check())
-                                <div class="">
-                                <span class="p-pill ml-2 pointer-cursor to-tooltip"
-                                      @if(!Auth::user()->email_verified_at && getSetting('site.enforce_email_validation'))
-                                      data-placement="top"
-                                      title="{{__('Please verify your account')}}"
-                                      @elseif(!\App\Providers\GenericHelperServiceProvider::creatorCanEarnMoney($user))
-                                      data-placement="top"
-                                      title="{{__('This creator cannot earn money yet')}}"
-                                      @else
-                                      data-placement="top"
-                                      title="{{__('Send a tip')}}"
-                                      data-toggle="modal"
-                                      data-target="#checkout-center"
-                                      data-type="tip"
-                                      data-first-name="{{Auth::user()->first_name}}"
-                                      data-last-name="{{Auth::user()->last_name}}"
-                                      data-billing-address="{{Auth::user()->billing_address}}"
-                                      data-country="{{Auth::user()->country}}"
-                                      data-city="{{Auth::user()->city}}"
-                                      data-state="{{Auth::user()->state}}"
-                                      data-postcode="{{Auth::user()->postcode}}"
-                                      data-available-credit="{{Auth::user()->wallet ? Auth::user()->wallet->total : 0}}"
-                                      data-username="{{$user->username}}"
-                                      data-name="{{$user->name}}"
-                                      data-avatar="{{$user->avatar}}"
-                                      data-recipient-id="{{$user->id}}"
-                                      @endif
-                                >
-                                 @include('elements.icon',['icon'=>'cash-outline'])
-                                </span>
-                                </div>
-                                <div class="">
-                                    @if($hasSub || $viewerHasChatAccess)
-                                        <span class="p-pill ml-2 pointer-cursor" data-toggle="tooltip" data-placement="top" title="{{__('Send a message')}}" onclick="messenger.showNewMessageDialog()">
-                                            @include('elements.icon',['icon'=>'chatbubbles-outline'])
-                                        </span>
-                                    @else
-                                        <span class="p-pill ml-2 pointer-cursor" data-toggle="tooltip" data-placement="top" title="{{__('DMs unavailable without subscription')}}">
-                                        @include('elements.icon',['icon'=>'chatbubbles-outline'])
-                                    </span>
-                                    @endif
-                                </div>
-                                <span class="p-pill ml-2 pointer-cursor" data-toggle="tooltip" data-placement="top" title="{{__('Add to your lists')}}" onclick="Lists.showListAddModal();">
-                                 @include('elements.icon',['icon'=>'list-outline'])
-                            </span>
-                            @endif
-                            @if(getSetting('profiles.allow_profile_qr_code'))
-                                <div>
-                                    <span class="p-pill ml-2 pointer-cursor" data-toggle="tooltip" data-placement="top" title="{{__('Get profile QR code')}}" onclick="Profile.getProfileQRCode()">
-                                        @include('elements.icon',['icon'=>'qr-code-outline'])
-                                    </span>
-                                </div>
-                            @endif
-                            <span class="p-pill ml-2 pointer-cursor" data-toggle="tooltip" data-placement="top" title="{{__('Share profile link')}}" onclick="shareOrCopyLink()">
-                                 @include('elements.icon',['icon'=>'share-social-outline'])
-                            </span>
-                        </div>
-                    @else
-                        <div class="d-flex flex-row">
-                            <div class="mr-2">
-                                <a href="{{route('my.settings')}}" class="p-pill p-pill-text ml-2 pointer-cursor">
-                                    @include('elements.icon',['icon'=>'settings-outline','classes'=>'mr-1'])
-                                    <span class="d-none d-md-block">{{__('Edit profile')}}</span>
-                                    <span class="d-block d-md-none">{{__('Edit')}}</span>
-                                </a>
-                            </div>
-                            @if(getSetting('profiles.allow_profile_qr_code'))
-                                <div>
-                                    <span class="p-pill ml-2 pointer-cursor" data-toggle="tooltip" data-placement="top" title="{{__('Get profile QR code')}}" onclick="Profile.getProfileQRCode()">
-                                        @include('elements.icon',['icon'=>'qr-code-outline'])
-                                    </span>
-                                </div>
-                            @endif
-                            <div>
-                                <span class="p-pill ml-2 pointer-cursor" data-toggle="tooltip" data-placement="top" title="{{__('Share profile link')}}" onclick="shareOrCopyLink()">
-                                    @include('elements.icon',['icon'=>'share-social-outline'])
-                                </span>
-                            </div>
-                        </div>
+                <span class="pp-hero__scrim" aria-hidden="true"></span>
+
+                {{-- Secondary actions float in the top corner, out of the way of the name. --}}
+                <div class="pp-tools">
+                    @if($isOwner)
+                        <a href="{{ route('my.settings') }}" class="pp-tool pp-tool--text">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4z"/></svg>
+                            {{ __('Edit profile') }}
+                        </a>
+                    @elseif(Auth::check())
+                        <button type="button" class="pp-tool to-tooltip"
+                              @if(!Auth::user()->email_verified_at && getSetting('site.enforce_email_validation'))
+                              data-placement="bottom" title="{{__('Please verify your account')}}"
+                              @elseif(!\App\Providers\GenericHelperServiceProvider::creatorCanEarnMoney($user))
+                              data-placement="bottom" title="{{__('This creator cannot earn money yet')}}"
+                              @else
+                              data-placement="bottom" title="{{__('Send a tip')}}"
+                              data-toggle="modal"
+                              data-target="#checkout-center"
+                              data-type="tip"
+                              data-first-name="{{Auth::user()->first_name}}"
+                              data-last-name="{{Auth::user()->last_name}}"
+                              data-billing-address="{{Auth::user()->billing_address}}"
+                              data-country="{{Auth::user()->country}}"
+                              data-city="{{Auth::user()->city}}"
+                              data-state="{{Auth::user()->state}}"
+                              data-postcode="{{Auth::user()->postcode}}"
+                              data-available-credit="{{Auth::user()->wallet ? Auth::user()->wallet->total : 0}}"
+                              data-username="{{$user->username}}"
+                              data-name="{{$user->name}}"
+                              data-avatar="{{$user->avatar}}"
+                              data-recipient-id="{{$user->id}}"
+                              @endif
+                              aria-label="{{ __('Send a tip') }}">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>
+                        </button>
+                        <button type="button" class="pp-tool" onclick="Lists.showListAddModal();" aria-label="{{ __('Add to your lists') }}">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                        </button>
                     @endif
+                    @if(getSetting('profiles.allow_profile_qr_code'))
+                        <button type="button" class="pp-tool" onclick="Profile.getProfileQRCode()" aria-label="{{ __('Get profile QR code') }}">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v.01M14 21h7v-4"/></svg>
+                        </button>
+                    @endif
+                    <button type="button" class="pp-tool" onclick="shareOrCopyLink()" aria-label="{{ __('Share profile link') }}">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>
+                    </button>
                 </div>
-            </div>
 
-            <div class="container pt-2 pl-0 pr-0">
-
-                <div class="pt-2 pl-4 pr-4 profile-identity">
-                    <h5 class="text-bold d-flex align-items-center">
-                        <span>{{$user->name}}</span>
-                        @if($user->email_verified_at && $user->birthdate && ($user->verification && $user->verification->status == 'verified'))
-                            <span data-toggle="tooltip" data-placement="top" title="{{__('Verified user')}}">
-                                @include('elements.icon',['icon'=>'checkmark-circle-outline','centered'=>true,'classes'=>'ml-1 text-primary'])
-                            </span>
+                <div class="pp-hero__body">
+                    {{-- The dot means DMs are genuinely open to this viewer; the red ring means live. --}}
+                    <div class="pp-avatar {{ $hasActiveStream ? 'is-live' : '' }} {{ $canChat ? 'is-online' : '' }}">
+                        @if($profileFrame)
+                            <span class="{{ $profileFrame }}"><img src="{{ $user->avatar }}" alt=""></span>
+                        @else
+                            <img src="{{ $user->avatar }}" alt="">
                         @endif
                         @if($hasActiveStream)
-                            <span data-toggle="tooltip" data-placement="right" title="{{__('Live streaming')}}">
-                            <div class="blob red ml-3"></div>
+                            <span class="pp-avatar__live">{{ __('LIVE') }}</span>
+                        @endif
+                    </div>
+
+                    <h1 class="pp-name">
+                        <span>{{ $user->name }}</span>
+                        @if($isVerified)
+                            <svg class="pp-name__check" viewBox="0 0 24 24" role="img" aria-label="{{ __('Verified user') }}"><path fill="currentColor" d="M12 2l2.4 2.1 3.2-.3.8 3.1 2.8 1.6-1.2 3 1.2 3-2.8 1.6-.8 3.1-3.2-.3L12 22l-2.4-2.1-3.2.3-.8-3.1-2.8-1.6 1.2-3-1.2-3 2.8-1.6.8-3.1 3.2.3z"/><path d="m8.5 12.2 2.3 2.3 4.7-4.8" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        @endif
+                    </h1>
+                    <div class="pp-handle">
+                        <span>{{ '@' . $user->username }}</span>
+                        @if($canChat)
+                            <span class="pp-status"><span class="pp-status__dot" aria-hidden="true"></span>{{ __('Available to chat') }}</span>
+                        @endif
+                    </div>
+
+                    @if($user->bio)
+                        <div class="profile-description-holder pp-bio">
+                            <div class="description-content {{ !getSetting('profiles.disable_profile_bio_excerpt') ? 'line-clamp-3' : '' }}">
+                                @if(getSetting('profiles.allow_profile_bio_markdown'))
+                                    {!! GenericHelper::parseProfileMarkdownBio($user->bio) !!}
+                                @else
+                                    {!! GenericHelper::parseSafeHTML($user->bio) !!}
+                                @endif
+                            </div>
+                            @if(!getSetting('profiles.disable_profile_bio_excerpt'))
+                                <button type="button" class="pp-more show-more-actions d-none" onclick="Profile.toggleFullDescription()">
+                                    <span class="label-more">{{ __('More') }}</span>
+                                    <span class="label-less d-none">{{ __('Less') }}</span>
+                                </button>
+                            @endif
+                        </div>
+                    @endif
+
+                    {{-- Real counts only; a zero is left out rather than advertised. --}}
+                    <div class="pp-stats">
+                        @if($userVideos->count())
+                            <a href="{{ $tabUrl('videos') }}"><strong>{{ $compact($userVideos->count()) }}</strong> {{ trans_choice('{1} video|[2,*] videos', $userVideos->count()) }}</a>
+                        @endif
+                        @if($followers)
+                            <span><strong>{{ $compact($followers) }}</strong> {{ trans_choice('{1} follower|[2,*] followers', $followers) }}</span>
+                        @endif
+                        @if($videoLikes)
+                            <span><strong>{{ $compact($videoLikes) }}</strong> {{ trans_choice('{1} like|[2,*] likes', $videoLikes) }}</span>
+                        @endif
+                        @if(isset($posts) && $posts->total())
+                            <span><strong>{{ $compact($posts->total()) }}</strong> {{ trans_choice('{1} post|[2,*] posts', $posts->total()) }}</span>
+                        @endif
+                    </div>
+
+                    <div class="pp-meta">
+                        <span>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                            {{ __('Joined') }} {{ ucfirst($user->created_at->translatedFormat('M Y')) }}
+                        </span>
+                        @if($user->location)
+                            <span>
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                {{ $user->location }}
                             </span>
                         @endif
-                    </h5>
-                    <h6 class="text-muted"><span class="text-bold"><span>@</span>{{$user->username}}</span> {{--- Last seen X time ago--}}</h6>
-
-                    {{-- "Available to chat" is only claimed when DMs are actually reachable for
-                         this viewer, so it never promises something the profile can't honour. --}}
-                    @if($hasSub || $viewerHasChatAccess)
-                        <span class="profile-status">
-                            <span class="profile-status__dot" aria-hidden="true"></span>
-                            {{ __('Available to chat') }}
-                        </span>
-                    @endif
-                </div>
-
-                <div class="pt-2 pb-2 pl-4 pr-4 profile-description-holder">
-                    <div class="description-content {{$user->bio && !getSetting('profiles.disable_profile_bio_excerpt') ? 'line-clamp-3' : ''}}">
-                        @if($user->bio)
-                            @if(getSetting('profiles.allow_profile_bio_markdown'))
-                                {!!  GenericHelper::parseProfileMarkdownBio($user->bio) !!}
-                            @else
-                                {!!GenericHelper::parseSafeHTML($user->bio)!!}
-                            @endif
-                        @else
-                            {{__('No description available.')}}
+                        @if(!getSetting('profiles.disable_website_link_on_profile') && $user->website)
+                            <a href="{{ $user->website }}" target="_blank" rel="nofollow noopener">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+                                {{ Str::limit(str_replace(['https://','http://','www.'], '', $user->website), 28) }}
+                            </a>
                         @endif
-                    </div>
-                    @if($user->bio && !getSetting('profiles.disable_profile_bio_excerpt'))
-                        <span class="text-primary pointer-cursor show-more-actions d-none" onclick="Profile.toggleFullDescription()">
-                            <span class="label-more">{{__('More info')}}</span>
-                            <span class="label-less d-none">{{__('Show less')}}</span>
-                        </span>
-                    @endif
-                </div>
-
-                {{-- Follow / Subscribe pair, as in the reference. Subscribe deliberately jumps
-                     to the existing .subscription-holder below instead of duplicating a
-                     subscribe button — those carry the checkout data attributes that drive
-                     payment, and cloning them would risk the payment flow. --}}
-                @if(!Auth::check() || Auth::user()->id !== $user->id)
-                    <div class="profile-hero-actions">
-                        @if(Auth::check())
-                            <button type="button" class="pf-btn pf-btn--follow manage-follow-button"
-                                    onclick="Lists.manageFollowsAction('{{$user->id}}')">
-                                <span class="manage-follows-text">{{ \App\Providers\ListsHelperServiceProvider::getUserFollowingType($user->id, true) }}</span>
-                            </button>
-                        @else
-                            <button type="button" class="pf-btn pf-btn--follow"
-                                    data-toggle="modal" data-target="#login-dialog">{{ __('Follow') }}</button>
-                        @endif
-
-                        @if($hasSub)
-                            <span class="pf-btn pf-btn--subscribe">{{ __('Subscribed') }}</span>
-                        @elseif($user->paid_profile)
-                            <a href="#profile-subscribe" class="pf-btn pf-btn--subscribe">{{ __('Subscribe') }}</a>
-                        @else
-                            <a href="#profile-subscribe" class="pf-btn pf-btn--subscribe">{{ __('Support') }}</a>
+                        @if(getSetting('profiles.allow_gender_pronouns') && $user->gender_pronoun)
+                            <span>{{ $user->gender_pronoun }}</span>
                         @endif
                     </div>
 
-                    {{-- Inline composer. Opens the existing messenger dialog rather than
-                         posting on its own, so message sending keeps one code path. --}}
-                    @if(Auth::check() && ($hasSub || $viewerHasChatAccess))
-                        <div class="profile-compose">
-                            <input type="text" class="profile-compose__input" id="profile-compose-input"
-                                   placeholder="{{ __('Hi') }} {{ Str::limit($user->name, 18, '') }}!"
-                                   aria-label="{{ __('Send a message') }}">
-                            <button type="button" class="profile-compose__send" id="profile-compose-send"
-                                    aria-label="{{ __('Send') }}">
-                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4 20-7z"/></svg>
-                            </button>
-                        </div>
-                    @endif
-                @endif
-
-                @isset($posts)
-                    <div class="profile-postcount">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-                        {{ number_format($posts->total()) }} {{ trans_choice('post|posts', $posts->total()) }}
-                    </div>
-                @endisset
-
-                <div class="d-flex flex-column flex-md-row justify-content-md-between pb-2 pl-4 pr-4 mb-3 mt-1">
-
-                    <div class="d-flex align-items-center mr-2 text-truncate mb-0 mb-md-0">
-                        @include('elements.icon',['icon'=>'calendar-clear-outline','centered'=>false,'classes'=>'mr-1'])
-                        <div class="text-truncate ml-1">
-                            {{ucfirst($user->created_at->translatedFormat('F d'))}}
-                        </div>
-                    </div>
-                    @if($user->location)
-                        <div class="d-flex align-items-center mr-2 text-truncate mb-0 mb-md-0">
-                            @include('elements.icon',['icon'=>'location-outline','centered'=>false,'classes'=>'mr-1'])
-                            <div class="text-truncate ml-1">
-                                {{$user->location}}
-                            </div>
-                        </div>
-                    @endif
-                    @if(!getSetting('profiles.disable_website_link_on_profile'))
-                        @if($user->website)
-                            <div class="d-flex align-items-center mr-2 text-truncate mb-0 mb-md-0">
-                                @include('elements.icon',['icon'=>'globe-outline','centered'=>false,'classes'=>'mr-1'])
-                                <div class="text-truncate ml-1">
-                                    <a href="{{$user->website}}" target="_blank" rel="nofollow">
-                                        {{str_replace(['https://','http://','www.'],'',$user->website)}}
-                                    </a>
-                                </div>
-                            </div>
-                        @endif
-                    @endif
-                    @if(getSetting('profiles.allow_gender_pronouns'))
-                        @if($user->gender_pronoun)
-                            <div class="d-flex align-items-center mr-2 text-truncate mb-0 mb-md-0">
-                                @include('elements.icon',['icon'=>'male-female-outline','centered'=>false,'classes'=>'mr-1'])
-                                <div class="text-truncate ml-1">
-                                    {{$user->gender_pronoun}}
-                                </div>
-                            </div>
-                        @endif
+                    @if($hasActiveStream && !empty($liveUrl))
+                        <a href="{{ $liveUrl }}" class="pp-live">
+                            <span class="pp-live__dot" aria-hidden="true"></span>
+                            <span><strong>{{ __('Live now') }}</strong> {{ __('Tap to watch') }}</span>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+                        </a>
                     @endif
 
-                </div>
-
-                <div class="bg-separator border-top border-bottom"></div>
-
-                @include('elements.message-alert',['classes'=>'px-2 pt-4'])
-                @if($user->paid_profile && (!getSetting('profiles.allow_users_enabling_open_profiles') || (getSetting('profiles.allow_users_enabling_open_profiles') && !$user->open_profile)))
-                    @if( (!Auth::check() || Auth::user()->id !== $user->id) && !$hasSub)
-                        <div class="p-4 subscription-holder" id="profile-subscribe">
-                            <h6 class="font-weight-bold text-uppercase mb-3">{{__('Subscription')}}</h6>
-                            @if(count($offer) && $offer['discountAmount']['30'] > 0)
-                                <h5 class="m-0 text-bold">{{__('Limited offer main label',['discount'=> round($offer['discountAmount']['30']), 'days_remaining'=> $offer['daysRemaining'] ])}}</h5>
-                                <small class="">{{__('Offer ends label',['date'=>$offer['expiresAt']->format('d M')])}}</small>
-                            @endif
-                            @if($hasSub)
-                                <button class="btn btn-round btn-lg btn-primary btn-block mt-3 mb-2 text-center">
-                                    <span>{{__('Subscribed')}}</span>
+                    @if(!$isOwner)
+                        {{-- Subscribe jumps to the membership card below rather than cloning a
+                             subscribe button: those carry the checkout data attributes. --}}
+                        <div class="pp-actions">
+                            @if(Auth::check())
+                                <button type="button" class="pp-btn pp-btn--glass manage-follow-button" onclick="Lists.manageFollowsAction('{{ $user->id }}')">
+                                    <span class="manage-follows-text">{{ \App\Providers\ListsHelperServiceProvider::getUserFollowingType($user->id, true) }}</span>
                                 </button>
                             @else
-
-                                @if(Auth::check())
-                                    @if(!GenericHelper::isEmailEnforcedAndValidated())
-                                        <i>{{__('Your email address is not verified.')}} <a href="{{route('verification.notice')}}">{{__("Click here")}}</a> {{__("to re-send the confirmation email.")}}</i>
-                                    @endif
-                                @endif
-
-                                @include('elements.checkout.subscribe-button-30')
-                                <div class="d-flex justify-content-between">
-                                    @if($user->profile_access_price_6_months || $user->profile_access_price_12_months)
-                                        <small>
-                                            <div class="pointer-cursor d-flex align-items-center" onclick="Profile.toggleBundles()">
-                                                <div class="label-more">{{__('Subscriptions bundles')}}</div>
-                                                <div class="label-less d-none">{{__('Hide bundles')}}</div>
-                                                <div class="ml-1 label-icon">
-                                                    @include('elements.icon',['icon'=>'chevron-down-outline','centered'=>false])
-                                                </div>
-                                            </div>
-                                        </small>
-                                    @endif
-                                    @if(count($offer) && $offer['discountAmount']['30'] > 0)
-                                        <small class="">{{__('Regular price label',['currency'=> getSetting('payments.currency_code') ?? 'USD','amount'=>$user->offer->old_profile_access_price])}}</small>
-                                    @endif
-                                </div>
-
-                                @if($user->profile_access_price_6_months || $user->profile_access_price_12_months || $user->profile_access_price_3_months)
-                                    <div class="subscription-bundles d-none mt-4">
-                                        @if($user->profile_access_price_3_months)
-                                            @include('elements.checkout.subscribe-button-90')
-                                        @endif
-
-                                        @if($user->profile_access_price_6_months)
-                                            @include('elements.checkout.subscribe-button-182')
-                                        @endif
-
-                                        @if($user->profile_access_price_12_months)
-                                            @include('elements.checkout.subscribe-button-365')
-                                        @endif
-
-                                    </div>
-                                @endif
+                                <button type="button" class="pp-btn pp-btn--glass" data-toggle="modal" data-target="#login-dialog">{{ __('Follow') }}</button>
                             @endif
-                        </div>
-                        <div class="bg-separator border-top border-bottom"></div>
-                    @endif
-                @elseif(!Auth::check() || (Auth::check() && Auth::user()->id !== $user->id))
-                    <div class=" p-4 subscription-holder" id="profile-subscribe">
-                        <h6 class="font-weight-bold text-uppercase mb-3">{{__('Follow this creator')}}</h6>
-                        @if(Auth::check())
-                            <button class="btn btn-round btn-lg btn-primary btn-block mt-3 mb-0 manage-follow-button" onclick="Lists.manageFollowsAction('{{$user->id}}')">
-                                <span class="manage-follows-text">{{\App\Providers\ListsHelperServiceProvider::getUserFollowingType($user->id, true)}}</span>
-                            </button>
-                        @else
-                            <button class="btn btn-round btn-lg btn-primary btn-block mt-3 mb-0 text-center"
-                                    data-toggle="modal"
-                                    data-target="#login-dialog"
-                            >
-                                <span class="">{{__('Follow')}}</span>
-                            </button>
-                        @endif
-                    </div>
-                    <div class="bg-separator border-top border-bottom"></div>
-                @endif
-                
-                {{-- TikTok-style Navigation Tabs --}}
-                <div class="mt-3 tiktok-style-tabs">
-                    <nav class="nav nav-pills nav-justified text-bold">
-                        <a class="nav-item nav-link {{$activeFilter == 'videos' || $activeFilter == false ? 'active' : ''}}" href="{{route('profile',['username'=> $user->username, 'filter' => 'videos'])}}">
-                            @include('elements.icon',['icon'=>'videocam-outline'])
-                        </a>
-                        
-                        <a class="nav-item nav-link {{$activeFilter == 'marketplace' ? 'active' : ''}}" href="{{route('profile',['username'=> $user->username, 'filter' => 'marketplace'])}}">
-                            @include('elements.icon',['icon'=>'storefront-outline'])
-                        </a>
-                        
-                        <a class="nav-item nav-link {{$activeFilter == 'reposts' ? 'active' : ''}}" href="{{route('profile',['username'=> $user->username, 'filter' => 'reposts'])}}">
-                            @include('elements.icon',['icon'=>'repeat-outline'])
-                        </a>
-                    </nav>
-                </div>
 
-                {{-- Content based on active tab --}}
-                <div class="justify-content-center align-items-center mt-4">
-                    @if($activeFilter == 'videos' || $activeFilter == false)
-                        {{-- Videos Tab Content - Instagram/TikTok Style Grid --}}
-                        @php
-                            // Get user's videos
-                            $userVideos = collect();
-                            try {
-                                $userVideos = \App\Models\Video::where('user_id', $user->id)
-                                    ->with(['user'])
-                                    ->latest()
-                                    ->get();
-                            } catch (Exception $e) {
-                                $userVideos = collect();
-                            }
-                        @endphp
-                        
-                        <div class="videos-grid-container">
-                            @if($userVideos && $userVideos->count() > 0)
-                                <div class="videos-grid">
-                                    @foreach($userVideos as $video)
-                                        <div class="video-grid-item" onclick="window.location.href='{{url('/feed?video=' . $video->id)}}'">
-                                            <div class="video-thumbnail">
-                                                <video preload="metadata" muted>
-                                                    <source src="{{$video->video_url}}" type="video/mp4">
-                                                </video>
-                                                <div class="video-overlay-info">
-                                                    <div class="video-stats">
-                                                        <span class="views-count">
-                                                            @include('elements.icon',['icon'=>'play-outline'])
-                                                            {{number_format($video->views_count ?? rand(1000, 999999))}}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
+                            @if($hasSub)
+                                <span class="pp-btn pp-btn--solid is-done">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+                                    {{ __('Subscribed') }}
+                                </span>
                             @else
-                                <div class="no-videos-placeholder">
-                                    <div class="text-center p-5">
-                                        @include('elements.icon',['icon'=>'videocam-outline','classes'=>'text-muted mb-3','style'=>'font-size: 4rem;'])
-                                        <h5 class="text-muted mb-2">No videos yet</h5>
-                                        <p class="text-muted">{{$user->name}} hasn't shared any videos</p>
-                                    </div>
-                                </div>
+                                <a href="#profile-subscribe" class="pp-btn pp-btn--solid">{{ $user->paid_profile ? __('Subscribe') : __('Support') }}</a>
                             @endif
                         </div>
-                    @elseif($activeFilter == 'marketplace')
-                        {{-- Marketplace Tab Content --}}
-                        <div class="marketplace-content">
-                            <div class="text-center p-4">
-                                @include('elements.icon',['icon'=>'storefront-outline','classes'=>'text-muted mb-3','style'=>'font-size: 3rem;'])
-                                <h5 class="text-muted">Marketplace</h5>
-                                <!-- <p class="text-muted">Marketplace items will be displayed here</p> -->
+
+                        {{-- Opens the existing messenger dialog, so sending keeps one code path. --}}
+                        @if(Auth::check() && $canChat)
+                            <div class="pp-compose">
+                                <input type="text" class="pp-compose__input" id="profile-compose-input"
+                                       placeholder="{{ __('Hi') }} {{ Str::limit(explode(' ', $user->name)[0], 18, '') }}!"
+                                       aria-label="{{ __('Send a message') }}" enterkeyhint="send">
+                                <button type="button" class="pp-compose__send" id="profile-compose-send" aria-label="{{ __('Send') }}">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6l2.8 8.4zM6.2 12H13"/></svg>
+                                </button>
                             </div>
-                        </div>
-                    @elseif($activeFilter == 'reposts')
-                        {{-- Reposts Tab Content - Show Reposted Videos --}}
-                        @php
-                            // Get user's reposted videos using your video_reposts table
-                            $repostedVideos = collect();
-                            try {
-                                $repostedVideos = \DB::table('video_reposts as vr')
-                                    ->join('videos as v', 'vr.video_id', '=', 'v.id')
-                                    ->join('users as u', 'v.user_id', '=', 'u.id')
-                                    ->where('vr.user_id', $user->id)
-                                    ->where('v.is_public', 1)
-                                    ->where('v.status', 'published')
-                                    ->select([
-                                        'v.id',
-                                        'v.title',
-                                        'v.description', 
-                                        'v.video_path',
-                                        'v.views_count',
-                                        'u.name as original_user_name',
-                                        'u.username as original_username',
-                                        'vr.reposted_at',
-                                        \DB::raw('(SELECT COUNT(*) FROM video_likes WHERE video_id = v.id) as likes_count'),
-                                        \DB::raw('(SELECT COUNT(*) FROM video_comments WHERE video_id = v.id) as comments_count')
-                                    ])
-                                    ->orderBy('vr.reposted_at', 'desc')
-                                    ->get()
-                                    ->map(function($video) {
-                                        $video->video_url = asset('storage/' . $video->video_path);
-                                        // Create a username if it doesn't exist
-                                        if (!$video->original_username) {
-                                            $video->original_username = strtolower(str_replace(' ', '', $video->original_user_name));
-                                        }
-                                        return $video;
-                                    });
-                            } catch (Exception $e) {
-                                $repostedVideos = collect();
-                            }
-                        @endphp
-                        
-                        <div class="reposts-grid-container">
-                            @if($repostedVideos && $repostedVideos->count() > 0)
-                                <div class="videos-grid">
-                                    @foreach($repostedVideos as $video)
-                                        <div class="video-grid-item" onclick="window.location.href='{{url('/feed?video=' . $video->id)}}'">
-                                            <div class="video-thumbnail">
-                                                <video preload="metadata" muted>
-                                                    <source src="{{$video->video_url}}" type="video/mp4">
-                                                </video>
-                                                
-                                                {{-- Repost indicator --}}
-                                                <div class="repost-indicator">
-                                                    @include('elements.icon',['icon'=>'repeat-outline'])
-                                                </div>
-                                                
-                                                {{-- Original creator info --}}
-                                                <!-- <div class="original-creator">
-                                                    <small>by @{{$video->original_username}}</small>
-                                                </div> -->
-                                                
-                                                <div class="video-overlay-info">
-                                                    <div class="video-stats">
-                                                        <span class="views-count">
-                                                            @include('elements.icon',['icon'=>'play-outline'])
-                                                            {{number_format($video->views_count ?? 0)}}
-                                                        </span>
-                                                    </div>
-                                                    <div class="video-actions">
-                                                        <span class="likes-count">
-                                                            @include('elements.icon',['icon'=>'heart-outline'])
-                                                            {{number_format($video->likes_count ?? 0)}}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            @else
-                                <div class="no-videos-placeholder">
-                                    <div class="text-center p-5">
-                                        @include('elements.icon',['icon'=>'repeat-outline','classes'=>'text-muted mb-3','style'=>'font-size: 4rem;'])
-                                        <h5 class="text-muted mb-2">No reposts yet</h5>
-                                        <p class="text-muted">{{$user->name}} hasn't reposted any videos</p>
-                                        @if(Auth::check() && Auth::user()->id === $user->id)
-                                            <p class="text-muted mt-2">
-                                                <small>Find videos you like and tap the repost button to share them here!</small>
-                                            </p>
-                                        @endif
-                                    </div>
-                                </div>
-                            @endif
-                        </div>
+                        @elseif(Auth::check() && !$hasSub)
+                            <p class="pp-hint">{{ __('Subscribe to message :name', ['name' => explode(' ', $user->name)[0]]) }}</p>
+                        @endif
                     @endif
                 </div>
+            </section>
+
+            @include('elements.message-alert',['classes'=>'px-3 pt-3'])
+
+            {{-- ============ Membership (keeps the original checkout buttons) ============ --}}
+            @if($user->paid_profile && (!getSetting('profiles.allow_users_enabling_open_profiles') || (getSetting('profiles.allow_users_enabling_open_profiles') && !$user->open_profile)))
+                @if(!$isOwner && !$hasSub)
+                    <section class="pp-card subscription-holder" id="profile-subscribe">
+                        <div class="pp-card__head">
+                            <div>
+                                <span class="pp-eyebrow">{{ __('Membership') }}</span>
+                                <h2 class="pp-card__title">{{ __('Unlock everything :name posts', ['name' => explode(' ', $user->name)[0]]) }}</h2>
+                            </div>
+                            @if($user->profile_access_price)
+                                <span class="pp-price"><strong>${{ number_format((float) $user->profile_access_price, 2) }}</strong>/{{ __('mo') }}</span>
+                            @endif
+                        </div>
+                        <ul class="pp-perks">
+                            <li>{{ __('Every post and video') }}</li>
+                            <li>{{ __('Direct messages') }}</li>
+                            <li>{{ __('Cancel any time') }}</li>
+                        </ul>
+                        @if(count($offer) && $offer['discountAmount']['30'] > 0)
+                            <p class="pp-offer">
+                                <strong>{{ __('Limited offer main label', ['discount' => round($offer['discountAmount']['30']), 'days_remaining' => $offer['daysRemaining']]) }}</strong>
+                                <span>{{ __('Offer ends label', ['date' => $offer['expiresAt']->format('d M')]) }}</span>
+                            </p>
+                        @endif
+                        @if(Auth::check() && !GenericHelper::isEmailEnforcedAndValidated())
+                            <p class="pp-hint">{{ __('Your email address is not verified.') }} <a href="{{ route('verification.notice') }}">{{ __('Click here') }}</a> {{ __('to re-send the confirmation email.') }}</p>
+                        @endif
+
+                        @include('elements.checkout.subscribe-button-30')
+
+                        <div class="pp-card__foot">
+                            @if($user->profile_access_price_6_months || $user->profile_access_price_12_months || $user->profile_access_price_3_months)
+                                <button type="button" class="pp-link" onclick="Profile.toggleBundles()">
+                                    <span class="label-more">{{ __('Save with a bundle') }}</span>
+                                    <span class="label-less d-none">{{ __('Hide bundles') }}</span>
+                                    <span class="label-icon">@include('elements.icon',['icon'=>'chevron-down-outline','centered'=>false])</span>
+                                </button>
+                            @endif
+                            @if(count($offer) && $offer['discountAmount']['30'] > 0)
+                                <small>{{ __('Regular price label', ['currency' => getSetting('payments.currency_code') ?? 'USD', 'amount' => $user->offer->old_profile_access_price]) }}</small>
+                            @endif
+                        </div>
+
+                        @if($user->profile_access_price_6_months || $user->profile_access_price_12_months || $user->profile_access_price_3_months)
+                            <div class="subscription-bundles d-none">
+                                @if($user->profile_access_price_3_months)
+                                    @include('elements.checkout.subscribe-button-90')
+                                @endif
+                                @if($user->profile_access_price_6_months)
+                                    @include('elements.checkout.subscribe-button-182')
+                                @endif
+                                @if($user->profile_access_price_12_months)
+                                    @include('elements.checkout.subscribe-button-365')
+                                @endif
+                            </div>
+                        @endif
+                    </section>
+                @endif
+            @endif
+
+            {{-- ============ Tabs ============ --}}
+            <nav class="pp-tabs inline-border-tabs" aria-label="{{ __('Profile sections') }}">
+                <a href="{{ $tabUrl('videos') }}" class="pp-tab {{ $tab === 'videos' ? 'is-active' : '' }}" @if($tab === 'videos') aria-current="page" @endif>
+                    {{ __('Videos') }} @if($userVideos->count())<span class="pp-tab__count">{{ $userVideos->count() }}</span>@endif
+                </a>
+                <a href="{{ $tabUrl('reposts') }}" class="pp-tab {{ $tab === 'reposts' ? 'is-active' : '' }}" @if($tab === 'reposts') aria-current="page" @endif>
+                    {{ __('Reposts') }} @if($repostCount)<span class="pp-tab__count">{{ $repostCount }}</span>@endif
+                </a>
+                <a href="{{ $tabUrl('shop') }}" class="pp-tab {{ $tab === 'shop' ? 'is-active' : '' }}" @if($tab === 'shop') aria-current="page" @endif>
+                    {{ __('Shop') }} @if($shopItems->count())<span class="pp-tab__count">{{ $shopItems->count() }}</span>@endif
+                </a>
+            </nav>
+
+            <div class="pp-panel">
+                @if($tab === 'videos')
+                    @if($userVideos->count())
+                        <div class="pp-grid">
+                            @foreach($userVideos as $video)
+                                @include('elements.profile.video-tile', ['video' => $video, 'isOwner' => $isOwner])
+                            @endforeach
+                        </div>
+                    @else
+                        @include('elements.profile.empty', [
+                            'title' => $isOwner ? __('Post your first video') : __('No videos yet'),
+                            'text' => $isOwner ? __('Short clips do best. It goes straight into the feed.') : __(':name hasn\'t posted a video yet.', ['name' => explode(' ', $user->name)[0]]),
+                            'cta' => $isOwner ? ['label' => __('Upload video'), 'href' => url('/create')] : null,
+                        ])
+                    @endif
+
+                @elseif($tab === 'reposts')
+                    @php
+                        $reposts = collect();
+                        try {
+                            $reposts = \App\Models\Video::query()
+                                ->join('video_reposts as vr', 'vr.video_id', '=', 'videos.id')
+                                ->where('vr.user_id', $user->id)
+                                ->where('videos.is_public', 1)
+                                ->where('videos.status', 'published')
+                                ->orderByDesc('vr.reposted_at')
+                                ->select('videos.*')
+                                ->get();
+                        } catch (\Throwable $e) {
+                            $reposts = collect();
+                        }
+                    @endphp
+                    @if($reposts->count())
+                        <div class="pp-grid">
+                            @foreach($reposts as $video)
+                                @include('elements.profile.video-tile', ['video' => $video, 'isRepost' => true])
+                            @endforeach
+                        </div>
+                    @else
+                        @include('elements.profile.empty', [
+                            'title' => __('No reposts yet'),
+                            'text' => $isOwner ? __('Tap repost on a video you love and it shows up here.') : __(':name hasn\'t reposted anything yet.', ['name' => explode(' ', $user->name)[0]]),
+                            'cta' => null,
+                        ])
+                    @endif
+
+                @else
+                    @if($shopItems->count())
+                        <div class="nx-grid pp-shop">
+                            @foreach($shopItems as $nft)
+                                @include('nft.partials.card', ['nft' => $nft, 'note' => $nft->isPendingMint() ? __('Being created') : null])
+                            @endforeach
+                        </div>
+                    @else
+                        @include('elements.profile.empty', [
+                            'title' => __('Nothing in the shop yet'),
+                            'text' => $isOwner ? __('Turn one of your posts into a collectible fans can buy.') : __(':name hasn\'t listed anything for sale yet.', ['name' => explode(' ', $user->name)[0]]),
+                            'cta' => $isOwner ? ['label' => __('Create a collectible'), 'href' => route('nft.mintable')] : null,
+                        ])
+                    @endif
+                @endif
             </div>
         </div>
+
         <div class="col-12 col-md-4 d-none d-md-block pt-3">
             @include('elements.profile.widgets')
         </div>
@@ -581,504 +468,36 @@
 
     @include('elements.profile.qr-code-dialog')
 
-    {{-- Video Modal for Full Screen Playback --}}
-    <div class="video-modal" id="video-modal">
-        <div class="video-modal-content">
-            <button class="video-modal-close" onclick="closeVideoModal()">
-                @include('elements.icon',['icon'=>'close-outline'])
-            </button>
-            <div class="video-modal-player">
-                <video id="modal-video" controls autoplay>
-                    <source id="modal-video-source" src="" type="video/mp4">
-                </video>
-            </div>
-            <div class="video-modal-info">
-                <h4 id="modal-video-title"></h4>
-                <p id="modal-video-description"></p>
-            </div>
-        </div>
-    </div>
-
-    <style>
-        /* TikTok-style tabs - icons only */
-        .tiktok-style-tabs {
-            border-bottom: 1px solid var(--pf-border, rgba(255,255,255,0.08));
-        }
-
-        .tiktok-style-tabs .nav-link {
-            padding: 15px;
-            font-size: 24px;
-            border: none;
-            border-bottom: 2px solid transparent;
-            background: transparent;
-            color: var(--pf-text-muted, #71717a);
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 58px;
-        }
-        
-        .profile-page-v2 .tiktok-style-tabs .nav-link.active {
-            color: var(--pf-accent, #cb0c9f);
-            border-bottom: 2px solid var(--pf-accent, #cb0c9f);
-            background: transparent;
-        }
-        
-        .profile-page-v2 .tiktok-style-tabs .nav-link:hover {
-            color: var(--pf-text, #f4f4f5);
-            background: transparent;
-        }
-        
-        .tiktok-style-tabs .nav-link ion-icon {
-            font-size: 24px;
-        }
-        
-        /* Videos Grid - Exact TikTok Style */
-        .videos-grid-container,
-        .reposts-grid-container {
-            padding: 0;
-            background: transparent;
-        }
-        
-        .videos-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 4px;
-            margin: 0;
-            background: transparent;
-        }
-        
-        .video-grid-item {
-            position: relative;
-            aspect-ratio: 9/16;
-            background: var(--pf-surface-muted, #1c1c24);
-            cursor: pointer;
-            overflow: hidden;
-            border-radius: 10px;
-            transition: transform 0.2s ease;
-            height: 0;
-            padding-bottom: 177.78%; /* 16:9 aspect ratio = 56.25%, 9:16 = 177.78% */
-        }
-        
-        .video-grid-item:hover {
-            transform: translateY(-2px);
-        }
-        
-        .video-thumbnail {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-        }
-        
-        .video-thumbnail video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            object-position: center;
-        }
-        
-        .video-overlay-info {
-            position: absolute;
-            bottom: 8px;
-            left: 8px;
-            right: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-        }
-        
-        .video-stats {
-            display: flex;
-            align-items: center;
-            color: white;
-            font-size: 13px;
-            font-weight: 600;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-            background: rgba(0, 0, 0, 0.3);
-            padding: 4px 8px;
-            border-radius: 12px;
-            backdrop-filter: blur(4px);
-        }
-        
-        .video-actions {
-            display: flex;
-            align-items: center;
-            color: white;
-            font-size: 13px;
-            font-weight: 600;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-            background: rgba(0, 0, 0, 0.3);
-            padding: 4px 8px;
-            border-radius: 12px;
-            backdrop-filter: blur(4px);
-        }
-        
-        .views-count,
-        .likes-count {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        
-        /* Repost indicator */
-        .repost-indicator {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            color: white;
-            font-size: 16px;
-            background: rgba(23, 191, 99, 0.8);
-            padding: 4px;
-            border-radius: 50%;
-            backdrop-filter: blur(4px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 28px;
-            height: 28px;
-            box-shadow: 0 2px 8px rgba(23, 191, 99, 0.3);
-        }
-        
-        /* Original creator info */
-        .original-creator {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            color: white;
-            background: rgba(0, 0, 0, 0.6);
-            padding: 2px 6px;
-            border-radius: 8px;
-            font-size: 10px;
-            backdrop-filter: blur(4px);
-            font-weight: 500;
-        }
-        
-        .play-icon {
-            position: absolute;
-            bottom: 8px;
-            right: 8px;
-            color: white;
-            font-size: 16px;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-        }
-        
-        /* No videos placeholder */
-        .no-videos-placeholder {
-            min-height: 300px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        /* Video Modal */
-        .video-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            z-index: 2000;
-            display: none;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .video-modal.active {
-            display: flex;
-        }
-        
-        .video-modal-content {
-            position: relative;
-            max-width: 90%;
-            max-height: 90%;
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        
-        .video-modal-close {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            z-index: 2001;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-        }
-        
-        .video-modal-close:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-        
-        .video-modal-player {
-            position: relative;
-        }
-        
-        .video-modal-player video {
-            width: 100%;
-            height: auto;
-            max-height: 70vh;
-            display: block;
-        }
-        
-        .video-modal-info {
-            padding: 20px;
-            background: #000;
-            color: white;
-        }
-        
-        .video-modal-info h4 {
-            margin: 0 0 10px 0;
-            font-size: 18px;
-            font-weight: 600;
-        }
-        
-        .video-modal-info p {
-            margin: 0;
-            font-size: 14px;
-            opacity: 0.8;
-            line-height: 1.4;
-        }
-        
-        /* Mobile responsiveness */
-        @media (max-width: 768px) {
-            .video-grid-item {
-                padding-bottom: 177.78%; /* Maintain aspect ratio on mobile */
-            }
-            
-            .video-stats,
-            .video-actions {
-                font-size: 11px;
-                padding: 3px 6px;
-            }
-            
-            .repost-indicator {
-                width: 24px;
-                height: 24px;
-                font-size: 14px;
-            }
-            
-            .original-creator {
-                font-size: 9px;
-                padding: 1px 4px;
-            }
-            
-            .video-modal-content {
-                max-width: 95%;
-                max-height: 95%;
-            }
-            
-            .video-modal-player video {
-                max-height: 60vh;
-            }
-            
-            .video-modal-info {
-                padding: 15px;
-            }
-            
-            .video-modal-info h4 {
-                font-size: 16px;
-            }
-            
-            .video-modal-info p {
-                font-size: 13px;
-            }
-        }
-        
-        /* Very small screens */
-        @media (max-width: 480px) {
-            .video-grid-item {
-                padding-bottom: 177.78%; /* Maintain aspect ratio on small screens */
-            }
-            
-            .tiktok-style-tabs .nav-link {
-                padding: 12px;
-                font-size: 20px;
-            }
-            
-            .video-stats,
-            .video-actions {
-                font-size: 10px;
-                padding: 2px 5px;
-            }
-            
-            .repost-indicator {
-                width: 20px;
-                height: 20px;
-                font-size: 12px;
-            }
-            
-            .original-creator {
-                font-size: 8px;
-                padding: 1px 3px;
-            }
-        }
-        /* Hide bottom navigation completely */
-.bottom-nav,
-.bottom-navigation,
-.nav-bottom,
-.mobile-nav,
-.mobile-navigation,
-.fixed-bottom,
-.navbar-bottom,
-.tab-bar,
-.bottom-bar,
-.footer-nav,
-nav[class*="bottom"],
-.navigation-bottom,
-.app-bottom-nav {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-}
-
-/* Hide any fixed positioned elements at bottom */
-.fixed-bottom,
-[style*="position: fixed"][style*="bottom: 0"],
-[style*="position:fixed"][style*="bottom:0"] {
-    display: none !important;
-}
-
-/* Additional comprehensive bottom menu hiding */
-.bottom-menu,
-.menu-bottom,
-.nav-bar-bottom,
-.navbar-fixed-bottom,
-.footer-fixed,
-.sticky-bottom,
-.bottom-tabs,
-.tab-navigation,
-.mobile-tabs,
-.app-navigation,
-.bottom-toolbar,
-.toolbar-bottom {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-    height: 0 !important;
-    max-height: 0 !important;
-    overflow: hidden !important;
-}
-
-/* Force hide any element with bottom positioning */
-*[style*="bottom: 0"],
-*[style*="bottom:0"],
-*[class*="bottom"][class*="nav"],
-*[class*="bottom"][class*="menu"],
-*[id*="bottom"][id*="nav"],
-*[id*="bottom"][id*="menu"] {
-    display: none !important;
-}
-
-/* Remove bottom padding/margin that might be reserved for bottom nav */
-body {
-    padding-bottom: 0 !important;
-    margin-bottom: 0 !important;
-}
-
-/* Ensure main content uses full height */
-.main-content,
-.content,
-.container {
-    padding-bottom: 0 !important;
-    margin-bottom: 0 !important;
-}
-    </style>
-
     <script>
-        function openVideoModal(videoId, videoUrl, title, description) {
-            const modal = document.getElementById('video-modal');
-            const modalVideo = document.getElementById('modal-video');
-            const modalVideoSource = document.getElementById('modal-video-source');
-            const modalTitle = document.getElementById('modal-video-title');
-            const modalDescription = document.getElementById('modal-video-description');
-            
-            modalVideoSource.src = videoUrl;
-            modalVideo.load();
-            modalTitle.textContent = title || 'Untitled Video';
-            modalDescription.textContent = description || '';
-            
-            modal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-        
-        function closeVideoModal() {
-            const modal = document.getElementById('video-modal');
-            const modalVideo = document.getElementById('modal-video');
-            
-            modal.classList.remove('active');
-            modalVideo.pause();
-            modalVideo.currentTime = 0;
-            document.body.style.overflow = '';
-        }
-        
-        // Close modal when clicking outside
-        document.getElementById('video-modal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeVideoModal();
+    (function () {
+        // Sticky tabs sit directly under the mobile app bar, whatever height it renders.
+        var bar = document.querySelector('.mobile-app-bar');
+        var root = document.querySelector('.pp');
+        if (bar && root) root.style.setProperty('--pp-top', (getComputedStyle(bar).display === 'none' ? 0 : bar.offsetHeight) + 'px');
+    })();
+    (function () {
+        var input = document.getElementById('profile-compose-input');
+        var send = document.getElementById('profile-compose-send');
+        if (!input || !send) return;
+
+        function open() {
+            // Hand off to the existing messenger dialog, carrying the typed text over.
+            if (window.messenger && typeof messenger.showNewMessageDialog === 'function') {
+                messenger.showNewMessageDialog();
+                var text = input.value.trim();
+                if (text) {
+                    setTimeout(function () {
+                        var box = document.querySelector('#new-message-dialog textarea, #new-message-dialog input[type="text"]');
+                        if (box) { box.value = text; box.dispatchEvent(new Event('input', { bubbles: true })); }
+                    }, 300);
+                }
             }
+        }
+
+        send.addEventListener('click', open);
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); open(); }
         });
-        
-        // Close modal with Escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeVideoModal();
-            }
-        });
-        
-        // Load video thumbnails on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            const videoThumbnails = document.querySelectorAll('.video-thumbnail video');
-            videoThumbnails.forEach(video => {
-                video.addEventListener('loadedmetadata', function() {
-                    this.currentTime = 1; // Seek to 1 second for thumbnail
-                });
-            });
-        });
+    })();
     </script>
-
 @stop
-
-<script>
-(function () {
-    var input = document.getElementById('profile-compose-input');
-    var send = document.getElementById('profile-compose-send');
-    if (!input || !send) return;
-
-    function open() {
-        // Hand off to the existing messenger dialog; the typed text is carried over
-        // when the dialog exposes a field for it.
-        if (window.messenger && typeof messenger.showNewMessageDialog === 'function') {
-            messenger.showNewMessageDialog();
-            var text = input.value.trim();
-            if (text) {
-                setTimeout(function () {
-                    var box = document.querySelector('#new-message-dialog textarea, #new-message-dialog input[type="text"]');
-                    if (box) { box.value = text; box.dispatchEvent(new Event('input', { bubbles: true })); }
-                }, 300);
-            }
-        }
-    }
-
-    send.addEventListener('click', open);
-    input.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') { e.preventDefault(); open(); }
-    });
-})();
-</script>

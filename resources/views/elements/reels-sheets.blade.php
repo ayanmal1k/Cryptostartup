@@ -531,67 +531,152 @@
 
     .profile-modal-content { padding-bottom: env(safe-area-inset-bottom); }
 
-    /* A colour band behind the avatar. The sheet was an avatar and two buttons on a
-       flat panel, which is why it read as an alert rather than a profile. */
-    .profile-info {
+    /* The sheet opens on the person's cover photo, with their picture sitting on
+       its edge -- the same shape as the profile page it links to. */
+    .ps-cover {
+        --ps-tint: #cb0c9f;
+        position: relative;
+        height: 150px;
+        flex: 0 0 auto;
+        overflow: hidden;
+        background:
+            radial-gradient(120% 140% at 15% 0%, var(--ps-tint), transparent 70%),
+            radial-gradient(100% 140% at 90% 10%, rgba(123, 92, 255, .55), transparent 65%),
+            #14141c;
+    }
+
+    .ps-cover__img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .ps-cover__img.is-blurred {
+        transform: scale(1.35);
+        filter: blur(22px) saturate(1.3);
+        opacity: .8;
+    }
+
+    .ps-cover__img[hidden] { display: none; }
+
+    .ps-cover__scrim {
+        position: absolute;
+        inset: 0;
+        background:
+            linear-gradient(180deg, rgba(0, 0, 0, .35) 0%, transparent 40%),
+            linear-gradient(180deg, transparent 45%, var(--sheet-surface) 100%);
+    }
+
+    /* Grabber and close ride on top of the photo. */
+    .ps-grabber {
+        position: relative;
+        z-index: 2;
+    }
+
+    .ps-grabber::before {
+        background: #fff;
+        opacity: .7;
+    }
+
+    .profile-modal-close.ps-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 3;
+        background: rgba(0, 0, 0, .4);
+        border: 1px solid rgba(255, 255, 255, .18);
+        color: #fff;
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+    }
+
+    .profile-modal-close.ps-close:hover {
+        background: rgba(0, 0, 0, .6);
+        color: #fff;
+    }
+
+    .ps-body {
         position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 0 20px 18px;
-        margin-top: 4px;
+        padding: 0 22px 18px;
+        margin-top: -50px;
+        text-align: center;
     }
 
-    .profile-info::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 74px;
-        background:
-            radial-gradient(120% 130% at 20% 0%, var(--sheet-accent-soft), transparent 65%),
-            radial-gradient(110% 130% at 85% 10%, rgba(84, 122, 255, .12), transparent 60%);
-    }
-
-    .profile-avatar {
+    .ps-avatar {
         position: relative;
-        margin-top: 30px;
-        padding: 3px;
+        width: 96px;
+        height: 96px;
         border-radius: 50%;
+        padding: 3px;
         background: linear-gradient(135deg, var(--sheet-accent), #7b5cff);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, .45);
     }
 
-    .profile-avatar-initials {
-        width: 84px;
-        height: 84px;
+    .ps-avatar img,
+    .ps-avatar .profile-avatar-initials {
+        width: 100%;
+        height: 100%;
         border-radius: 50%;
+        border: 3px solid var(--sheet-surface);
+    }
+
+    .ps-avatar .profile-avatar-initials {
         display: grid;
         place-items: center;
-        font-size: 30px;
+        font-size: 32px;
         font-weight: 700;
         color: #fff;
-        border: 3px solid var(--sheet-surface);
         text-shadow: 0 1px 3px rgba(0, 0, 0, .28);
     }
 
-    .profile-details {
-        text-align: center;
-        margin-top: 12px;
+    .ps-avatar img {
+        display: block;
+        object-fit: cover;
+        background: var(--sheet-raised);
     }
 
-    .profile-details h3 {
+    .ps-avatar img[hidden],
+    .ps-avatar .profile-avatar-initials[hidden] { display: none; }
+
+    .ps-id { margin-top: 12px; }
+
+    .ps-id h3 {
         margin: 0;
-        font-size: 19px;
-        font-weight: 700;
+        font-size: 21px;
+        font-weight: 800;
         letter-spacing: -.01em;
         color: var(--sheet-text);
     }
 
-    .profile-details p {
+    .ps-id p {
         margin: 3px 0 0;
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--sheet-text-dim);
+    }
+
+    .ps-bio {
+        margin: 12px 0 0;
+        max-width: 360px;
+        font-size: 14px;
+        line-height: 1.45;
+        color: var(--sheet-text-dim);
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .ps-bio[hidden] { display: none; }
+
+    /* View Profile reads as the primary action: solid white on the dark sheet. */
+    .profile-actions .view-profile-btn {
+        background: #fff;
+        color: #0b0b0e;
     }
 
     .profile-actions {

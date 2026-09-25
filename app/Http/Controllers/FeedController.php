@@ -42,6 +42,18 @@ class FeedController extends Controller
             return $video;
         });
 
+        // The profile sheet shows each author's picture, cover and bio. One query for all
+        // of them; empty strings when a user has only the stock defaults.
+        $authors = \App\Model\User::whereIn('id', $videos->pluck('user_id')->filter()->unique())
+            ->get(['id', 'avatar', 'cover', 'bio'])
+            ->keyBy('id');
+        $videos->each(function ($video) use ($authors) {
+            $author = $authors->get($video->user_id ?? optional($video->user)->id);
+            $video->user->avatar_url = $author && $author->getRawOriginal('avatar') ? $author->avatar : '';
+            $video->user->cover_url = $author && $author->getRawOriginal('cover') ? $author->cover : '';
+            $video->user->bio_text = $author ? \Illuminate\Support\Str::limit(trim(strip_tags((string) $author->bio)), 140) : '';
+        });
+
         // "For You" smart ranking: engagement + recency, boosted for creators the
         // viewer subscribes to. Pass ?sort=latest for plain newest-first.
         if ($request->get('sort') !== 'latest') {

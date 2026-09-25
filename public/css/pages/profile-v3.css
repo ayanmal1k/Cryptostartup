@@ -1,0 +1,899 @@
+/* ==========================================================================
+   PROFILE v3
+   The cover photo fills the top of the screen and everything about the person
+   sits on it: avatar, name, bio, counts, Follow/Subscribe and a message pill.
+   Below it: membership, then Videos / Reposts / Shop.
+
+   Loaded after profile.css, which still dresses the modals and the desktop
+   widgets column. Everything here is scoped to `.pp`.
+
+   Class names avoid "bottom"+"nav"/"menu": an old global hack hides anything
+   matching that pattern.
+   ========================================================================== */
+
+.pp {
+    --pp-bg: #09090b;
+    --pp-surface: #141418;
+    --pp-surface-2: #1c1c22;
+    --pp-line: rgba(255, 255, 255, 0.08);
+    --pp-line-2: rgba(255, 255, 255, 0.16);
+    --pp-ink: #fafafa;
+    --pp-body: #d4d4db;
+    --pp-muted: #9a9aa6;
+    --pp-brand: #cb0c9f;
+    --pp-money: #ffc53d;
+    --pp-win: #22e0a0;
+    --pp-hot: #ff3b5c;
+    --pp-display: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --pp-text: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+    background: var(--pp-bg);
+    color: var(--pp-body);
+    font-family: var(--pp-text);
+    -webkit-font-smoothing: antialiased;
+}
+
+.pp--light {
+    --pp-bg: #f4f4f7;
+    --pp-surface: #ffffff;
+    --pp-surface-2: #eeeef2;
+    --pp-line: rgba(9, 9, 11, 0.08);
+    --pp-line-2: rgba(9, 9, 11, 0.16);
+    --pp-ink: #0f0f12;
+    --pp-body: #3f3f46;
+    --pp-muted: #6b6b76;
+}
+
+.pp *,
+.pp *::before,
+.pp *::after { box-sizing: border-box; }
+
+.pp h1, .pp h2, .pp h3, .pp p { margin: 0; }
+.pp a { text-decoration: none; }
+
+.pp svg { flex-shrink: 0; }
+
+/* --- Hero -------------------------------------------------------------------
+   Always dark on the photo, whatever the theme, so white text stays readable. */
+.pp-hero {
+    position: relative;
+    isolation: isolate;
+    min-height: min(88vh, 760px);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: hidden;
+    color: #fff;
+    background:
+        radial-gradient(90% 60% at 15% 10%, rgba(203, 12, 159, 0.45), transparent 60%),
+        radial-gradient(80% 60% at 90% 20%, rgba(123, 44, 255, 0.35), transparent 60%),
+        #0c0c10;
+}
+
+.pp-hero__bg {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+}
+
+.pp-hero__bg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 30%;
+}
+
+/* No cover of their own: the avatar, blown up and softened. */
+.pp-hero__bg img.is-blurred {
+    transform: scale(1.3);
+    filter: blur(28px) saturate(1.3);
+    opacity: 0.75;
+}
+
+.pp-hero__scrim {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 22%),
+        linear-gradient(180deg, rgba(9, 9, 11, 0) 30%, rgba(9, 9, 11, 0.72) 58%, #09090b 100%);
+}
+
+.pp--light .pp-hero__scrim {
+    background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 22%),
+        linear-gradient(180deg, rgba(9, 9, 11, 0) 30%, rgba(9, 9, 11, 0.75) 62%, rgba(9, 9, 11, 0.94) 100%);
+}
+
+/* Floating tools, top right */
+.pp-tools {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: flex;
+    gap: 8px;
+}
+
+.pp .pp-tool {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.35);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    backdrop-filter: blur(14px) saturate(160%);
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.pp .pp-tool--text {
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.pp-tool svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.pp .pp-tool:active { transform: scale(0.94); }
+
+@media (hover: hover) and (pointer: fine) {
+    .pp .pp-tool:hover { background: rgba(0, 0, 0, 0.55); color: #fff; }
+}
+
+.pp-hero__body {
+    position: relative;
+    padding: 110px 18px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Avatar: ring, online dot, live ring */
+.pp-avatar {
+    position: relative;
+    align-self: flex-start;
+    width: 96px;
+    height: 96px;
+    margin-bottom: 4px;
+}
+
+.pp-avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
+.pp-avatar > img {
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+
+.pp-avatar > .has-frame {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.pp-avatar.is-online::after {
+    content: '';
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--pp-win);
+    box-shadow: 0 0 0 3px #0c0c10;
+}
+
+.pp-avatar.is-live > img {
+    box-shadow: 0 0 0 3px var(--pp-hot), 0 0 0 6px rgba(255, 59, 92, 0.3), 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+
+.pp-avatar.is-live::after { display: none; }
+
+.pp-avatar__live {
+    position: absolute;
+    left: 50%;
+    bottom: -8px;
+    transform: translateX(-50%);
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: var(--pp-hot);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    box-shadow: 0 0 0 2px #0c0c10;
+}
+
+.pp .pp-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--pp-display);
+    font-size: clamp(28px, 8.5vw, 40px);
+    font-weight: 800;
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    color: #fff;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.35);
+}
+
+.pp-name span { overflow-wrap: anywhere; }
+
+.pp-name__check {
+    width: 26px;
+    height: 26px;
+    color: #4f8bff;
+}
+
+.pp-handle {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    margin-top: -6px;
+    font-size: 15px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.pp-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #fff;
+}
+
+.pp-status__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--pp-win);
+    box-shadow: 0 0 0 3px rgba(34, 224, 160, 0.25);
+}
+
+.pp-bio .description-content {
+    font-size: 15px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.9);
+    overflow-wrap: anywhere;
+}
+
+.pp-bio .description-content p { margin: 0 0 6px; }
+.pp-bio .description-content a { color: #fff; text-decoration: underline; }
+
+.pp .pp-more {
+    margin-top: 2px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.pp-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.pp-stats:empty { display: none; }
+
+.pp .pp-stats a { color: inherit; }
+
+.pp-stats strong {
+    font-family: var(--pp-display);
+    font-size: 16px;
+    font-weight: 800;
+    color: #fff;
+}
+
+.pp-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.pp .pp-meta > * {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.pp-meta svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Live banner */
+.pp .pp-live {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(255, 59, 92, 0.18);
+    border: 1px solid rgba(255, 59, 92, 0.5);
+    color: #fff;
+    font-size: 14px;
+}
+
+.pp-live span:not(.pp-live__dot) { flex: 1; }
+.pp-live strong { margin-right: 6px; }
+
+.pp-live svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.25;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.pp-live__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--pp-hot);
+    animation: pp-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pp-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 59, 92, 0.6); }
+    50% { box-shadow: 0 0 0 6px rgba(255, 59, 92, 0); }
+}
+
+/* Follow / Subscribe */
+.pp-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.pp .pp-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 52px;
+    padding: 0 18px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-family: var(--pp-text);
+    font-size: 16px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: transform 0.1s ease, background 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.pp .pp-btn:active { transform: scale(0.97); }
+
+.pp .pp-btn--glass {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    backdrop-filter: blur(14px) saturate(160%);
+    color: #fff;
+}
+
+.pp .pp-btn--solid {
+    background: #fff;
+    color: #0b0b0e;
+    box-shadow: 0 8px 24px -10px rgba(255, 255, 255, 0.6);
+}
+
+.pp .pp-btn--solid.is-done {
+    background: rgba(34, 224, 160, 0.16);
+    border-color: rgba(34, 224, 160, 0.5);
+    color: #fff;
+    box-shadow: none;
+    cursor: default;
+}
+
+.pp-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.pp .pp-btn--brand {
+    height: 44px;
+    background: var(--pp-brand);
+    color: #fff;
+    font-size: 15px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .pp .pp-btn--glass:hover { background: rgba(255, 255, 255, 0.2); color: #fff; }
+    .pp .pp-btn--solid:not(.is-done):hover { background: #ececf0; color: #0b0b0e; }
+}
+
+/* Message pill with a gradient edge */
+.pp-compose {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 54px;
+    padding: 0 6px 0 20px;
+    border-radius: 999px;
+    background:
+        linear-gradient(rgba(12, 12, 16, 0.72), rgba(12, 12, 16, 0.72)) padding-box,
+        linear-gradient(90deg, #cb0c9f, #7b5cff, #38bdf8, #ffc53d) border-box;
+    border: 1.5px solid transparent;
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+}
+
+/* app.css forces inputs white with !important; pinned back here. */
+.pp .pp-compose__input,
+.pp .pp-compose__input:focus {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: #fff !important;
+    font: 500 16px/1 var(--pp-text) !important;
+    box-shadow: none !important;
+    outline: none;
+}
+
+.pp .pp-compose__input::placeholder { color: rgba(255, 255, 255, 0.7); opacity: 1; }
+
+.pp .pp-compose__send {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: #fff;
+    color: #0b0b0e;
+    cursor: pointer;
+}
+
+.pp-compose__send svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+}
+
+.pp-hint {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.pp-hint a { color: #fff; text-decoration: underline; }
+
+/* --- Membership card --------------------------------------------------------- */
+.pp-card {
+    margin: 18px 16px 4px;
+    padding: 18px;
+    border-radius: 20px;
+    background:
+        radial-gradient(120% 120% at 100% 0%, rgba(203, 12, 159, 0.16), transparent 55%),
+        var(--pp-surface);
+    border: 1px solid var(--pp-line);
+}
+
+.pp-card__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.pp-eyebrow {
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--pp-brand);
+}
+
+.pp .pp-card__title {
+    margin-top: 4px;
+    font-family: var(--pp-display);
+    font-size: 19px;
+    font-weight: 800;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    color: var(--pp-ink);
+}
+
+.pp-price {
+    flex-shrink: 0;
+    font-size: 13px;
+    color: var(--pp-muted);
+}
+
+.pp-price strong {
+    font-family: var(--pp-display);
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--pp-money);
+}
+
+.pp--light .pp-price strong { color: #9a6200; }
+
+.pp-perks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 13.5px;
+    color: var(--pp-body);
+}
+
+.pp-perks li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pp-perks li::before {
+    content: '';
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--pp-win) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 12.5 4 4 8-9' fill='none' stroke='%2309090b' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 10px no-repeat;
+}
+
+.pp-offer {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 197, 61, 0.1);
+    border: 1px solid rgba(255, 197, 61, 0.35);
+    font-size: 13px;
+    color: var(--pp-body);
+}
+
+.pp-offer strong {
+    display: block;
+    color: var(--pp-ink);
+}
+
+/* The checkout buttons are the original Bootstrap ones; restyled, not replaced. */
+.pp .subscription-holder .btn {
+    height: 52px;
+    margin: 14px 0 0 !important;
+    padding: 0 20px !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: var(--pp-brand) !important;
+    color: #fff !important;
+    font-weight: 700;
+    align-items: center;
+    box-shadow: 0 8px 24px -10px rgba(203, 12, 159, 0.8);
+}
+
+.pp .subscription-holder .subscription-bundles .btn {
+    background: var(--pp-surface-2) !important;
+    color: var(--pp-ink) !important;
+    border: 1px solid var(--pp-line) !important;
+    box-shadow: none;
+    margin-top: 8px !important;
+}
+
+.pp-card__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--pp-muted);
+}
+
+.pp .pp-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--pp-ink);
+    cursor: pointer;
+}
+
+/* --- Tabs --------------------------------------------------------------------- */
+.pp-tabs {
+    position: relative;
+    z-index: 5;
+    display: flex;
+    margin-top: 14px;
+    border-bottom: 1px solid var(--pp-line);
+    background: var(--pp-bg);
+}
+
+@supports (overflow-x: clip) and selector(:has(*)) {
+    .flex-fill:has(.pp) { overflow-x: clip; }
+
+    @media (max-width: 768px) {
+        .pp-tabs {
+            position: sticky;
+            top: var(--pp-top, 56px);
+        }
+    }
+}
+
+.pp .pp-tab {
+    position: relative;
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 52px;
+    font-family: var(--pp-display);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--pp-muted);
+}
+
+.pp .pp-tab.is-active { color: var(--pp-ink); }
+
+.pp-tab.is-active::after {
+    content: '';
+    position: absolute;
+    left: 16%;
+    right: 16%;
+    bottom: -1px;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: var(--pp-ink);
+}
+
+.pp-tab__count {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--pp-surface-2);
+    font-family: var(--pp-text);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 20px;
+    text-align: center;
+    color: var(--pp-muted);
+}
+
+.pp-panel { padding: 12px 12px 48px; }
+
+/* --- Video grid ---------------------------------------------------------------- */
+.pp-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+}
+
+.pp .pp-tile {
+    position: relative;
+    display: block;
+    aspect-ratio: 9 / 16;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--pp-surface-2);
+    color: #fff;
+}
+
+.pp-tile img,
+.pp-tile video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.pp-tile__scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 60%, rgba(0, 0, 0, 0.65));
+}
+
+.pp-tile__views {
+    position: absolute;
+    left: 8px;
+    bottom: 7px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12.5px;
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.pp-tile__views svg {
+    width: 12px;
+    height: 12px;
+    fill: currentColor;
+}
+
+.pp-tile__tag {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.pp-tile__tag svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.25;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.pp-tile__tag--text {
+    width: auto;
+    padding: 0 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .pp .pp-tile:hover img,
+    .pp .pp-tile:hover video { transform: scale(1.04); }
+}
+
+.pp-shop { gap: 10px; }
+
+/* --- Empty tab ---------------------------------------------------------------- */
+.pp-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 4px;
+    padding: 40px 22px;
+    border-radius: 20px;
+    border: 1px dashed var(--pp-line-2);
+    text-align: center;
+}
+
+.pp-empty__icon {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    margin-bottom: 4px;
+    border-radius: 50%;
+    background: var(--pp-surface-2);
+    color: var(--pp-ink);
+}
+
+.pp-empty__icon svg {
+    width: 26px;
+    height: 26px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.pp .pp-empty h3 {
+    font-family: var(--pp-display);
+    font-size: 19px;
+    font-weight: 800;
+    color: var(--pp-ink);
+}
+
+.pp-empty p {
+    max-width: 320px;
+    margin-bottom: 8px !important;
+    font-size: 14px;
+    color: var(--pp-muted);
+}
+
+/* --- Wider screens -------------------------------------------------------------- */
+@media (min-width: 769px) {
+    .pp-hero {
+        min-height: 540px;
+        margin: 16px 0 0 16px;
+        border-radius: 24px;
+    }
+
+    .pp-hero__body {
+        padding: 120px 28px 28px;
+    }
+
+    .pp-actions,
+    .pp-compose {
+        max-width: 520px;
+    }
+
+    .pp-card { margin: 18px 0 4px 16px; }
+    .pp-tabs { margin-left: 16px; }
+    .pp-panel { padding: 14px 0 60px 16px; }
+    .pp-grid { gap: 8px; }
+    .pp-empty { margin: 12px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pp-live__dot { animation: none; }
+    .pp-tile img,
+    .pp-tile video { transition: none; }
+}
+
+/* --- Overrides for the old profile.css and Bootstrap ------------------------------
+   The page still sits in a Bootstrap .row (for the desktop widgets column); its
+   negative gutters pushed the hero text to the screen edge. */
+.row.pp {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* profile.css paints every .manage-follow-button solid magenta with !important. */
+.pp .pp-actions .manage-follow-button.pp-btn--glass {
+    height: 52px;
+    padding: 0 18px !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #fff !important;
+    font-size: 16px;
+    box-shadow: none !important;
+}
