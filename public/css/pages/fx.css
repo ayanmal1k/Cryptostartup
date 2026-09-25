@@ -1,0 +1,1697 @@
+/* =============================================================================
+   FX — the money pages: wallet, coin, coin market.
+   =============================================================================
+
+   Direction from the client: "fresh, sleek and futuristic, like the best bank and
+   wallet designs". So: a deep near-black ground with one soft aurora, glass panels,
+   a mesh-gradient balance card as the single loud surface, big quiet numbers set in
+   Space Grotesk, round action buttons, charts you can scrub with a finger.
+
+   Colour roles: mint = up, coral = down, magenta = the one brand action, gold only
+   for money figures that need to stand out. Everything is scoped under `.fx`.
+
+   Only transform and opacity animate; hover effects are gated behind
+   (hover: hover); reduced motion turns every flourish off.
+   ========================================================================== */
+
+.fx {
+    --fx-bg: #06070b;
+    --fx-panel: rgba(255, 255, 255, 0.035);
+    --fx-panel-2: rgba(255, 255, 255, 0.06);
+    --fx-panel-solid: #0e1016;
+    --fx-stroke: rgba(255, 255, 255, 0.075);
+    --fx-stroke-2: rgba(255, 255, 255, 0.14);
+    --fx-ink: #f4f6fb;
+    --fx-dim: #a3a9b9;
+    --fx-faint: #6b7184;
+    --fx-up: #34f5a8;
+    --fx-up-bg: rgba(52, 245, 168, 0.12);
+    --fx-down: #ff5f7e;
+    --fx-down-bg: rgba(255, 95, 126, 0.12);
+    --fx-brand: #cb0c9f;
+    --fx-violet: #7c5cff;
+    --fx-cyan: #28d7ff;
+    --fx-gold: #ffc53d;
+    --fx-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.8);
+    --fx-num: 'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --fx-text: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --fx-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --fx-r: 24px;
+
+    position: relative;
+    isolation: isolate;
+    min-height: calc(100vh - 56px);
+    padding: 14px 16px 120px;
+    box-sizing: border-box;
+    overflow-x: clip;
+    background: var(--fx-bg);
+    color: var(--fx-ink);
+    font-family: var(--fx-text);
+    font-size: 15px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* One soft aurora behind the top of the page. */
+.fx::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    height: 560px;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(60% 55% at 12% 0%, rgba(124, 92, 255, 0.22), transparent 70%),
+        radial-gradient(50% 45% at 95% 5%, rgba(203, 12, 159, 0.16), transparent 70%),
+        radial-gradient(40% 40% at 55% 30%, rgba(40, 215, 255, 0.06), transparent 70%);
+}
+
+.fx--light {
+    --fx-bg: #f3f4f8;
+    --fx-panel: rgba(255, 255, 255, 0.75);
+    --fx-panel-2: #ffffff;
+    --fx-panel-solid: #ffffff;
+    --fx-stroke: rgba(12, 14, 22, 0.07);
+    --fx-stroke-2: rgba(12, 14, 22, 0.14);
+    --fx-ink: #0c0e16;
+    --fx-dim: #4b5163;
+    --fx-faint: #8a90a0;
+    --fx-up: #07a36a;
+    --fx-up-bg: rgba(7, 163, 106, 0.1);
+    --fx-down: #e0284f;
+    --fx-down-bg: rgba(224, 40, 79, 0.08);
+    --fx-gold: #a86b00;
+    --fx-shadow: 0 30px 60px -34px rgba(20, 24, 40, 0.35);
+}
+
+.fx--light::before { opacity: 0.55; }
+
+.fx *,
+.fx *::before,
+.fx *::after { box-sizing: border-box; }
+
+.fx h1, .fx h2, .fx h3, .fx p { margin: 0; }
+.fx a { color: inherit; text-decoration: none; }
+.fx svg { flex-shrink: 0; }
+.fx button { font: inherit; }
+
+.fx-wrap {
+    max-width: 560px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* --- Type helpers -------------------------------------------------------------- */
+.fx-num {
+    font-family: var(--fx-num);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+}
+
+.fx-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--fx-dim);
+}
+
+.fx-up { color: var(--fx-up); }
+.fx-down { color: var(--fx-down); }
+.fx-flat { color: var(--fx-dim); }
+
+.fx-sr {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+/* --- Panels --------------------------------------------------------------------- */
+.fx-panel {
+    position: relative;
+    border-radius: var(--fx-r);
+    background: var(--fx-panel);
+    border: 1px solid var(--fx-stroke);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    backdrop-filter: blur(24px) saturate(140%);
+}
+
+.fx-panel--pad { padding: 18px; }
+
+.fx-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.fx-head__title {
+    font-family: var(--fx-num);
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--fx-ink);
+}
+
+.fx-head__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fx-dim);
+    cursor: pointer;
+}
+
+.fx-head__link svg { width: 14px; height: 14px; }
+
+@media (hover: hover) and (pointer: fine) {
+    .fx .fx-head__link:hover { color: var(--fx-ink); }
+}
+
+/* --- Pills and chips ---------------------------------------------------------------- */
+.fx-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-family: var(--fx-num);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    background: var(--fx-panel-2);
+    color: var(--fx-dim);
+}
+
+.fx-pill svg { width: 12px; height: 12px; }
+.fx-pill--up { background: var(--fx-up-bg); color: var(--fx-up); }
+.fx-pill--down { background: var(--fx-down-bg); color: var(--fx-down); }
+
+.fx-chips {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.fx-chips::-webkit-scrollbar { display: none; }
+
+.fx .fx-chip {
+    flex-shrink: 0;
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid var(--fx-stroke);
+    background: transparent;
+    color: var(--fx-dim);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s var(--fx-ease), color 0.2s var(--fx-ease), border-color 0.2s var(--fx-ease);
+}
+
+.fx .fx-chip.is-on {
+    background: var(--fx-ink);
+    border-color: var(--fx-ink);
+    color: var(--fx-bg);
+}
+
+/* --- Top bar ------------------------------------------------------------------------ */
+.fx-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.fx-top__avatar {
+    position: relative;
+    flex-shrink: 0;
+    line-height: 0;
+}
+
+.fx-top__avatar img {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.fx-top__avatar:not(.has-frame) img { box-shadow: 0 0 0 2px var(--fx-stroke-2); }
+
+.fx-top__hello {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.fx-top__hello small {
+    font-size: 12.5px;
+    color: var(--fx-dim);
+}
+
+.fx-top__hello strong {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--fx-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fx .fx-icon-btn {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--fx-stroke);
+    background: var(--fx-panel);
+    color: var(--fx-ink);
+    cursor: pointer;
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+}
+
+.fx-icon-btn svg { width: 19px; height: 19px; }
+
+/* Level chip in the top bar: tier-coloured ring around the number. */
+.fx .fx-lvl {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 42px;
+    padding: 0 14px 0 5px;
+    border-radius: 999px;
+    border: 1px solid var(--fx-stroke);
+    background: var(--fx-panel);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+}
+
+.fx-lvl__ring {
+    --p: 0;
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: conic-gradient(var(--tier-a) calc(var(--p) * 1%), var(--fx-stroke-2) 0);
+}
+
+.fx-lvl__ring::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    background: var(--fx-panel-solid);
+}
+
+.fx-lvl__ring b {
+    position: relative;
+    font-family: var(--fx-num);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--fx-ink);
+}
+
+.fx-lvl__name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fx-ink);
+}
+
+/* --- Tier palettes (used by the chip and the tier card) ------------------------------ */
+.tier-bronze   { --tier-a: #f0a868; --tier-b: #8a4b1f; --tier-glow: rgba(240, 168, 104, 0.35); }
+.tier-silver   { --tier-a: #e6ecf5; --tier-b: #7b8698; --tier-glow: rgba(210, 222, 240, 0.3); }
+.tier-gold     { --tier-a: #ffd76a; --tier-b: #b07606; --tier-glow: rgba(255, 205, 80, 0.35); }
+.tier-platinum { --tier-a: #b8f4ff; --tier-b: #7c5cff; --tier-glow: rgba(140, 220, 255, 0.35); }
+.tier-obsidian { --tier-a: #e2a8ff; --tier-b: #1a0f2e; --tier-glow: rgba(190, 120, 255, 0.4); }
+
+/* --- Balance card: the one loud surface ---------------------------------------------- */
+.fx-card {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    padding: 22px 22px 18px;
+    border-radius: 28px;
+    color: #fff;
+    background:
+        radial-gradient(120% 120% at 0% 0%, rgba(124, 92, 255, 0.95) 0%, transparent 52%),
+        radial-gradient(110% 110% at 100% 0%, rgba(203, 12, 159, 0.9) 0%, transparent 55%),
+        radial-gradient(120% 130% at 100% 100%, rgba(40, 215, 255, 0.75) 0%, transparent 50%),
+        radial-gradient(90% 90% at 0% 100%, rgba(52, 245, 168, 0.35) 0%, transparent 55%),
+        #120c2a;
+    box-shadow: var(--fx-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* Fine grain and a glass sheen keep the gradient from looking flat. */
+.fx-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    opacity: 0.18;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.fx-card::after {
+    content: '';
+    position: absolute;
+    top: -40%;
+    left: -30%;
+    width: 60%;
+    height: 180%;
+    z-index: -1;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+    transform: rotate(18deg) translateX(-120%);
+    animation: fx-sheen 7s var(--fx-ease) 0.8s infinite;
+}
+
+@keyframes fx-sheen {
+    0% { transform: rotate(18deg) translateX(-120%); }
+    30%, 100% { transform: rotate(18deg) translateX(360%); }
+}
+
+.fx-card__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.fx-card__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.fx .fx-card__eye {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    cursor: pointer;
+}
+
+.fx-card__eye svg { width: 16px; height: 16px; }
+
+.fx-card__brand {
+    font-family: var(--fx-num);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.24em;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.fx-card__value {
+    margin-top: 18px;
+    font-family: var(--fx-num);
+    font-size: clamp(44px, 13vw, 60px);
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 4px 30px rgba(20, 0, 60, 0.35);
+}
+
+.fx-card__value .fx-cents {
+    font-size: 0.5em;
+    letter-spacing: -0.02em;
+    opacity: 0.7;
+}
+
+.fx-card__move {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    font-size: 13.5px;
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.fx-card__move .fx-pill {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+}
+
+.fx-card__split {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 22px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.fx-card__split > div + div {
+    padding-left: 12px;
+    border-left: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.fx-card__split small {
+    display: block;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.fx-card__split b {
+    display: block;
+    margin-top: 2px;
+    font-family: var(--fx-num);
+    font-size: 16px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
+
+.is-hidden-money [data-fx-money] {
+    filter: blur(9px);
+    user-select: none;
+}
+
+/* --- Action row -------------------------------------------------------------------- */
+.fx-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.fx .fx-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--fx-ink);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.fx-action__icon {
+    display: grid;
+    place-items: center;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    border: 1px solid var(--fx-stroke);
+    background: var(--fx-panel);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    transition: transform 0.2s var(--fx-ease), background 0.2s var(--fx-ease);
+}
+
+.fx-action__icon svg { width: 22px; height: 22px; }
+
+.fx-action--primary .fx-action__icon {
+    border-color: transparent;
+    background: var(--fx-ink);
+    color: var(--fx-bg);
+    box-shadow: 0 10px 30px -10px rgba(255, 255, 255, 0.45);
+}
+
+.fx--light .fx-action--primary .fx-action__icon { box-shadow: 0 10px 24px -12px rgba(12, 14, 22, 0.6); }
+
+.fx .fx-action:active .fx-action__icon { transform: scale(0.92); }
+
+@media (hover: hover) and (pointer: fine) {
+    .fx .fx-action:not(.fx-action--primary):hover .fx-action__icon { background: var(--fx-panel-2); }
+}
+
+/* --- Chart ------------------------------------------------------------------------- */
+.fx-chart__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+}
+
+.fx-chart__value {
+    margin-top: 2px;
+    font-family: var(--fx-num);
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+.fx-chart__delta {
+    margin-top: 2px;
+    font-family: var(--fx-num);
+    font-size: 13.5px;
+    font-weight: 600;
+}
+
+.fx-chart__box {
+    position: relative;
+    height: 180px;
+    margin: 6px -6px 0;
+    touch-action: pan-y;
+    cursor: crosshair;
+}
+
+.fx-chart__box svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.fx-chart__line {
+    fill: none;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.fx-chart__cursor {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.fx-chart__box.is-scrubbing .fx-chart__cursor { opacity: 1; }
+
+.fx-chart__tip {
+    position: absolute;
+    top: 0;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: var(--fx-ink);
+    color: var(--fx-bg);
+    font-family: var(--fx-num);
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    pointer-events: none;
+    transform: translate(-50%, -110%);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.fx-chart__tip small {
+    display: block;
+    font-family: var(--fx-text);
+    font-size: 11px;
+    font-weight: 500;
+    opacity: 0.65;
+}
+
+.fx-chart__box.is-scrubbing .fx-chart__tip { opacity: 1; }
+
+.fx-chart__empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--fx-dim);
+}
+
+.fx-chart__empty b { color: var(--fx-ink); font-weight: 600; }
+
+/* Live dot at the end of the line */
+.fx-chart__pulse {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: fx-pulse 2.2s ease-out infinite;
+}
+
+@keyframes fx-pulse {
+    0% { transform: scale(1); opacity: 0.55; }
+    100% { transform: scale(3.2); opacity: 0; }
+}
+
+/* Segmented timeframe control with a sliding thumb */
+.fx-seg {
+    position: relative;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    padding: 3px;
+    margin-top: 12px;
+    border-radius: 999px;
+    background: var(--fx-panel-2);
+}
+
+.fx-seg__thumb {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    left: 3px;
+    border-radius: 999px;
+    background: var(--fx-ink);
+    transition: transform 0.3s var(--fx-ease), width 0.3s var(--fx-ease);
+}
+
+.fx .fx-seg button {
+    position: relative;
+    z-index: 1;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--fx-dim);
+    font-family: var(--fx-num);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.2s var(--fx-ease);
+}
+
+.fx .fx-seg button.is-on { color: var(--fx-bg); }
+
+/* --- Tier (level) card --------------------------------------------------------------- */
+.fx-tier {
+    position: relative;
+    overflow: hidden;
+    padding: 20px;
+    border-radius: var(--fx-r);
+    border: 1px solid var(--fx-stroke);
+    background:
+        radial-gradient(45% 55% at 100% 0%, var(--tier-glow), transparent 75%),
+        var(--fx-panel);
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+}
+
+/* A tier-coloured hairline along the top edge, like the rim of a metal card. */
+.fx-tier::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 24px;
+    right: 24px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--tier-a), transparent);
+    opacity: 0.9;
+}
+
+/* Tier glows are softer than the swatches themselves. */
+.fx-tier.tier-bronze   { --tier-glow: rgba(240, 168, 104, 0.1); }
+.fx-tier.tier-silver   { --tier-glow: rgba(210, 222, 240, 0.14); }
+.fx-tier.tier-gold     { --tier-glow: rgba(255, 205, 80, 0.16); }
+.fx-tier.tier-platinum { --tier-glow: rgba(140, 220, 255, 0.16); }
+.fx-tier.tier-obsidian { --tier-glow: rgba(190, 120, 255, 0.2); }
+
+.fx-tier__main {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.fx-ring {
+    position: relative;
+    flex-shrink: 0;
+    width: 96px;
+    height: 96px;
+}
+
+.fx-ring svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.fx-ring__track { fill: none; stroke: var(--fx-stroke-2); stroke-width: 8; }
+
+.fx-ring__bar {
+    fill: none;
+    stroke: url(#fxTierGrad);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1.2s var(--fx-ease);
+}
+
+.fx-ring__center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.fx-ring__center small {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fx-dim);
+}
+
+.fx-ring__center b {
+    margin-top: 3px;
+    font-family: var(--fx-num);
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--fx-ink);
+}
+
+.fx-tier__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 10px 0 4px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--tier-a), var(--tier-b));
+    color: #0b0b10;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.tier-obsidian .fx-tier__badge { color: #fff; }
+
+.fx-tier__badge i {
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.55);
+    font-style: normal;
+    font-size: 10px;
+}
+
+.fx-tier__title {
+    margin-top: 8px;
+    font-family: var(--fx-num);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--fx-ink);
+}
+
+.fx-tier__sub {
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--fx-dim);
+}
+
+.fx-tier__sub b { color: var(--fx-ink); font-weight: 600; }
+
+.fx-tier__stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.fx-stat {
+    padding: 12px;
+    border-radius: 16px;
+    background: var(--fx-panel-2);
+}
+
+.fx-stat small {
+    display: block;
+    font-size: 11.5px;
+    color: var(--fx-dim);
+}
+
+.fx-stat b {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 3px;
+    font-family: var(--fx-num);
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--fx-ink);
+}
+
+.fx-stat b span { font-size: 15px; }
+
+/* 7-day XP bars */
+.fx-week {
+    margin-top: 18px;
+}
+
+.fx-week__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+}
+
+.fx-week__bars {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+    height: 84px;
+    align-items: end;
+}
+
+.fx-week__bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    height: 100%;
+    justify-content: flex-end;
+}
+
+.fx-week__fill {
+    width: 12px;
+    min-height: 4px;
+    border-radius: 999px;
+    background: var(--fx-stroke-2);
+    transform-origin: bottom;
+    animation: fx-grow 0.8s var(--fx-ease) both;
+}
+
+.fx-week__bar.is-today .fx-week__fill {
+    background: linear-gradient(180deg, var(--tier-a), var(--tier-b));
+    box-shadow: 0 0 20px -2px var(--tier-glow);
+}
+
+.fx-week__bar.has-xp:not(.is-today) .fx-week__fill {
+    background: linear-gradient(180deg, var(--tier-a), var(--tier-b));
+    opacity: 0.4;
+}
+
+.fx-week__bar small {
+    font-size: 11px;
+    color: var(--fx-faint);
+}
+
+.fx-week__bar.is-today small { color: var(--fx-ink); font-weight: 600; }
+
+@keyframes fx-grow {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+}
+
+/* Fastest XP still open today */
+.fx-boosts {
+    margin-top: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.fx-boost {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid var(--fx-stroke);
+}
+
+.fx-boost__dot {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    background: var(--fx-panel-2);
+    color: var(--tier-a);
+}
+
+.fx-boost__dot svg { width: 17px; height: 17px; }
+
+.fx-boost__text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fx-ink);
+}
+
+.fx-boost__text small {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--fx-dim);
+}
+
+.fx-boost__xp {
+    font-family: var(--fx-num);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--fx-up);
+}
+
+/* --- Asset rows -------------------------------------------------------------------- */
+.fx-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.fx .fx-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 4px;
+    border-radius: 16px;
+    transition: background 0.2s var(--fx-ease);
+}
+
+.fx-row + .fx-row { border-top: 1px solid var(--fx-stroke); }
+
+@media (hover: hover) and (pointer: fine) {
+    .fx a.fx-row:hover { background: var(--fx-panel-2); }
+}
+
+.fx a.fx-row:active { background: var(--fx-panel-2); }
+
+.fx-coin {
+    position: relative;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: conic-gradient(from 200deg, var(--fx-violet), var(--fx-brand), var(--fx-cyan), var(--fx-violet));
+    color: #fff;
+    font-family: var(--fx-num);
+    font-size: 17px;
+    font-weight: 700;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.fx-coin img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.fx-coin--creator { background: conic-gradient(from 200deg, #ffb86b, #ff5fa2, #7c5cff, #ffb86b); }
+.fx-coin--lg { width: 64px; height: 64px; font-size: 26px; }
+
+.fx-row__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.fx-row__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--fx-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fx-row__sub {
+    font-size: 12.5px;
+    color: var(--fx-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fx-row__spark {
+    width: 64px;
+    height: 28px;
+    flex-shrink: 0;
+}
+
+.fx-row__spark svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+.fx-row__end {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    flex-shrink: 0;
+}
+
+.fx-row__value {
+    font-family: var(--fx-num);
+    font-size: 15.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+    color: var(--fx-ink);
+}
+
+.fx-row__value.fx-up { color: var(--fx-up); }
+
+.fx-row__meta {
+    font-family: var(--fx-num);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.fx-ico {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--fx-panel-2);
+    color: var(--fx-dim);
+}
+
+.fx-ico svg { width: 18px; height: 18px; }
+.fx-ico--in { background: var(--fx-up-bg); color: var(--fx-up); }
+.fx-ico--nft { background: rgba(124, 92, 255, 0.14); color: #a99bff; }
+
+.fx-day {
+    padding: 14px 4px 4px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--fx-faint);
+}
+
+.fx-day:first-child { padding-top: 0; }
+
+/* --- NFT rail ---------------------------------------------------------------------- */
+.fx-rail {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 150px;
+    gap: 12px;
+    margin: 0 -18px;
+    padding: 0 18px 4px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding: 0 18px;
+    scrollbar-width: none;
+}
+
+.fx-rail::-webkit-scrollbar { display: none; }
+
+.fx .fx-nft {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    scroll-snap-align: start;
+}
+
+.fx-nft__media {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 18px;
+    overflow: hidden;
+    background: conic-gradient(from 120deg, rgba(124, 92, 255, 0.45), rgba(203, 12, 159, 0.35), rgba(40, 215, 255, 0.35), rgba(124, 92, 255, 0.45));
+}
+
+.fx-nft__media img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.fx-nft__tag {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.55);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    font-family: var(--fx-num);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.fx-nft__name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--fx-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* --- Empty state ------------------------------------------------------------------------ */
+.fx-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 26px 16px;
+    text-align: center;
+}
+
+.fx-empty__icon {
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    margin-bottom: 6px;
+    border-radius: 18px;
+    background: var(--fx-panel-2);
+    color: var(--fx-ink);
+}
+
+.fx-empty__icon svg { width: 24px; height: 24px; }
+
+.fx-empty h3 {
+    font-family: var(--fx-num);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--fx-ink);
+}
+
+.fx-empty p {
+    max-width: 300px;
+    font-size: 13.5px;
+    color: var(--fx-dim);
+}
+
+/* --- Buttons ------------------------------------------------------------------------ */
+.fx .fx-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 52px;
+    padding: 0 22px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-size: 15.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: transform 0.15s var(--fx-ease), background 0.2s var(--fx-ease), opacity 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.fx .fx-btn:active { transform: scale(0.97); }
+.fx .fx-btn:disabled { opacity: 0.5; cursor: default; }
+.fx .fx-btn svg { width: 18px; height: 18px; }
+.fx .fx-btn--block { width: 100%; }
+.fx .fx-btn--sm { height: 40px; padding: 0 16px; font-size: 14px; }
+
+.fx .fx-btn--primary { background: var(--fx-ink); color: var(--fx-bg); }
+.fx .fx-btn--brand { background: var(--fx-brand); color: #fff; box-shadow: 0 12px 30px -12px rgba(203, 12, 159, 0.8); }
+.fx .fx-btn--ghost { background: var(--fx-panel-2); border-color: var(--fx-stroke); color: var(--fx-ink); }
+
+@media (hover: hover) and (pointer: fine) {
+    .fx .fx-btn--primary:hover { opacity: 0.9; color: var(--fx-bg); }
+    .fx .fx-btn--brand:hover { color: #fff; filter: brightness(1.06); }
+    .fx .fx-btn--ghost:hover { background: var(--fx-stroke-2); color: var(--fx-ink); }
+}
+
+.fx-btn:focus-visible,
+.fx-chip:focus-visible,
+.fx-action:focus-visible,
+.fx-seg button:focus-visible,
+.fx-row:focus-visible,
+.fx-icon-btn:focus-visible {
+    outline: 2px solid var(--fx-cyan);
+    outline-offset: 3px;
+}
+
+/* --- Flash --------------------------------------------------------------------------- */
+.fx-flash {
+    padding: 12px 16px;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid var(--fx-stroke);
+    background: var(--fx-panel);
+}
+
+.fx-flash--success { color: var(--fx-up); border-color: rgba(52, 245, 168, 0.3); }
+.fx-flash--error { color: var(--fx-down); border-color: rgba(255, 95, 126, 0.35); }
+
+/* --- Bottom sheet (Send) ---------------------------------------------------------------- */
+.fx-sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 1600;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s var(--fx-ease), visibility 0.3s;
+}
+
+.fx-sheet.is-open { opacity: 1; visibility: visible; }
+
+.fx-sheet__panel {
+    width: 100%;
+    max-width: 520px;
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 10px 20px calc(24px + env(safe-area-inset-bottom));
+    border-radius: 28px 28px 0 0;
+    background: var(--fx-panel-solid);
+    border: 1px solid var(--fx-stroke);
+    border-bottom: 0;
+    transform: translateY(100%);
+    transition: transform 0.4s var(--fx-ease);
+}
+
+.fx-sheet.is-open .fx-sheet__panel { transform: none; }
+
+.fx-sheet__grab {
+    width: 40px;
+    height: 4px;
+    margin: 0 auto 14px;
+    border-radius: 99px;
+    background: var(--fx-stroke-2);
+}
+
+.fx-sheet__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.fx-sheet__title {
+    font-family: var(--fx-num);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+@media (min-width: 769px) {
+    .fx-sheet { align-items: center; }
+    .fx-sheet__panel { border-radius: 28px; border-bottom: 1px solid var(--fx-stroke); }
+}
+
+/* --- Form fields --------------------------------------------------------------------------
+   app.css forces text inputs and selects white with !important and every <label> grey,
+   so fields here pin their own colours and labels are spans. */
+.fx-field { display: flex; flex-direction: column; gap: 8px; }
+
+.fx-field__label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fx-dim);
+}
+
+.fx .fx-input,
+.fx .fx-input:focus,
+.fx .fx-field select,
+.fx .fx-field select:focus {
+    width: 100%;
+    height: 54px;
+    padding: 0 18px !important;
+    border: 1px solid var(--fx-stroke-2) !important;
+    border-radius: 18px !important;
+    background: var(--fx-panel-2) !important;
+    color: var(--fx-ink) !important;
+    font: 500 16px/1 var(--fx-text) !important;
+    box-shadow: none !important;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.fx .fx-input:focus,
+.fx .fx-field select:focus { border-color: var(--fx-violet) !important; }
+.fx .fx-input::placeholder { color: var(--fx-faint); opacity: 1; }
+
+/* Amount: one huge centred number, the way banking apps do it. */
+.fx-amount {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 18px 0 8px;
+}
+
+.fx-amount span {
+    font-family: var(--fx-num);
+    font-size: 40px;
+    font-weight: 600;
+    color: var(--fx-dim);
+}
+
+.fx .fx-amount input,
+.fx .fx-amount input:focus {
+    width: 6ch;
+    max-width: 70%;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: var(--fx-ink) !important;
+    font: 600 52px/1.1 var(--fx-num) !important;
+    letter-spacing: -0.03em;
+    text-align: left;
+    box-shadow: none !important;
+    outline: none;
+    -moz-appearance: textfield;
+}
+
+.fx .fx-amount input::-webkit-outer-spin-button,
+.fx .fx-amount input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.fx-quick {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.fx .fx-quick button {
+    height: 40px;
+    border-radius: 999px;
+    border: 1px solid var(--fx-stroke);
+    background: var(--fx-panel-2);
+    color: var(--fx-ink);
+    font-family: var(--fx-num);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.fx .fx-quick button.is-on { border-color: var(--fx-ink); }
+
+.fx-note {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--fx-dim);
+}
+
+.fx-note strong { color: var(--fx-ink); font-family: var(--fx-num); }
+.fx-note--error { color: var(--fx-down); }
+
+/* --- Entrance --------------------------------------------------------------------------- */
+@keyframes fx-rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: none; }
+}
+
+.fx-in {
+    animation: fx-rise 0.7s var(--fx-ease) both;
+    animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+/* A number that just changed from a live update flashes once. */
+@keyframes fx-tick-up { 0% { color: var(--fx-up); } 100% { color: inherit; } }
+@keyframes fx-tick-down { 0% { color: var(--fx-down); } 100% { color: inherit; } }
+.fx-ticked-up { animation: fx-tick-up 1.4s ease-out; }
+.fx-ticked-down { animation: fx-tick-down 1.4s ease-out; }
+
+.fx-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fx-dim);
+}
+
+.fx-live::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--fx-up);
+    box-shadow: 0 0 0 3px var(--fx-up-bg);
+}
+
+/* =============================================================================
+   Layouts
+   ========================================================================== */
+
+/* Wallet: one column on phones, a two-column bento from tablet up. On phones the
+   columns dissolve so each section's `order` interleaves them (level card up top). */
+.fx-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+@media (max-width: 979px) {
+    .fx-grid > .fx-col { display: contents; }
+}
+
+@media (min-width: 980px) {
+    .fx { padding: 28px 28px 80px; }
+    .fx-wrap--wide { max-width: 1120px; }
+
+    .fx-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+        align-items: start;
+        gap: 20px;
+    }
+
+    .fx-col { display: flex; flex-direction: column; gap: 20px; }
+}
+
+/* Coin page: fixed Buy / Sell bar on phones. */
+.fx-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 900;
+    display: flex;
+    gap: 10px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, transparent, var(--fx-bg) 30%);
+}
+
+.fx-bar .fx-btn { flex: 1; }
+
+@media (min-width: 980px) {
+    .fx-bar {
+        position: static;
+        padding: 0;
+        background: none;
+    }
+}
+
+/* Coin market cards */
+.fx-trend {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: min(78%, 260px);
+    gap: 12px;
+    margin: 0 -16px;
+    padding: 0 16px 4px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding: 0 16px;
+    scrollbar-width: none;
+}
+
+.fx-trend::-webkit-scrollbar { display: none; }
+
+.fx .fx-tcard {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px;
+    scroll-snap-align: start;
+    border-radius: var(--fx-r);
+    background: var(--fx-panel);
+    border: 1px solid var(--fx-stroke);
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+}
+
+.fx-tcard__top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.fx-tcard__spark { height: 56px; }
+.fx-tcard__spark svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+.fx-tcard__foot {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.fx-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 52px;
+    padding: 0 6px 0 18px;
+    border-radius: 999px;
+    border: 1px solid var(--fx-stroke);
+    background: var(--fx-panel);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+}
+
+.fx-search svg { width: 18px; height: 18px; color: var(--fx-faint); }
+
+.fx .fx-search input,
+.fx .fx-search input:focus {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: var(--fx-ink) !important;
+    font: 500 16px/1 var(--fx-text) !important;
+    box-shadow: none !important;
+    outline: none;
+}
+
+.fx .fx-search input::placeholder { color: var(--fx-faint); opacity: 1; }
+
+.fx-pages .pagination { justify-content: center; flex-wrap: wrap; gap: 6px; margin: 0; }
+
+.fx-pages .page-link {
+    min-width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px !important;
+    border: 1px solid var(--fx-stroke);
+    background: var(--fx-panel);
+    color: var(--fx-ink);
+}
+
+.fx-pages .page-item.active .page-link { background: var(--fx-ink); color: var(--fx-bg); border-color: var(--fx-ink); }
+
+/* Bento stats on the coin page */
+.fx-bento {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.fx-tile {
+    padding: 16px;
+    border-radius: 20px;
+    background: var(--fx-panel);
+    border: 1px solid var(--fx-stroke);
+}
+
+.fx-tile small {
+    display: block;
+    font-size: 12.5px;
+    color: var(--fx-dim);
+}
+
+.fx-tile b {
+    display: block;
+    margin-top: 6px;
+    font-family: var(--fx-num);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--fx-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fx-tile--wide { grid-column: 1 / -1; }
+
+.fx-meter {
+    height: 8px;
+    margin-top: 12px;
+    border-radius: 999px;
+    background: var(--fx-stroke-2);
+    overflow: hidden;
+}
+
+.fx-meter span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--fx-violet), var(--fx-brand), var(--fx-cyan));
+    transform-origin: left;
+    animation: fx-fill 1.1s var(--fx-ease) both;
+}
+
+@keyframes fx-fill {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+
+.fx-kv { display: flex; flex-direction: column; }
+
+.fx-kv__row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 0;
+    border-top: 1px solid var(--fx-stroke);
+    font-size: 14px;
+    color: var(--fx-dim);
+}
+
+.fx-kv__row:first-child { border-top: 0; padding-top: 0; }
+.fx-kv__row b { font-family: var(--fx-num); font-weight: 600; color: var(--fx-ink); }
+
+/* The outside-wallet disclosure keeps wallet.css inside; only its shell is restyled. */
+.fx .wallet-advanced {
+    border-radius: var(--fx-r);
+    border: 1px solid var(--fx-stroke);
+    background: var(--fx-panel);
+}
+
+.fx .wallet-advanced__summary span:first-child { font-weight: 600; color: var(--fx-dim); }
+
+.fx .wallet-advanced .wallet-field input {
+    background: var(--fx-panel-2) !important;
+    color: var(--fx-ink) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fx-in,
+    .fx-card::after,
+    .fx-chart__pulse,
+    .fx-week__fill,
+    .fx-meter span,
+    .fx-ticked-up,
+    .fx-ticked-down { animation: none; }
+
+    .fx-card::after { display: none; }
+    .fx-seg__thumb,
+    .fx-ring__bar,
+    .fx-sheet,
+    .fx-sheet__panel { transition: none; }
+}

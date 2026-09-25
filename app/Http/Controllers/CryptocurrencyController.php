@@ -510,10 +510,36 @@ public function show($id)
             ->where('price_per_token', '>', 0)
             ->avg('price_per_token') ?? $cryptocurrency->current_price,
         'holders' => CryptoWallet::where('cryptocurrency_id', $id)->where('balance', '>', 0)->count(),
+        // A real 24h figure: the volume_24h column is a lifetime running total.
+        'volume_24h' => (float) CryptoTransaction::where('cryptocurrency_id', $id)->where('status', 'completed')
+            ->where('created_at', '>=', now()->subDay())->sum('total_price'),
     ];
     
-    return view('cryptocurrency.show', compact('cryptocurrency', 'marketData', 'wallet'));
+    $series = \App\Services\WalletInsights::priceSeries($cryptocurrency);
+
+    return view('cryptocurrency.show', compact('cryptocurrency', 'marketData', 'wallet', 'series'));
 }
+
+    /**
+     * Live figures for an open coin page: polled so owners, today's trading and the
+     * viewer's position update without a reload. Dollars only, never units.
+     */
+    public function live($id)
+    {
+        $coin = Cryptocurrency::findOrFail($id);
+        $price = (float) $coin->current_price;
+        $units = (float) (CryptoWallet::where('user_id', Auth::id())->where('cryptocurrency_id', $id)->value('balance') ?? 0);
+
+        return response()->json([
+            'position' => TokenMoney::toUsd($units, $price),
+            'holders' => CryptoWallet::where('cryptocurrency_id', $id)->where('balance', '>', 0)->count(),
+            'volume' => (float) CryptoTransaction::where('cryptocurrency_id', $id)->where('status', 'completed')
+                ->where('created_at', '>=', now()->subDay())->sum('total_price'),
+            'trades' => CryptoTransaction::where('cryptocurrency_id', $id)->whereDate('created_at', today())->count(),
+            'available' => TokenMoney::toUsd((float) $coin->available_supply, $price),
+            'market_cap' => (float) $coin->market_cap,
+        ]);
+    }
 
     /**
      * Show the form for buying cryptocurrency.
