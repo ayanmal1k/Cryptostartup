@@ -501,38 +501,6 @@ class CustomRequestController extends Controller
         ]);
     }
 
-    /**
-     * Get user's custom requests
-     */
-    public function myRequests(Request $request)
-    {
-        // Ensure user is authenticated
-        if (!Auth::check()) {
-            return redirect()->route('login');
-        }
-        
-        $type = $request->get('type', 'all'); // 'created', 'received', 'all'
-        $userId = Auth::id();
-        
-        $query = CustomRequest::with(['creator', 'requester', 'contributions']);
-
-        // Always filter by logged-in user to prevent seeing other users' requests
-        if ($type === 'created') {
-            $query->where('requester_id', $userId);
-        } elseif ($type === 'received') {
-            $query->where('creator_id', $userId);
-        } else {
-            // Show all requests where user is either requester or creator
-            $query->where(function($q) use ($userId) {
-                $q->where('requester_id', $userId)
-                  ->orWhere('creator_id', $userId);
-            });
-        }
-
-        $requests = $query->orderBy('created_at', 'desc')->paginate(15);
-
-        return view('custom-requests.my-requests', compact('requests', 'type'));
-    }
 
     /**
      * Process upfront payment for custom request

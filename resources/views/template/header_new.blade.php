@@ -532,7 +532,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (searchInput) {
         searchInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
-                window.location.href = '{{ route("search.get") }}?q=' + encodeURIComponent(this.value);
+                window.location.href = '/' + encodeURIComponent(this.value.replace(/^@/, ''));
             }
         });
     }

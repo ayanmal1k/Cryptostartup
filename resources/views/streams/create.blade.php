@@ -1,191 +1,86 @@
 @extends('layouts.generic')
 
+@section('page_title', __('Go live'))
+
+@section('styles')
+    @include('streams.partials.head')
+@stop
+
 @section('content')
-<div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h2 class="mb-0">Start Livestream</h2>
-                </div>
-                <div class="card-body">
-                    @if ($errors->any())
-                        <div class="alert alert-danger">
-                            <ul class="mb-0">
-                                @foreach ($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
+<div class="dx">
+    @include('streams.partials.subnav', ['active' => null])
 
-                    <form method="POST" action="{{ route('streams.store') }}" enctype="multipart/form-data">
-                        @csrf
-                        
-                        <div class="mb-4">
-                            <label for="title" class="form-label">Stream Title *</label>
-                            <input type="text" class="form-control @error('title') is-invalid @enderror" id="title" name="title" value="{{ old('title') }}" required>
-                            <div class="form-text">Choose a catchy title for your livestream</div>
-                            @error('title')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control @error('description') is-invalid @enderror" id="description" name="description" rows="3">{{ old('description') }}</textarea>
-                            <div class="form-text">Tell viewers what your stream is about</div>
-                            @error('description')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label for="thumbnail" class="form-label">Stream Thumbnail</label>
-                            <input type="file" class="form-control @error('thumbnail') is-invalid @enderror" id="thumbnail" name="thumbnail" accept="image/*">
-                            <div class="form-text">Recommended size: 1280x720px (16:9 ratio)</div>
-                            @error('thumbnail')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        
-                        <div class="mb-4">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="requires_subscription" name="requires_subscription" {{ old('requires_subscription') ? 'checked' : '' }}>
-                                <label class="form-check-label" for="requires_subscription">Subscribers Only</label>
-                            </div>
-                            <div class="form-text">Only subscribers will be able to view your stream</div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="is_public" name="is_public" {{ old('is_public', '1') ? 'checked' : '' }}>
-                                <label class="form-check-label" for="is_public">Public Stream</label>
-                            </div>
-                            <div class="form-text">Your stream will appear in public listings</div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label for="price" class="form-label">Stream Price (optional)</label>
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="number" class="form-control @error('price') is-invalid @enderror" id="price" name="price" value="{{ old('price', '0') }}" min="0" step="0.01">
-                            </div>
-                            <div class="form-text">Set to 0 for free access</div>
-                            @error('price')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        
-                        <div class="mb-4">
-                            <div class="alert alert-info">
-                                <h5 class="alert-heading"><i class="fas fa-info-circle"></i> Streaming Guidelines</h5>
-                                <p class="mb-0">By starting a livestream, you agree to our community guidelines:</p>
-                                <ul class="mb-0">
-                                    <li>No illegal content or activities</li>
-                                    <li>Be respectful to all viewers</li>
-                                    <li>No hateful or discriminatory content</li>
-                                    <li>Streams may be monitored for compliance</li>
-                                </ul>
-                            </div>
-                        </div>
-                        
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg">Start Streaming</button>
-                            <a href="{{ route('streams.index') }}" class="btn btn-outline-secondary">Cancel</a>
-                        </div>
-                    </form>
+    <main class="dx-main">
+        <section>
+            <div class="dx-section__head">
+                <div>
+                    <h1 class="dx-section__title">{{ __('Set up your stream') }}</h1>
+                    <p class="dx-section__sub">{{ __('Next you\'ll land in your studio, where you check your camera and go live.') }}</p>
                 </div>
             </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">Streaming Tips</h5>
+
+            <form action="{{ route('streams.store') }}" method="POST" enctype="multipart/form-data" class="lv-form">
+                @csrf
+
+                @if($errors->any())
+                    <div class="lv-errors" role="alert">{{ $errors->first() }}</div>
+                @endif
+
+                <div class="lv-field">
+                    <span class="lv-field__label" id="lv-title-label">{{ __('Title') }}</span>
+                    <input type="text" name="title" class="lv-input" maxlength="120" required
+                           value="{{ old('title') }}" placeholder="{{ __('What\'s happening on stream?') }}"
+                           aria-labelledby="lv-title-label" autocomplete="off">
                 </div>
-                <div class="card-body">
-                    <ul class="list-unstyled">
-                        <li class="mb-3">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            Test your internet connection before going live
-                        </li>
-                        <li class="mb-3">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            Make sure you have good lighting
-                        </li>
-                        <li class="mb-3">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            Use a quality microphone for better audio
-                        </li>
-                        <li class="mb-3">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            Interact with your viewers regularly
-                        </li>
-                        <li>
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            Promote your stream on social media
-                        </li>
-                    </ul>
+
+                <div class="lv-field">
+                    <span class="lv-field__label" id="lv-desc-label">{{ __('Description') }} <span class="lv-field__hint">({{ __('optional') }})</span></span>
+                    <textarea name="description" class="lv-input" maxlength="1000"
+                              placeholder="{{ __('Tell people what to expect') }}" aria-labelledby="lv-desc-label">{{ old('description') }}</textarea>
                 </div>
-            </div>
-            
-            <div class="card shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">Recommended Software</h5>
+
+                <div class="lv-field">
+                    <span class="lv-field__label">{{ __('Cover') }} <span class="lv-field__hint">({{ __('optional') }})</span></span>
+                    <label class="lv-cover" data-lv-cover>
+                        <input type="file" name="thumbnail" accept="image/jpeg,image/png,image/webp" aria-label="{{ __('Choose a cover image') }}">
+                        <img alt="" hidden>
+                        <span class="lv-cover__empty">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                            {{ __('Add a cover image') }}
+                            <span class="lv-field__hint">{{ __('Shown in the Live list. Without one, your profile picture is used.') }}</span>
+                        </span>
+                    </label>
                 </div>
-                <div class="card-body">
-                    <div class="d-flex align-items-center mb-3">
-                        <img src="https://obsproject.com/assets/images/new_icon_small-r.png" alt="OBS Studio" class="me-2" width="32">
-                        <div>
-                            <h6 class="mb-0">OBS Studio</h6>
-                            <a href="https://obsproject.com/" target="_blank" class="small">Download</a>
-                        </div>
-                    </div>
-                    
-                    <div class="d-flex align-items-center mb-3">
-                        <img src="https://streamlabs.com/favicon.ico" alt="Streamlabs" class="me-2" width="32">
-                        <div>
-                            <h6 class="mb-0">Streamlabs</h6>
-                            <a href="https://streamlabs.com/" target="_blank" class="small">Download</a>
-                        </div>
-                    </div>
-                    
-                    <div class="d-flex align-items-center">
-                        <img src="https://cdn.xsplit.com/assets/images/favicons/favicon-32x32.png" alt="XSplit" class="me-2" width="32">
-                        <div>
-                            <h6 class="mb-0">XSplit</h6>
-                            <a href="https://www.xsplit.com/" target="_blank" class="small">Download</a>
-                        </div>
+
+                <div class="lv-field">
+                    <span class="lv-field__label">{{ __('Who can watch') }}</span>
+                    <div class="lv-choice" role="radiogroup">
+                        <label>
+                            <input type="radio" name="audience" value="everyone" {{ old('audience', 'everyone') === 'everyone' ? 'checked' : '' }}>
+                            <span class="lv-choice__opt">
+                                <strong>{{ __('Everyone') }}</strong>
+                                <span>{{ __('Anyone signed in') }}</span>
+                            </span>
+                        </label>
+                        <label>
+                            <input type="radio" name="audience" value="subscribers" {{ old('audience') === 'subscribers' ? 'checked' : '' }}>
+                            <span class="lv-choice__opt">
+                                <strong>{{ __('Subscribers') }}</strong>
+                                <span>{{ __('Only people subscribed to you') }}</span>
+                            </span>
+                        </label>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
+
+                @include('streams.partials.video-note')
+
+                <button type="submit" class="dx-btn dx-btn--primary dx-btn--block" style="height: 52px">
+                    {{ __('Continue to studio') }}
+                </button>
+            </form>
+        </section>
+    </main>
 </div>
-
-@push('styles')
-<style>
-    .form-label {
-        font-weight: 500;
-    }
-    
-    .card {
-        border: none;
-        border-radius: 10px;
-        overflow: hidden;
-    }
-    
-    .btn-primary {
-        background-color: #4A6CF7;
-        border-color: #4A6CF7;
-        font-weight: 500;
-    }
-    
-    .btn-primary:hover {
-        background-color: #3955cf;
-        border-color: #3955cf;
-    }
-</style>
-@endpush
-@endsection 
+<script src="{{ asset('js/pages/discover.js') }}?v=20260917b" defer></script>
+<script src="{{ asset('js/pages/live.js') }}?v=20260924a" defer></script>
+@stop

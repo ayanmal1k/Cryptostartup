@@ -32,14 +32,7 @@
                             <i class="fas fa-store me-2"></i>
                             Browse Requests
                         </a>
-
-                        @auth
-                            <a href="{{ route('custom-requests.my-requests') }}"
-                               class="btn btn-success btn-lg">
-                                <i class="fas fa-user-check me-2"></i>
-                                My Requests
-                            </a>
-                        @else
+                        @guest
                             <a href="{{ route('login') }}"
                                class="btn btn-primary btn-lg">
                                 <i class="fas fa-sign-in-alt me-2"></i>

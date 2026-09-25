@@ -1,227 +1,132 @@
 @extends('layouts.generic')
 
+@section('page_title', $stream->title)
+
+@section('styles')
+    @include('streams.partials.head')
+@stop
+
+@php
+    $u = $stream->user;
+    $isLive = (bool) $stream->is_live;
+    $poster = $stream->thumbnail ? asset('storage/' . $stream->thumbnail) : null;
+    // Only set once a video service is connected (see StreamController).
+    $hasVideo = $isLive && !$locked && !empty($stream->hls_url);
+@endphp
+
 @section('content')
-<div class="container">
-    <div class="row">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-body p-0">
-                    <div class="stream-container position-relative">
-                        <video 
-                            id="videoPlayer"
-                            class="w-100" 
-                            controls
-                            autoplay
-                            style="height: 500px; object-fit: cover; background: #000;">
-                        </video>
-                        <div class="stream-status position-absolute top-0 start-0 m-2">
-                            <span class="badge bg-success">LIVE</span>
-                            <span class="badge bg-secondary" id="viewerCount">0 viewers</span>
+<div class="dx">
+    @include('streams.partials.subnav', ['active' => null])
+
+    <main class="dx-main">
+        <div class="lv-stage">
+            <div>
+                <div class="lv-screen">
+                    @if($poster)
+                        <img class="lv-screen__poster" src="{{ $poster }}" alt="">
+                    @endif
+
+                    @if($hasVideo)
+                        <video id="lv-player" controls autoplay playsinline muted @if($poster) poster="{{ $poster }}" @endif data-src="{{ $stream->hls_url }}"></video>
+                    @endif
+
+                    <div class="lv-screen__top">
+                        @if($isLive)
+                            <span class="lv-badge" data-lv-live-badge><span class="lv-dot"></span>{{ __('LIVE') }}</span>
+                            <span class="lv-badge lv-badge--dim lv-timer" data-lv-live-badge data-lv-timer="{{ optional($stream->started_at)->toIso8601String() }}">0:00</span>
+                        @endif
+                        <span class="lv-spacer"></span>
+                        @if($isLive)
+                            <span class="lv-badge lv-badge--dim">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <span data-lv-viewers>{{ number_format((int) $stream->viewer_count) }}</span>
+                            </span>
+                        @endif
+                    </div>
+
+                    @if($locked)
+                        <div class="lv-screen__msg">
+                            <img class="lv-face" src="{{ $u->avatar }}" alt="">
+                            <h2>{{ __('Subscribers only') }}</h2>
+                            <p>{{ __('Subscribe to :name to watch and chat.', ['name' => $u->name]) }}</p>
+                            <a href="{{ route('profile', ['username' => $u->username]) }}#profile-subscribe" class="dx-btn dx-btn--primary">{{ __('Subscribe') }}</a>
                         </div>
+                    @elseif(!$hasVideo)
+                        {{-- Live, but no video service yet: say so rather than show a spinner forever. --}}
+                        <div class="lv-screen__msg is-live" data-lv-state="live" @unless($isLive) hidden @endunless>
+                            <img class="lv-face" src="{{ $u->avatar }}" alt="">
+                            <h2>{{ __(':name is live', ['name' => $u->name]) }}</h2>
+                            <p>{{ __('Live video is being switched on. The chat is open — say hi.') }}</p>
+                        </div>
+                    @endif
+
+                    <div class="lv-screen__msg" data-lv-state="ended" @if($isLive) hidden @endif>
+                        <img class="lv-face" src="{{ $u->avatar }}" alt="">
+                        <h2>{{ $stream->status === 'ended' ? __('This stream has ended') : __('Not live yet') }}</h2>
+                        <p>{{ $stream->status === 'ended' ? __('Follow :name to hear when they go live next.', ['name' => $u->name]) : __(':name hasn\'t started this stream yet.', ['name' => $u->name]) }}</p>
+                        <a href="{{ route('profile', ['username' => $u->username]) }}" class="dx-btn dx-btn--ghost">{{ __('View profile') }}</a>
+                    </div>
+                </div>
+
+                <div class="lv-info">
+                    <h1 class="lv-info__title">{{ $stream->title }}</h1>
+                    <a href="{{ route('profile', ['username' => $u->username]) }}" class="lv-creator">
+                        <img src="{{ $u->avatar }}" alt="" class="dx-avatar">
+                        <span>
+                            <span class="lv-creator__name">{{ $u->name }}</span>
+                            <span class="lv-creator__meta d-block">
+                                {{ '@' . $u->username }}
+                                @if($isLive && $stream->started_at) · {{ __('started') }} {{ $stream->started_at->diffForHumans() }}
+                                @elseif($stream->ended_at) · {{ __('ended') }} {{ $stream->ended_at->diffForHumans() }}@endif
+                            </span>
+                        </span>
+                    </a>
+                    @if($stream->description)
+                        <p class="lv-info__desc">{{ $stream->description }}</p>
+                    @endif
+                    <div class="lv-actions">
+                        <a href="{{ route('profile', ['username' => $u->username]) }}" class="dx-btn dx-btn--ghost">{{ __('View profile') }}</a>
+                        <button type="button" class="dx-btn dx-btn--ghost" data-lv-copy data-lv-share data-text="{{ route('streams.watch', $stream) }}">{{ __('Share') }}</button>
+                        @if($isOwner)
+                            <a href="{{ route('streams.broadcast', $stream) }}" class="dx-btn dx-btn--primary">{{ __('Open studio') }}</a>
+                        @endif
                     </div>
                 </div>
             </div>
 
-            <div class="card mt-3">
-                <div class="card-header">
-                    <h5 class="mb-0">{{ $stream->title }}</h5>
+            <aside class="lv-chat" data-lv-chat data-live="{{ $isLive ? '1' : '0' }}"
+                   data-fetch="{{ route('streams.messages', $stream) }}" data-post="{{ route('streams.messages.store', $stream) }}">
+                <div class="lv-chat__head">{{ __('Live chat') }}</div>
+                <div class="lv-chat__list" data-lv-chat-list>
+                    <p class="lv-chat__empty" data-lv-chat-empty>{{ $isLive ? __('No messages yet. Be the first to say something.') : __('Chat is closed.') }}</p>
                 </div>
-                <div class="card-body">
-                    <p class="card-text">{{ $stream->description }}</p>
-                    <div class="d-flex align-items-center">
-                        <img src="{{ $stream->user->avatar }}" alt="{{ $stream->user->name }}" class="rounded-circle me-2" width="32" height="32">
-                        <div>
-                            <h6 class="mb-0">{{ $stream->user->name }}</h6>
-                            <small class="text-muted">{{ $stream->started_at->diffForHumans() }}</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                @if($isLive && !$locked)
+                    <form class="lv-chat__form" data-lv-chat-form>
+                        <input type="text" class="lv-chat__input" maxlength="500" placeholder="{{ __('Say something…') }}" aria-label="{{ __('Chat message') }}" autocomplete="off" enterkeyhint="send">
+                        <button type="submit" class="lv-chat__send" aria-label="{{ __('Send') }}">
+                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6l2.8 8.4H13v0H6.2z"/></svg>
+                        </button>
+                    </form>
+                @elseif($locked)
+                    <p class="lv-chat__closed">{{ __('Subscribe to join the chat.') }}</p>
+                @endif
+            </aside>
         </div>
-
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Live Chat</h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="chat-messages p-3" id="chatMessages" style="height: 400px; overflow-y: auto;">
-                        @foreach($stream->messages as $message)
-                            <div class="message mb-2">
-                                @if($message->is_system)
-                                    <div class="text-center text-muted small">
-                                        {{ $message->message }}
-                                    </div>
-                                @else
-                                    <div class="d-flex align-items-start">
-                                        <img src="{{ $message->user->avatar }}" alt="{{ $message->user->name }}" class="rounded-circle me-2" width="24" height="24">
-                                        <div>
-                                            <div class="d-flex align-items-center">
-                                                <strong class="me-2">{{ $message->user->name }}</strong>
-                                                <small class="text-muted">{{ $message->created_at->format('H:i') }}</small>
-                                            </div>
-                                            <div>{{ $message->message }}</div>
-                                        </div>
-                                    </div>
-                                @endif
-                            </div>
-                        @endforeach
-                    </div>
-                    <div class="chat-input p-3 border-top">
-                        <form id="chatForm" class="d-flex">
-                            <input type="text" class="form-control me-2" id="messageInput" placeholder="Type a message...">
-                            <button type="submit" class="btn btn-primary">Send</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    </main>
 </div>
-
-@push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const video = document.getElementById('videoPlayer');
-    const chatMessages = document.getElementById('chatMessages');
-    const chatForm = document.getElementById('chatForm');
-    const messageInput = document.getElementById('messageInput');
-    const viewerCount = document.getElementById('viewerCount');
-    const streamId = "{{ $stream->id }}";
-
-    // Initialize HLS
-    if (Hls.isSupported()) {
-        const hls = new Hls();
-        hls.loadSource("{{ $stream->hls_url }}");
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, function() {
-            video.play();
-        });
-    }
-    // For browsers that support native HLS
-    else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = "{{ $stream->hls_url }}";
-    }
-
-    // Scroll chat to bottom
-    function scrollChatToBottom() {
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-    scrollChatToBottom();
-
-    // Send chat message
-    chatForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const message = messageInput.value.trim();
-        if (!message) return;
-
-        fetch(`/streams/${streamId}/messages`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({ message })
-        })
-        .then(response => response.json())
-        .then(data => {
-            messageInput.value = '';
-            appendMessage(data);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Failed to send message');
-        });
+@if($hasVideo)
+    {{-- hls.js for browsers without native HLS (everything but Safari). --}}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js" defer></script>
+    <script>
+    window.addEventListener('load', function () {
+        var v = document.getElementById('lv-player');
+        if (!v) return;
+        var src = v.getAttribute('data-src');
+        if (v.canPlayType('application/vnd.apple.mpegurl')) { v.src = src; }
+        else if (window.Hls && Hls.isSupported()) { var h = new Hls(); h.loadSource(src); h.attachMedia(v); }
     });
-
-    // Append message to chat
-    function appendMessage(message) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'message mb-2';
-        
-        if (message.is_system) {
-            messageDiv.innerHTML = `
-                <div class="text-center text-muted small">
-                    ${message.message}
-                </div>
-            `;
-        } else {
-            messageDiv.innerHTML = `
-                <div class="d-flex align-items-start">
-                    <img src="${message.user.avatar}" alt="${message.user.name}" class="rounded-circle me-2" width="24" height="24">
-                    <div>
-                        <div class="d-flex align-items-center">
-                            <strong class="me-2">${message.user.name}</strong>
-                            <small class="text-muted">${new Date(message.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</small>
-                        </div>
-                        <div>${message.message}</div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        chatMessages.appendChild(messageDiv);
-        scrollChatToBottom();
-    }
-
-    // Poll for new messages
-    function pollMessages() {
-        fetch(`/streams/${streamId}/messages`)
-            .then(response => response.json())
-            .then(messages => {
-                const lastMessage = messages[messages.length - 1];
-                if (lastMessage && (!window.lastMessageId || lastMessage.id > window.lastMessageId)) {
-                    window.lastMessageId = lastMessage.id;
-                    appendMessage(lastMessage);
-                }
-            })
-            .catch(error => console.error('Error polling messages:', error));
-    }
-
-    // Poll for viewer count
-    function pollViewerCount() {
-        fetch(`/streams/${streamId}/viewer-count`)
-            .then(response => response.json())
-            .then(data => {
-                viewerCount.textContent = `${data.count} viewers`;
-            })
-            .catch(error => console.error('Error polling viewer count:', error));
-    }
-
-    // Start polling
-    setInterval(pollMessages, 3000);
-    setInterval(pollViewerCount, 5000);
-});
-</script>
-@endpush
-
-@push('styles')
-<style>
-.stream-container {
-    background: #000;
-    border-radius: 4px;
-    overflow: hidden;
-    position: relative;
-}
-
-.stream-container video {
-    width: 100%;
-    height: 500px;
-    object-fit: cover;
-}
-
-.chat-messages {
-    background: #f8f9fa;
-}
-
-.message {
-    word-break: break-word;
-}
-
-.chat-input {
-    background: #fff;
-}
-</style>
-@endpush
-@endsection 
+    </script>
+@endif
+<script src="{{ asset('js/pages/discover.js') }}?v=20260917b" defer></script>
+<script src="{{ asset('js/pages/live.js') }}?v=20260924a" defer></script>
+@stop

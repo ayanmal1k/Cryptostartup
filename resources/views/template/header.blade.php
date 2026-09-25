@@ -440,7 +440,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Enter key search
         searchInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && this.value.trim()) {
-                window.location.href = '{{ route("search.get") }}?q=' + encodeURIComponent(this.value.trim());
+                window.location.href = '/' + encodeURIComponent(this.value.trim().replace(/^@/, ''));
             }
         });
     }

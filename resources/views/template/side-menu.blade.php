@@ -42,7 +42,7 @@
             </a>
         </li>
         <li class="nav-item">
-            <a href="{{ route('custom-requests.marketplace') }}" class="h-pill h-pill-primary nav-link {{Route::currentRouteName() == 'custom-requests.marketplace' || Route::currentRouteName() == 'custom-requests.show' || Route::currentRouteName() == 'custom-requests.my-requests' ? 'active' : ''}} d-flex justify-content-between">
+            <a href="{{ route('custom-requests.marketplace') }}" class="h-pill h-pill-primary nav-link {{Route::currentRouteName() == 'custom-requests.marketplace' || Route::currentRouteName() == 'custom-requests.show' ? 'active' : ''}} d-flex justify-content-between">
                 <div class="d-flex justify-content-center align-items-center">
                     <div class="icon-wrapper d-flex justify-content-center align-items-center">
                         @include('elements.icon',['icon'=>'gift-outline','variant'=>'large'])
@@ -119,22 +119,6 @@
                     </div>
                 </a>
             </li>
-            @if(getSetting('streams.allow_streams'))
-                <li class="nav-item">
-                    <a href="{{route('search.get')}}?filter=live" class="nav-link {{Route::currentRouteName() == 'search.get' && request()->get('filter') == 'live' ? 'active' : ''}} h-pill h-pill-primary d-flex justify-content-between">
-                        <div class="d-flex justify-content-center align-items-center">
-                            <div class="icon-wrapper d-flex justify-content-center align-items-center position-relative">
-                                @include('elements.icon',['icon'=>'play-circle-outline','variant'=>'large'])
-                                <div class="menu-notification-badge streams-menu-count {{(StreamsHelper::getPublicLiveStreamsCount() > 0) ? '' : 'd-none'}}">
-                                    {{StreamsHelper::getPublicLiveStreamsCount()}}
-                                </div>
-                            </div>
-                            <span class="d-none d-md-block d-xl-block d-lg-block ml-2 text-truncate side-menu-label">{{__('Streams')}}</span>
-                        </div>
-
-                    </a>
-                </li>
-            @endif
             <li class="nav-item">
                 <a href="{{route('my.bookmarks')}}" class="nav-link {{Route::currentRouteName() == 'my.bookmarks' ? 'active' : ''}} h-pill h-pill-primary d-flex justify-content-between">
                     <div class="d-flex justify-content-center align-items-center">

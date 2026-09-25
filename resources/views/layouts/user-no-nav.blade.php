@@ -21,7 +21,7 @@
             <div class="col-2 col-md-3 pt-4 p-0 d-none d-md-block">
                 @include('template.side-menu')
             </div>
-            <div class="col-12 col-md-9 {{(!in_array(Route::currentRouteName(),['my.messenger.get','my.notifications','my.bookmarks','my.lists.all','my.lists.show','custom-requests.marketplace']) ? 'min-vh-100' : '' )}}  border-left px-0 overflow-x-hidden-m content-wrapper {{(in_array(Route::currentRouteName(),['feed','profile','my.messenger.get','search.get','my.notifications','my.bookmarks','my.lists.all','my.lists.show','my.settings','posts.get','custom-requests.marketplace']) ? '' : 'border-right' )}}">
+            <div class="col-12 col-md-9 {{(!in_array(Route::currentRouteName(),['my.messenger.get','my.notifications','my.bookmarks','my.lists.all','my.lists.show','custom-requests.marketplace']) ? 'min-vh-100' : '' )}}  border-left px-0 overflow-x-hidden-m content-wrapper {{(in_array(Route::currentRouteName(),['feed','profile','my.messenger.get','my.notifications','my.bookmarks','my.lists.all','my.lists.show','my.settings','posts.get','custom-requests.marketplace']) ? '' : 'border-right' )}}">
                 @yield('content')
             </div>
         </div>

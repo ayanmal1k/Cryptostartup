@@ -7,16 +7,8 @@
     var searchResults = document.getElementById('mobile-search-results');
     var searchBrowse = document.getElementById('mobile-search-browse');
     var searchSuggestions = document.getElementById('mobile-search-suggestions');
-    var liveContainer = document.getElementById('mobile-search-live');
     var searchTimeout;
 
-    var DUMMY_LIVE = {
-        name: 'Tink',
-        username: 'itstinkerhell',
-        avatar: 'https://i.pravatar.cc/150?u=itstinkerhell',
-        verified: true,
-        streamUrl: '/search?filter=live'
-    };
 
     var DUMMY_CREATORS = [
         { name: 'Lia Sikora', username: 'lia_sikora', avatar: 'https://i.pravatar.cc/150?u=lia_sikora', verified: true },
@@ -118,27 +110,6 @@
         }
     }
 
-    function renderLiveCard(data) {
-        var name = data.name || 'Creator';
-        var username = data.username || '';
-        var avatar = data.avatar || '';
-        var url = data.streamUrl || (username ? '/' + encodeURIComponent(username) : '#');
-        var handle = username ? '@' + username : '';
-
-        return '<div class="mobile-search__live-card">' +
-            '<div class="mobile-search__live-user">' +
-                '<div class="mobile-search__live-avatar-wrap">' +
-                    '<img class="mobile-search__live-avatar" src="' + escapeHtml(avatar) + '" alt="">' +
-                    '<span class="mobile-search__live-badge">LIVE</span>' +
-                '</div>' +
-                '<div class="mobile-search__live-meta">' +
-                    '<div class="mobile-search__live-name">' + escapeHtml(name) + (isVerifiedUser(data) ? verifiedBadge() : '') + '</div>' +
-                    (handle ? '<div class="mobile-search__live-handle">' + escapeHtml(handle) + '</div>' : '') +
-                '</div>' +
-            '</div>' +
-            '<a href="' + escapeHtml(url) + '" class="mobile-search__join-btn">Join</a>' +
-        '</div>';
-    }
 
     function renderCreatorChip(user) {
         var name = user.name || user.username || 'Creator';
@@ -162,33 +133,7 @@
         searchSuggestions.innerHTML = users.map(renderCreatorChip).join('');
     }
 
-    function renderLiveFromStream(stream) {
-        var user = stream.user || {};
-        return {
-            name: user.name || stream.name || 'Creator',
-            username: user.username || '',
-            avatar: user.avatar || stream.poster || '',
-            verified: isVerifiedUser(user),
-            streamUrl: '/stream/' + encodeURIComponent(stream.id) + '/' + encodeURIComponent(stream.slug || 'live')
-        };
-    }
 
-    function loadLiveSection() {
-        if (!liveContainer) return;
-        liveContainer.innerHTML = renderLiveCard(DUMMY_LIVE);
-
-        fetch('/search/streams?query=&encode_html=0', {
-            headers: { Accept: 'application/json' }
-        })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                var streams = unwrapList(data.data);
-                if (streams.length) {
-                    liveContainer.innerHTML = renderLiveCard(renderLiveFromStream(streams[0]));
-                }
-            })
-            .catch(function () {});
-    }
 
     function loadSuggestedCreators() {
         renderCreators(DUMMY_CREATORS);
@@ -214,7 +159,6 @@
         document.body.classList.add('mobile-search-open');
         lockReelScroll();
         showSuggestions();
-        loadLiveSection();
         loadSuggestedCreators();
         setTimeout(function () {
             if (searchInput) searchInput.focus();
@@ -339,7 +283,9 @@
             searchInput.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter') {
                     var q = this.value.trim();
-                    if (q) window.location.href = '/search?q=' + encodeURIComponent(q);
+                    // No search page any more: Enter opens the top match.
+                    var first = searchResults && searchResults.querySelector('a[href]');
+                    if (q && first) window.location.href = first.getAttribute('href');
                 }
             });
         }

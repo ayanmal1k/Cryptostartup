@@ -239,7 +239,7 @@ var CustomRequest = {
                     
                     // Redirect after a short delay
                     setTimeout(function() {
-                        window.location.href = '/custom-requests/my-requests';
+                        window.location.href = data.redirect || (data.request && data.request.id ? '/custom-requests/' + data.request.id : '/custom-requests/marketplace');
                     }, 500);
                 }
             } else {

@@ -77,10 +77,6 @@
 
         <div class="mobile-search__body" id="mobile-search-body">
             <div id="mobile-search-browse">
-                <section class="mobile-search__section mobile-search__section--live" id="mobile-search-live-section">
-                    <h3 class="mobile-search__section-title">{{ __('Live now') }}</h3>
-                    <div id="mobile-search-live"></div>
-                </section>
 
                 <div class="mobile-search__promo">
                     <div class="mobile-search__promo-text">

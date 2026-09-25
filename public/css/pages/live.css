@@ -1,0 +1,667 @@
+/* ==========================================================================
+   LIVE
+   Browse, go-live setup, the creator's studio and the viewer page. Sits on the
+   discover shell (discover.css) so it reads like the NFT, Challenges and
+   creator pages. Red is reserved for "live"; magenta stays the one primary
+   action.
+   ========================================================================== */
+
+.lv-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+}
+
+.lv-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 9px;
+    border-radius: 6px;
+    background: var(--dx-hot);
+    color: #fff;
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+.lv-badge .lv-dot {
+    width: 6px;
+    height: 6px;
+    background: #fff;
+    animation: lv-blink 1.4s ease-in-out infinite;
+}
+
+.lv-badge--dim {
+    background: rgba(0, 0, 0, 0.6);
+    letter-spacing: 0.02em;
+    font-weight: 700;
+}
+
+@keyframes lv-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+}
+
+/* --- Browse grid ------------------------------------------------------------ */
+.lv-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+@media (min-width: 560px) {
+    .lv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 980px) {
+    .lv-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.dx .lv-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    color: inherit;
+}
+
+.lv-thumb {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--dx-radius);
+    overflow: hidden;
+    background:
+        radial-gradient(90% 120% at 15% 0%, rgba(255, 59, 92, 0.35), transparent 60%),
+        radial-gradient(90% 120% at 90% 20%, rgba(123, 44, 255, 0.35), transparent 60%),
+        var(--dx-surface-2);
+}
+
+.lv-thumb img.lv-thumb__img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+/* No thumbnail: the creator's face, big, on the gradient. */
+.lv-thumb__face {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85);
+}
+
+.lv-thumb__scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.35), transparent 35%, transparent 65%, rgba(0, 0, 0, 0.5));
+}
+
+.lv-thumb__tl,
+.lv-thumb__br {
+    position: absolute;
+    display: flex;
+    gap: 6px;
+}
+
+.lv-thumb__tl { top: 10px; left: 10px; }
+.lv-thumb__br { right: 10px; bottom: 10px; }
+
+.lv-card__row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.lv-card__row .dx-avatar {
+    width: 36px;
+    height: 36px;
+}
+
+.lv-card__text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.lv-card__title {
+    font-weight: 700;
+    color: var(--dx-ink);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.lv-card__by {
+    font-size: 13px;
+    color: var(--dx-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .dx .lv-card:hover .lv-thumb__img { transform: scale(1.04); }
+}
+
+/* "You're live" row on the browse page */
+.dx .lv-mine {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--dx-radius);
+    background: rgba(255, 59, 92, 0.1);
+    border: 1px solid rgba(255, 59, 92, 0.4);
+    color: var(--dx-ink);
+    font-weight: 700;
+}
+
+.lv-mine span { flex: 1; }
+
+/* --- Setup form ----------------------------------------------------------------- */
+.lv-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-width: 640px;
+}
+
+.lv-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.lv-field__label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--dx-ink);
+}
+
+.lv-field__hint {
+    font-size: 12.5px;
+    color: var(--dx-muted);
+}
+
+/* app.css forces inputs white with !important; pinned back here. */
+.dx .lv-input,
+.dx .lv-input:focus {
+    width: 100%;
+    padding: 14px 16px !important;
+    border: 1px solid var(--dx-line-strong) !important;
+    border-radius: 14px !important;
+    background: var(--dx-surface) !important;
+    color: var(--dx-ink) !important;
+    font: 500 16px/1.4 var(--dx-font) !important;
+    box-shadow: none !important;
+    outline: none;
+}
+
+.dx .lv-input:focus { border-color: var(--dx-brand) !important; }
+.dx .lv-input::placeholder { color: var(--dx-muted); }
+.dx textarea.lv-input { min-height: 96px; resize: vertical; }
+
+.lv-cover {
+    position: relative;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--dx-radius);
+    border: 1.5px dashed var(--dx-line-strong);
+    background: var(--dx-surface);
+    color: var(--dx-muted);
+    text-align: center;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.lv-cover input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.lv-cover img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.lv-cover img[hidden] { display: none; }
+
+.lv-cover__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.lv-cover__empty svg {
+    width: 28px;
+    height: 28px;
+}
+
+/* Two-option segmented choice */
+.lv-choice {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.lv-choice input { position: absolute; opacity: 0; pointer-events: none; }
+
+.lv-choice__opt {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1.5px solid var(--dx-line-strong);
+    background: var(--dx-surface);
+    cursor: pointer;
+}
+
+.lv-choice__opt strong { color: var(--dx-ink); font-size: 14px; }
+.lv-choice__opt span { font-size: 12.5px; color: var(--dx-muted); }
+
+.lv-choice input:checked + .lv-choice__opt {
+    border-color: var(--dx-brand);
+    background: rgba(203, 12, 159, 0.08);
+}
+
+.lv-choice input:focus-visible + .lv-choice__opt {
+    outline: 2px solid var(--dx-brand);
+    outline-offset: 2px;
+}
+
+.lv-errors {
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 59, 92, 0.4);
+    background: rgba(255, 59, 92, 0.08);
+    color: var(--dx-ink);
+    font-size: 14px;
+}
+
+/* Honest notice: video isn't switched on yet. */
+.lv-note {
+    display: flex;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--dx-radius);
+    background: var(--dx-surface);
+    border: 1px solid var(--dx-line);
+    font-size: 13.5px;
+    color: var(--dx-body);
+}
+
+.lv-note svg {
+    width: 20px;
+    height: 20px;
+    color: var(--dx-money);
+    margin-top: 1px;
+}
+
+.lv-note strong { color: var(--dx-ink); }
+
+/* --- Stage (studio + viewer) ------------------------------------------------------ */
+.lv-stage {
+    display: grid;
+    gap: 16px;
+}
+
+@media (min-width: 980px) {
+    .lv-stage { grid-template-columns: minmax(0, 1fr) 360px; align-items: start; }
+}
+
+.lv-screen {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--dx-radius-lg);
+    overflow: hidden;
+    background:
+        radial-gradient(80% 120% at 15% 0%, rgba(255, 59, 92, 0.3), transparent 60%),
+        radial-gradient(80% 120% at 90% 10%, rgba(123, 44, 255, 0.3), transparent 60%),
+        #0b0b0f;
+    color: #fff;
+}
+
+@media (max-width: 559px) {
+    .lv-screen--portrait { aspect-ratio: 9 / 14; }
+}
+
+.lv-screen > video,
+.lv-screen > .lv-screen__poster {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.lv-screen > video.is-mirrored { transform: scaleX(-1); }
+
+.lv-screen__poster { filter: blur(3px) brightness(0.55); transform: scale(1.05); }
+
+.lv-screen__top {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 2;
+}
+
+.lv-screen__top .lv-spacer { flex: 1; }
+
+.lv-screen__msg {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 24px;
+    text-align: center;
+}
+
+.lv-screen__msg[hidden] { display: none; }
+
+.lv-screen__msg .lv-face {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85);
+}
+
+.lv-screen__msg.is-live .lv-face {
+    box-shadow: 0 0 0 3px var(--dx-hot), 0 0 0 7px rgba(255, 59, 92, 0.3);
+}
+
+.lv-screen__msg h2 {
+    font-family: var(--dx-font-display);
+    font-size: 20px;
+    font-weight: 800;
+    color: #fff;
+}
+
+.lv-screen__msg p {
+    max-width: 380px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.lv-screen__ctrls {
+    position: absolute;
+    left: 50%;
+    bottom: 14px;
+    z-index: 2;
+    display: flex;
+    gap: 10px;
+    transform: translateX(-50%);
+}
+
+.dx .lv-round {
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    color: #fff;
+    cursor: pointer;
+}
+
+.dx .lv-round svg { width: 20px; height: 20px; }
+.dx .lv-round.is-off { background: rgba(255, 59, 92, 0.85); border-color: transparent; }
+
+/* Below the screen: who, what, and the big button */
+.lv-info {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.lv-info__title {
+    font-family: var(--dx-font-display);
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.25;
+    color: var(--dx-ink);
+}
+
+.dx .lv-creator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: inherit;
+}
+
+.lv-creator .dx-avatar { width: 40px; height: 40px; }
+
+.lv-creator__name {
+    font-weight: 700;
+    color: var(--dx-ink);
+}
+
+.lv-creator__meta {
+    font-size: 13px;
+    color: var(--dx-muted);
+}
+
+.lv-info__desc {
+    font-size: 14px;
+    color: var(--dx-body);
+    white-space: pre-line;
+}
+
+.lv-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.lv-actions .dx-btn { flex: 1 1 150px; height: 48px; }
+
+.dx .dx-btn--live {
+    background: var(--dx-hot);
+    color: #fff;
+    box-shadow: 0 6px 18px -8px rgba(255, 59, 92, 0.8);
+}
+
+.dx .dx-btn--live:hover { background: #e8284a; color: #fff; }
+
+.lv-timer {
+    font-variant-numeric: tabular-nums;
+}
+
+/* OBS / streaming-software details */
+.lv-details {
+    border-radius: var(--dx-radius);
+    border: 1px solid var(--dx-line);
+    background: var(--dx-surface);
+}
+
+.lv-details summary {
+    padding: 14px 16px;
+    font-weight: 700;
+    color: var(--dx-ink);
+    cursor: pointer;
+    list-style: none;
+}
+
+.lv-details summary::-webkit-details-marker { display: none; }
+
+.lv-details__body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 16px 16px;
+    font-size: 13.5px;
+}
+
+.lv-key {
+    display: flex;
+    gap: 8px;
+}
+
+.dx .lv-key input {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 12px !important;
+    border: 1px solid var(--dx-line-strong) !important;
+    border-radius: 10px !important;
+    background: var(--dx-bg) !important;
+    color: var(--dx-ink) !important;
+    font: 500 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace !important;
+}
+
+/* --- Chat ---------------------------------------------------------------------- */
+.lv-chat {
+    display: flex;
+    flex-direction: column;
+    height: 440px;
+    border-radius: var(--dx-radius-lg);
+    border: 1px solid var(--dx-line);
+    background: var(--dx-surface);
+    overflow: hidden;
+}
+
+@media (min-width: 980px) {
+    .lv-chat { height: calc(100vh - 140px); max-height: 720px; position: sticky; top: 90px; }
+}
+
+.lv-chat__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--dx-line);
+    font-weight: 700;
+    color: var(--dx-ink);
+}
+
+.lv-chat__head span { font-size: 13px; font-weight: 600; color: var(--dx-muted); }
+
+.lv-chat__list {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.lv-chat__empty {
+    margin: auto;
+    max-width: 240px;
+    text-align: center;
+    font-size: 13.5px;
+    color: var(--dx-muted);
+}
+
+.lv-msg {
+    display: flex;
+    gap: 8px;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.lv-msg img {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--dx-surface-3);
+}
+
+.lv-msg__name {
+    font-weight: 700;
+    color: var(--dx-ink);
+    margin-right: 6px;
+}
+
+.lv-msg__name.is-creator { color: var(--dx-hot); }
+
+.lv-msg__text { color: var(--dx-body); overflow-wrap: anywhere; }
+
+.lv-chat__form {
+    display: flex;
+    gap: 8px;
+    padding: 10px;
+    border-top: 1px solid var(--dx-line);
+}
+
+.dx .lv-chat__input,
+.dx .lv-chat__input:focus {
+    flex: 1;
+    min-width: 0;
+    height: 42px;
+    padding: 0 14px !important;
+    border: 1px solid var(--dx-line-strong) !important;
+    border-radius: 999px !important;
+    background: var(--dx-bg) !important;
+    color: var(--dx-ink) !important;
+    font: 500 15px/1 var(--dx-font) !important;
+    box-shadow: none !important;
+    outline: none;
+}
+
+.dx .lv-chat__send {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--dx-brand);
+    color: #fff;
+    cursor: pointer;
+}
+
+.dx .lv-chat__send svg { width: 18px; height: 18px; }
+.dx .lv-chat__send:disabled { opacity: 0.5; cursor: default; }
+
+.lv-chat__closed {
+    padding: 14px;
+    border-top: 1px solid var(--dx-line);
+    font-size: 13.5px;
+    text-align: center;
+    color: var(--dx-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lv-badge .lv-dot { animation: none; }
+    .lv-thumb img.lv-thumb__img { transition: none; }
+}
+
+/* app.css forces every <label> grey with !important; text inside these labels sets its own. */
+.lv-cover__empty { color: var(--dx-muted); }

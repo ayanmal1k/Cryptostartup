@@ -2,18 +2,16 @@
     The LIVE entry point in the reels header.
 
     Sits next to the menu button, the way TikTok puts LIVE at the top-left of the
-    feed. Goes to the search page filtered to live streams, which is the existing
-    browse-live surface -- the side menu already pointed there.
+    feed. Goes to the Live page (streams.index).
 
-    The count is real. `getPublicStreams(['status' => 'live'])` defines live as
-    is_public AND status = in-progress, and this counts exactly that, so the badge
-    can never claim streams the destination page will not show.
+    The count is real and uses the same rule as that page (StreamController@index):
+    is_live AND is_public, so the badge never claims streams the page won't show.
 --}}
 @php
     $liveCount = 0;
     try {
-        $liveCount = \App\Model\Stream::where('is_public', 1)
-            ->where('status', \App\Model\Stream::IN_PROGRESS_STATUS)
+        $liveCount = \App\Models\Stream::where('is_live', true)
+            ->where('is_public', true)
             ->count();
     } catch (\Throwable $e) {
         // streams table missing or unmigrated -- render the button without a count
@@ -21,7 +19,7 @@
     }
 @endphp
 
-<a href="{{ route('search.get') }}?filter=live"
+<a href="{{ route('streams.index') }}"
    class="reels-live {{ $liveCount > 0 ? 'is-on-air' : '' }}"
    aria-label="{{ $liveCount > 0
         ? trans_choice(':count creator is live|:count creators are live', $liveCount, ['count' => $liveCount])

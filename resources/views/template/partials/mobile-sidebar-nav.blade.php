@@ -6,6 +6,24 @@
 @endphp
 
 <nav class="mobile-sidebar__nav" aria-label="{{ __('Main navigation') }}">
+    {{-- Rewards bar first: level, streak and XP at a glance. --}}
+    @if($isValidated)
+        @php
+            $gamiXp = (int) (Auth::user()->xp ?? 0);
+            $gamiXpProgress = $gamiXp % 100;
+        @endphp
+        <a href="{{ route('engagement.hub') }}" class="mobile-sidebar__xp-card" style="display:block;text-decoration:none;padding:14px 16px;margin:0 0 14px;border-radius:12px;background:linear-gradient(135deg,#830866,#a10a7f);color:#fff;">
+            <div style="display:flex;align-items:center;justify-content:space-between;font-weight:700;">
+                <span>{{ __('Level') }} {{ Auth::user()->level ?? 1 }}</span>
+                <span>🔥 {{ Auth::user()->streak_count ?? 0 }} {{ __('day streak') }}</span>
+            </div>
+            <div style="height:7px;background:rgba(255,255,255,.3);border-radius:6px;overflow:hidden;margin-top:8px;">
+                <div style="height:100%;width:{{ $gamiXpProgress }}%;background:#fff;border-radius:6px;"></div>
+            </div>
+            <div style="font-size:.72rem;opacity:.9;margin-top:4px;">{{ $gamiXpProgress }}/100 {{ __('XP to next level') }}</div>
+        </a>
+    @endif
+
     {{-- Primary --}}
     <div class="mobile-sidebar__group">
         <p class="mobile-sidebar__group-label">{{ __('Menu') }}</p>
@@ -43,7 +61,7 @@
                 <span class="mobile-sidebar__icon">@include('template.partials.mobile-nav-icon', ['icon' => 'film'])</span>
                 <span>{{ __('Feed') }}</span>
             </a>
-            <a href="{{ route('custom-requests.marketplace') }}" class="mobile-sidebar__link {{ in_array($route, ['custom-requests.marketplace', 'custom-requests.show', 'custom-requests.my-requests']) ? 'is-active' : '' }}">
+            <a href="{{ route('custom-requests.marketplace') }}" class="mobile-sidebar__link {{ in_array($route, ['custom-requests.marketplace', 'custom-requests.show']) ? 'is-active' : '' }}">
                 <span class="mobile-sidebar__icon">@include('template.partials.mobile-nav-icon', ['icon' => 'gift'])</span>
                 <span>{{ __('Marketplace') }}</span>
             </a>
@@ -59,18 +77,37 @@
             <span>{{ __('Livestreams') }}</span>
         </a>
 
-        <a href="{{ route('custom-requests.marketplace') }}" class="mobile-sidebar__link {{ in_array($route, ['custom-requests.marketplace', 'custom-requests.show', 'custom-requests.my-requests']) ? 'is-active' : '' }}">
+        <a href="{{ route('custom-requests.marketplace') }}" class="mobile-sidebar__link {{ in_array($route, ['custom-requests.marketplace', 'custom-requests.show']) ? 'is-active' : '' }}">
             <span class="mobile-sidebar__icon">@include('template.partials.mobile-nav-icon', ['icon' => 'gift'])</span>
             <span>{{ __('Custom Requests') }}</span>
         </a>
 
-        @if($isValidated && getSetting('streams.allow_streams'))
-            <a href="{{ route('search.get') }}?filter=live" class="mobile-sidebar__link {{ $route === 'search.get' && request()->get('filter') === 'live' ? 'is-active' : '' }}">
-                <span class="mobile-sidebar__icon">@include('template.partials.mobile-nav-icon', ['icon' => 'play'])</span>
-                <span>{{ __('Streams') }}</span>
-                @if($liveStreamsCount > 0)
-                    <span class="mobile-sidebar__badge">{{ $liveStreamsCount }}</span>
-                @endif
+        @if($isValidated)
+            {{-- Money sits right under Discover, near the top, as the client asked. --}}
+            <a href="{{ route('cryptocurrency.index') }}" class="mobile-sidebar__link {{ in_array($route, ['cryptocurrency.index', 'cryptocurrency.wallet.index']) ? 'is-active' : '' }}">
+                <span class="mobile-sidebar__icon">@include('template.partials.mobile-nav-icon', ['icon' => 'tokens'])</span>
+                <span>{{ __('Tokens') }}</span>
+            </a>
+
+            <a href="{{ route('wallet.hub') }}" class="mobile-sidebar__link {{ in_array($route, ['wallet.hub', 'cryptocurrency.wallet']) ? 'is-active' : '' }}">
+                <span class="mobile-sidebar__icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5"/><path d="M17 12h.01"/></svg>
+                </span>
+                <span>{{ __('Wallet') }}</span>
+            </a>
+
+            <a href="{{ route('cryptocurrency.marketplace') }}" class="mobile-sidebar__link {{ $route === 'cryptocurrency.marketplace' ? 'is-active' : '' }}">
+                <span class="mobile-sidebar__icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9 4.5 4.5h15L21 9"/><path d="M3 9h18v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 20v-6h6v6"/></svg>
+                </span>
+                <span>{{ __('Token Marketplace') }}</span>
+            </a>
+
+            <a href="{{ route('nft.marketplace') }}" class="mobile-sidebar__link {{ str_starts_with($route, 'nft.') ? 'is-active' : '' }}">
+                <span class="mobile-sidebar__icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5"/><path d="M12 12v10"/></svg>
+                </span>
+                <span>{{ __('NFT Marketplace') }}</span>
             </a>
         @endif
     </div>
@@ -107,51 +144,11 @@
                 <span>{{ __('Create Video') }}</span>
             </a>
 
-            <a href="{{ route('cryptocurrency.index') }}" class="mobile-sidebar__link {{ in_array($route, ['cryptocurrency.index', 'cryptocurrency.wallet.index']) ? 'is-active' : '' }}">
-                <span class="mobile-sidebar__icon">@include('template.partials.mobile-nav-icon', ['icon' => 'tokens'])</span>
-                <span>{{ __('Tokens') }}</span>
-            </a>
-
-            <a href="{{ route('cryptocurrency.wallet') }}" class="mobile-sidebar__link {{ $route === 'cryptocurrency.wallet' ? 'is-active' : '' }}">
-                <span class="mobile-sidebar__icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5"/><path d="M17 12h.01"/></svg>
-                </span>
-                <span>{{ __('Wallet') }}</span>
-            </a>
-
-            <a href="{{ route('cryptocurrency.marketplace') }}" class="mobile-sidebar__link {{ $route === 'cryptocurrency.marketplace' ? 'is-active' : '' }}">
-                <span class="mobile-sidebar__icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9 4.5 4.5h15L21 9"/><path d="M3 9h18v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 20v-6h6v6"/></svg>
-                </span>
-                <span>{{ __('Token Marketplace') }}</span>
-            </a>
-
-            <a href="{{ route('nft.marketplace') }}" class="mobile-sidebar__link {{ str_starts_with($route, 'nft.') ? 'is-active' : '' }}">
-                <span class="mobile-sidebar__icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5"/><path d="M12 12v10"/></svg>
-                </span>
-                <span>{{ __('NFT Marketplace') }}</span>
-            </a>
         </div>
 
         {{-- Rewards: XP / streak / achievements (gamification) --}}
         <div class="mobile-sidebar__group mobile-sidebar__group--rewards">
             <p class="mobile-sidebar__group-label">{{ __('Rewards') }}</p>
-
-            @php
-                $gamiXp = (int) (Auth::user()->xp ?? 0);
-                $gamiXpProgress = $gamiXp % 100;
-            @endphp
-            <div class="mobile-sidebar__xp-card" style="padding:14px 16px;margin:0 0 10px;border-radius:12px;background:linear-gradient(135deg,#830866,#a10a7f);color:#fff;">
-                <div style="display:flex;align-items:center;justify-content:space-between;font-weight:700;">
-                    <span>{{ __('Level') }} {{ Auth::user()->level ?? 1 }}</span>
-                    <span>🔥 {{ Auth::user()->streak_count ?? 0 }} {{ __('day streak') }}</span>
-                </div>
-                <div style="height:7px;background:rgba(255,255,255,.3);border-radius:6px;overflow:hidden;margin-top:8px;">
-                    <div style="height:100%;width:{{ $gamiXpProgress }}%;background:#fff;border-radius:6px;"></div>
-                </div>
-                <div style="font-size:.72rem;opacity:.9;margin-top:4px;">{{ $gamiXpProgress }}/100 {{ __('XP to next level') }}</div>
-            </div>
 
             <a href="{{ route('engagement.hub') }}" class="mobile-sidebar__link {{ $route === 'engagement.hub' ? 'is-active' : '' }}">
                 <span class="mobile-sidebar__icon">

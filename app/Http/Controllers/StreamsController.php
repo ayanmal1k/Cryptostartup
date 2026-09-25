@@ -187,7 +187,7 @@ class StreamsController extends Controller
                             'content' => __('@:username has went live on :sitename', ['username'=>Auth::user()->username, 'siteName' => getSetting('site.name')]),
                             'button' => [
                                 'text' => __('View live session'),
-                                'url' => route('search.get', ['filter' => 'live']),
+                                'url' => route('profile', ['username' => Auth::user()->username]),
                             ],
                         ]
                     );

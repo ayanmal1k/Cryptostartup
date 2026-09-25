@@ -601,16 +601,41 @@ const observer = new IntersectionObserver((entries) => {
                     const userUsername = this.querySelector('.user-details p').textContent;
                     const userAvatar = this.querySelector('.user-avatar-initials').style.background;
                     const userInitials = this.querySelector('.user-avatar-initials').textContent;
-                    
-                    openProfileModal(userId, userName, userUsername, userAvatar, userInitials, usernameForUrl);
+
+                    openProfileModal(userId, userName, userUsername, userAvatar, userInitials, usernameForUrl, {
+                        avatar: this.getAttribute('data-user-avatar') || '',
+                        cover: this.getAttribute('data-user-cover') || '',
+                        bio: this.getAttribute('data-user-bio') || ''
+                    });
                 });
             });
             
-            function openProfileModal(userId, userName, userUsername, userAvatar, userInitials, usernameForUrl) {
+            function openProfileModal(userId, userName, userUsername, userAvatar, userInitials, usernameForUrl, media) {
                 if (profileModal) {
+                    media = media || {};
                     // Update modal content
                     document.getElementById('profile-modal-avatar').style.background = userAvatar;
                     document.getElementById('profile-modal-avatar').textContent = userInitials;
+
+                    // Real picture when they have one; the coloured initials otherwise.
+                    const avatarImg = document.getElementById('profile-modal-avatar-img');
+                    avatarImg.hidden = !media.avatar;
+                    document.getElementById('profile-modal-avatar').hidden = !!media.avatar;
+                    if (media.avatar) avatarImg.src = media.avatar; else avatarImg.removeAttribute('src');
+
+                    // Cover band: their cover photo, else their avatar blurred, else the
+                    // same colour as their initials behind a gradient.
+                    const cover = document.getElementById('profile-modal-cover');
+                    const coverImg = document.getElementById('profile-modal-cover-img');
+                    const coverSrc = media.cover || media.avatar;
+                    coverImg.hidden = !coverSrc;
+                    coverImg.classList.toggle('is-blurred', !media.cover && !!media.avatar);
+                    if (coverSrc) coverImg.src = coverSrc; else coverImg.removeAttribute('src');
+                    cover.style.setProperty('--ps-tint', userAvatar || '#cb0c9f');
+
+                    const bio = document.getElementById('profile-modal-bio');
+                    bio.textContent = media.bio;
+                    bio.hidden = !media.bio;
                     document.getElementById('profile-modal-name').textContent = userName;
                     document.getElementById('profile-modal-username').textContent = userUsername;
                     
@@ -1104,21 +1129,25 @@ function incrementVideoViews(videoId) {
     <!-- Profile Modal -->
     <div class="profile-modal" id="profile-modal">
         <div class="profile-modal-content">
-            <div class="profile-grabber"></div>
-            <div class="profile-modal-header">
-                <h3>Profile</h3>
-                <button class="profile-modal-close" type="button" aria-label="Close">
+            {{-- Cover band: the user's cover photo, or their avatar blurred, or a gradient. --}}
+            <div class="ps-cover" id="profile-modal-cover">
+                <img class="ps-cover__img" id="profile-modal-cover-img" alt="" hidden>
+                <span class="ps-cover__scrim" aria-hidden="true"></span>
+                <div class="profile-grabber ps-grabber"></div>
+                <button class="profile-modal-close ps-close" type="button" aria-label="Close">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
                 </button>
             </div>
-            <div class="profile-info">
-                <div class="profile-avatar">
+            <div class="ps-body">
+                <div class="ps-avatar">
+                    <img id="profile-modal-avatar-img" alt="" hidden>
                     <div class="profile-avatar-initials" id="profile-modal-avatar"></div>
                 </div>
-                <div class="profile-details">
+                <div class="ps-id">
                     <h3 id="profile-modal-name"></h3>
                     <p id="profile-modal-username"></p>
                 </div>
+                <p class="ps-bio" id="profile-modal-bio" hidden></p>
             </div>
             <div class="profile-actions">
                 <button class="profile-action-btn view-profile-btn" id="view-profile-btn" type="button">
@@ -1151,7 +1180,10 @@ function incrementVideoViews(videoId) {
                             
                             <div class="video-overlay">
                                 <div class="video-info">
-                                    <div class="user-info clickable" data-user-id="{{ $video->user->id }}" data-user-username="{{ $video->user->username ?? strtolower(str_replace(' ', '', $video->user->name)) }}">
+                                    <div class="user-info clickable" data-user-id="{{ $video->user->id }}" data-user-username="{{ $video->user->username ?? strtolower(str_replace(' ', '', $video->user->name)) }}"
+                                         data-user-avatar="{{ $video->user->avatar_url ?? '' }}"
+                                         data-user-cover="{{ $video->user->cover_url ?? '' }}"
+                                         data-user-bio="{{ $video->user->bio_text ?? '' }}">
                                         <div class="user-avatar-initials" style="background: {{ ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'][rand(0,4)] }};">
                                             {{ strtoupper(substr($video->user->name, 0, 1)) }}{{ strtoupper(substr(explode(' ', $video->user->name)[1] ?? '', 0, 1)) }}
                                         </div>

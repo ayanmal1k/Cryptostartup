@@ -35,7 +35,6 @@
             ['label' => __('Watch'), 'href' => $tabUrl('watch'), 'active' => $search === '' && $tab === 'watch'],
             ['label' => __('Fund'), 'href' => $tabUrl('open'), 'active' => $search === '' && $tab === 'open'],
             ['label' => __('Top'), 'href' => $tabUrl('top'), 'active' => $search === '' && $tab === 'top'],
-            Auth::check() ? ['label' => __('Mine'), 'href' => route('custom-requests.my-requests'), 'active' => false] : null,
         ]),
         'search' => $search,
         'searchAction' => route('custom-requests.marketplace'),

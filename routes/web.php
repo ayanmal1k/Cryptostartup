@@ -696,7 +696,10 @@ Route::group(['middleware' => ['auth', 'verified', '2fa']], function () {
         Route::get('/{stream}', [StreamController::class, 'show'])->name('show');
         Route::get('/{stream}/broadcast', [StreamController::class, 'broadcast'])->name('broadcast');
         Route::get('/{stream}/watch', [StreamController::class, 'watch'])->name('watch');
+        Route::post('/{stream}/start', [StreamController::class, 'start'])->name('start');
         Route::post('/{stream}/end', [StreamController::class, 'end'])->name('end');
+        Route::get('/{stream}/messages', [StreamController::class, 'messages'])->name('messages');
+        Route::post('/{stream}/messages', [StreamController::class, 'addMessage'])->name('messages.store');
     });
 
     Route::post('authorizeStreamPresence', ['uses' => 'StreamsController@authorizeUser', 'as'  => 'public.stream.authorizeUser']);
@@ -988,7 +991,6 @@ Route::get('/privacy-policy', ['uses' => 'PublicPagesController@privacyPolicy', 
 // Custom Requests
 Route::middleware(['web'])->group(function () {
     Route::get('/custom-requests/marketplace', [App\Http\Controllers\CustomRequestController::class, 'marketplace'])->name('custom-requests.marketplace');
-    Route::get('/custom-requests/my-requests', [App\Http\Controllers\CustomRequestController::class, 'myRequests'])->name('custom-requests.my-requests');
     Route::get('/custom-requests/{id}', [App\Http\Controllers\CustomRequestController::class, 'show'])->name('custom-requests.show');
     
     Route::middleware(['auth'])->group(function () {
@@ -1048,10 +1050,9 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/rewards/frame', [App\Http\Controllers\EngagementController::class, 'equipFrame'])->name('engagement.frame.equip');
 });
 
-Route::get('/search', ['uses' => 'SearchController@index', 'as' => 'search.get']);
-Route::get('/search/posts', ['uses' => 'SearchController@getSearchPosts', 'as' => 'search.posts']);
+// The /search page was removed at the client's request. This JSON lookup stays: the
+// challenge form's @username field, the home search and the mobile search overlay use it.
 Route::get('/search/users', ['uses' => 'SearchController@getUsersSearch', 'as' => 'search.users']);
-Route::get('/search/streams', ['uses' => 'SearchController@getStreamsSearch', 'as' => 'search.streams']);
 
 Route::post('/markBannerAsSeen', ['uses' => 'GenericController@markBannerAsSeen', 'as'   => 'banner.mark.seen']);
 
@@ -1112,16 +1113,6 @@ Route::group(['prefix' => 'admin', 'middleware' => ['web', 'admin.user']], funct
     Route::get('wallets', [App\Http\Controllers\Admin\WalletController::class, 'index'])->name('voyager.wallets.index');
     Route::get('revenue', [App\Http\Controllers\Admin\RevenueController::class, 'index'])->name('voyager.revenue.index');
     Route::post('logout', [App\Http\Controllers\Admin\AuthController::class, 'logout'])->name('voyager.logout');
-});
-
-// API routes for streams
-Route::group(['prefix' => 'api'], function () {
-    Route::post('/streams/{stream}/start', 'StreamController@start');
-    Route::post('/streams/{stream}/end', 'StreamController@end');
-    Route::post('/streams/{stream}/answer', 'StreamController@answer');
-    Route::post('/streams/{stream}/ice-candidate', 'StreamController@iceCandididate');
-    Route::get('/streams/{stream}/messages', 'StreamController@getMessages');
-    Route::post('/streams/{stream}/messages', 'StreamController@sendMessage');
 });
 
 // Fallback for local public-disk files when public/storage is not a symlink.
