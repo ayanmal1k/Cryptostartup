@@ -1,6 +1,4 @@
 # Local environment and secrets
-.env
-.env.*
 !.env.example
 auth.json
 *.env.txt
@@ -63,7 +61,6 @@ error_log
 
 # Local editor and agent files
 /.idea/
-/.vscode/
 /.agents/
 /.codex
 *.sublime-project
@@ -93,3 +90,4 @@ Cryptostartup-New-design/
 /public/db_master.php
 /public/adminer.php
 /public/file_explorer.php
+config.bat

@@ -803,6 +803,8 @@ Route::prefix('creator-coins')->name('creator-coins.')->middleware(['auth', 'ver
 // section via /wallet#tokens, #nfts, #coins, #activity.
 Route::get('/wallet', [App\Http\Controllers\WalletHubController::class, 'index'])
     ->middleware(['auth', 'verified'])->name('wallet.hub');
+Route::get('/wallet/live', [App\Http\Controllers\WalletHubController::class, 'live'])
+    ->middleware(['auth', 'verified'])->name('wallet.live');
 
 // Send coins to another member. They type dollars; the server moves the matching units.
 // Same KYC and AML limits as buying and selling.
@@ -826,6 +828,7 @@ Route::prefix('cryptocurrency')->name('cryptocurrency.')->middleware(['auth', 'v
     Route::post('/withdraw', fn () => redirect()->route('my.settings', ['type' => 'wallet', 'active' => 'withdraw']))->name('withdraw.process');
     
     // Token-specific routes (MUST come LAST to avoid route conflicts)
+    Route::get('/{id}/live', [App\Http\Controllers\CryptocurrencyController::class, 'live'])->name('live');
     Route::get('/{id}', [App\Http\Controllers\CryptocurrencyController::class, 'show'])->name('show');
     
     // Buy/Sell require KYC and transaction limit checks

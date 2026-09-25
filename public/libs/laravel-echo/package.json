@@ -69,7 +69,7 @@
     "glob": "^9.0.0"
   },
   "scripts": {
-    "build": "vite build && FORMAT=iife vite build",
+    "build": "node api.js && vite build && FORMAT=iife vite build",
     "lint": "eslint --config eslint.config.mjs \"src/**/*.ts\"",
     "prepublish": "pnpm run build",
     "release": "vitest --run && git push --follow-tags && pnpm publish",

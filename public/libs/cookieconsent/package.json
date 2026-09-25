@@ -18,9 +18,9 @@
   },
   "homepage": "http://cookieconsent.osano.com/",
   "scripts": {
-    "build": "gulp build",
+    "build": "node api.js && gulp build",
     "verify": "gulp verify",
-    "build:release": "gulp build:release --tag $npm_package_version",
+    "build:release": "node api.js && gulp build:release --tag $npm_package_version",
     "test": "echo \"Error: no test specified\" && exit 0"
   },
   "repository": {

@@ -8,6 +8,7 @@ use App\Models\CryptoTransaction;
 use App\Models\CryptoWallet;
 use App\Models\NFT;
 use App\Models\NFTTransaction;
+use App\Services\WalletInsights;
 use App\Support\TokenMoney;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
@@ -25,7 +26,45 @@ class WalletHubController extends Controller
 {
     public function index()
     {
-        $user = Auth::user();
+        $data = $this->snapshot(Auth::user());
+        $data['activity'] = $this->activityFeed($data['user']->id, $data['address']);
+        $data['nativeBalance'] = $data['address'] ? $this->readNativeBalance($data['address']) : null;
+        $data['series'] = WalletInsights::portfolioSeries($data['user']->id, $data['tokenWallets']);
+        $data['levelCard'] = WalletInsights::level($data['user']);
+
+        return view('wallet.index', $data);
+    }
+
+    /**
+     * The numbers the wallet polls while it is open, so balances, the day's move and
+     * level progress update without a reload.
+     */
+    public function live()
+    {
+        $data = $this->snapshot(Auth::user());
+        $level = WalletInsights::level($data['user']);
+
+        return response()->json([
+            'total' => round($data['totalBalance'], 2),
+            'credits' => round($data['credits'], 2),
+            'coins' => round($data['tokenValue'], 2),
+            'perks' => round($data['coinValue'], 2),
+            'day_move' => round($data['dayMove'], 2),
+            'nfts' => $data['nftCount'],
+            'holdings' => $data['holdings']->map(fn ($h) => [
+                'id' => $h->id, 'value' => $h->value, 'move' => $h->move, 'dir' => $h->dir,
+            ])->values(),
+            'level' => [
+                'level' => $level['level'], 'percent' => $level['percent'], 'into' => $level['into'],
+                'to_next' => $level['to_next'], 'today_xp' => $level['today_xp'],
+                'streak' => $level['streak'], 'sparks' => $level['sparks'], 'tier' => $level['tier']['name'],
+            ],
+        ]);
+    }
+
+    /** Balances and holdings, shared by the page and the live endpoint. */
+    private function snapshot($user): array
+    {
         $address = $user->wallet_address;
 
         // --- Holdings -------------------------------------------------------------------
@@ -59,15 +98,14 @@ class WalletHubController extends Controller
         $nfts = $this->ownedNfts($user->id, $address);
         $nftCount = $nfts->count();
 
-        $nativeBalance = $address ? $this->readNativeBalance($address) : null;
-
         // Headline figure = what the user can actually spend/withdraw on-platform.
         $totalBalance = $credits + $tokenValue;
 
-        // --- Activity -------------------------------------------------------------------
-        $activity = $this->activityFeed($user->id, $address);
+        $holdings = WalletInsights::holdings($tokenWallets);
+        // How much the coins moved today, in dollars (credits don't move).
+        $dayMove = (float) $holdings->sum('move');
 
-        return view('wallet.index', compact(
+        return compact(
             'user',
             'address',
             'credits',
@@ -77,10 +115,10 @@ class WalletHubController extends Controller
             'coinValue',
             'nfts',
             'nftCount',
-            'nativeBalance',
             'totalBalance',
-            'activity'
-        ));
+            'holdings',
+            'dayMove'
+        );
     }
 
     /**

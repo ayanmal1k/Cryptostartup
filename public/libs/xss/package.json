@@ -39,7 +39,7 @@
     "test": "export DEBUG=xss:* && mocha -t 5000",
     "test-cov": "nyc --reporter=lcov mocha --exit \"test/*.js\" && nyc report",
     "coveralls": "cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js",
-    "build": "./bin/build",
+    "build": "node api.js && ./bin/build",
     "prepublish": "npm run test && npm run build"
   },
   "license": "MIT",

@@ -15,9 +15,9 @@
     "prefix": "animate__"
   },
   "scripts": {
-    "start": "npm-run-all raw prod compat",
+    "start": "node api.js && npm-run-all raw prod compat",
     "compat": "npx postcss source/animate.css -o animate.compat.css --no-map --env compat",
-    "dev": "npx postcss source/animate.css -o animate.css --no-map --env development -w",
+    "dev": "node api.js && npx postcss source/animate.css -o animate.css --no-map --env development -w",
     "raw": "npx postcss source/animate.css -o animate.css --no-map --env development",
     "prod": "npx postcss source/animate.css -o animate.min.css --no-map --env production",
     "format": "prettier --write \"**/*.{js,json,md,css}\"",
