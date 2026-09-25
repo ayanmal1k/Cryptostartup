@@ -1,0 +1,1723 @@
+/* =============================================================================
+   Loot HUD — one design system for the wallet, the coin page and the coin market.
+   =============================================================================
+
+   The client asked for the money pages to feel like a game HUD ("loot world"),
+   the same family as the supply drop on Rewards. Everything is prefixed `lh-`
+   and scoped under `.lh`, so it never leaks into the rest of the site.
+
+   Signatures, used everywhere so the three pages read as one system:
+   - four-corner brackets on panels (`.lh-brk`), drawn as background gradients
+     on a pseudo element so there is no extra markup;
+   - hex emblems for coins, angular clipped buttons, stencil caps labels;
+   - Chakra Petch for every number and label, Inter for sentences;
+   - gold means money, green means up, red means down. Magenta stays for the
+     one brand action and the active tab.
+
+   Rules kept throughout:
+   - only transform/opacity animate; hover is gated behind (hover: hover) so a
+     tap on a phone never sticks;
+   - reduced motion drops every entrance and the count-up;
+   - light theme gets a "daylight" variant, since these pages honour the
+     site-wide theme cookie.
+   ========================================================================== */
+
+.lh {
+    --lh-gold: #ffc53d;
+    --lh-gold-2: #ff9f1a;
+    --lh-gold-ink: #1a1203;
+    --lh-green: #22e0a0;
+    --lh-red: #ff4d6a;
+    --lh-cyan: #38bdf8;
+    --lh-violet: #a855f7;
+    --lh-brand: #cb0c9f;
+    --lh-brand-2: #830866;
+    --lh-num: 'Chakra Petch', 'Plus Jakarta Sans', 'Inter', sans-serif;
+    --lh-text: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --lh-ease: cubic-bezier(.19, 1, .22, 1);
+    --lh-r: 14px;
+
+    position: relative;
+    min-height: calc(100vh - 64px);
+    padding: 18px 16px 64px;
+    box-sizing: border-box;
+    color: var(--lh-ink);
+    font-family: var(--lh-text);
+    background-color: var(--lh-bg);
+    background-image:
+        radial-gradient(120% 60% at 50% -10%, var(--lh-haze), transparent 60%),
+        linear-gradient(var(--lh-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--lh-grid) 1px, transparent 1px);
+    background-size: 100% 100%, 40px 40px, 40px 40px;
+    background-attachment: scroll;
+}
+
+.lh--dark {
+    --lh-bg: #07070a;
+    --lh-haze: rgba(255, 197, 61, .07);
+    --lh-grid: rgba(255, 255, 255, .03);
+    --lh-panel: #111116;
+    --lh-panel-2: #17171e;
+    --lh-panel-3: #1e1e27;
+    --lh-sunk: #0b0b0f;
+    --lh-line: rgba(255, 255, 255, .08);
+    --lh-line-2: rgba(255, 255, 255, .15);
+    --lh-ink: #f6f6f8;
+    --lh-body: #c6c6d1;
+    --lh-mute: #8b8b9a;
+    --lh-brk: rgba(255, 197, 61, .55);
+    --lh-shadow: 0 18px 40px rgba(0, 0, 0, .5);
+}
+
+.lh--light {
+    --lh-bg: #f2f2f5;
+    --lh-haze: rgba(255, 159, 26, .1);
+    --lh-grid: rgba(9, 9, 11, .04);
+    --lh-panel: #ffffff;
+    --lh-panel-2: #f7f7fa;
+    --lh-panel-3: #eeeef3;
+    --lh-sunk: #e9e9ef;
+    --lh-line: rgba(9, 9, 11, .09);
+    --lh-line-2: rgba(9, 9, 11, .16);
+    --lh-ink: #0f0f12;
+    --lh-body: #3a3a45;
+    --lh-mute: #666674;
+    --lh-brk: rgba(176, 110, 0, .55);
+    --lh-shadow: 0 12px 30px rgba(9, 9, 11, .08);
+    --lh-gold: #b07000;
+    --lh-gold-2: #d98a00;
+    --lh-green: #0f9f6e;
+    --lh-red: #d92d4a;
+}
+
+.lh *,
+.lh *::before,
+.lh *::after { box-sizing: border-box; }
+
+.lh a { text-decoration: none; }
+.lh h1, .lh h2, .lh h3, .lh h4, .lh p { margin: 0; }
+
+.lh-wrap {
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.lh-wrap--wide { max-width: 760px; }
+
+/* --- Type ------------------------------------------------------------------- */
+.lh-num {
+    font-family: var(--lh-num);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .01em;
+}
+
+.lh-cap {
+    font-family: var(--lh-num);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--lh-mute);
+}
+
+.lh-gold { color: var(--lh-gold); }
+.lh-up { color: var(--lh-green); }
+.lh-down { color: var(--lh-red); }
+.lh-flat { color: var(--lh-mute); }
+
+/* --- Panels ------------------------------------------------------------------ */
+.lh-panel {
+    position: relative;
+    padding: 16px;
+    border-radius: var(--lh-r);
+    background: linear-gradient(180deg, var(--lh-panel-2), var(--lh-panel));
+    border: 1px solid var(--lh-line);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+
+.lh-panel--flush { padding: 0; overflow: hidden; }
+
+/* Four corner brackets, one pseudo element. */
+.lh-brk::after {
+    --b: var(--lh-brk);
+    content: "";
+    position: absolute;
+    inset: 7px;
+    pointer-events: none;
+    background:
+        linear-gradient(var(--b), var(--b)) top left / 12px 2px,
+        linear-gradient(var(--b), var(--b)) top left / 2px 12px,
+        linear-gradient(var(--b), var(--b)) top right / 12px 2px,
+        linear-gradient(var(--b), var(--b)) top right / 2px 12px,
+        linear-gradient(var(--b), var(--b)) bottom left / 12px 2px,
+        linear-gradient(var(--b), var(--b)) bottom left / 2px 12px,
+        linear-gradient(var(--b), var(--b)) bottom right / 12px 2px,
+        linear-gradient(var(--b), var(--b)) bottom right / 2px 12px;
+    background-repeat: no-repeat;
+}
+
+/* Section header: "// LABEL ............ 02" */
+.lh-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 4px 2px 10px;
+}
+
+.lh-head__title {
+    font-family: var(--lh-num);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--lh-ink);
+    white-space: nowrap;
+}
+
+.lh-head__title::before {
+    content: "//";
+    margin-right: 8px;
+    color: var(--lh-gold);
+    letter-spacing: 0;
+}
+
+.lh-head__rule {
+    flex: 1;
+    height: 1px;
+    min-width: 12px;
+    background: repeating-linear-gradient(90deg, var(--lh-line-2) 0 4px, transparent 4px 8px);
+}
+
+.lh-head__link {
+    font-family: var(--lh-num);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--lh-gold);
+    white-space: nowrap;
+}
+
+.lh-head__code {
+    font-family: var(--lh-num);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--lh-mute);
+}
+
+/* --- Hex emblem ----------------------------------------------------------------
+   Two stacked hexes: a lit rim and a dark core, so it reads as a minted plate. */
+.lh-hex {
+    --hex: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+    --hex-rim: linear-gradient(160deg, var(--lh-gold), var(--lh-brand) 55%, var(--lh-brand-2));
+    position: relative;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 52px;
+    clip-path: var(--hex);
+    background: var(--hex-rim);
+}
+
+.lh-hex::before {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    clip-path: var(--hex);
+    background: radial-gradient(90% 70% at 50% 20%, #3a1034, #140611 70%);
+}
+
+.lh--light .lh-hex::before { background: radial-gradient(90% 70% at 50% 20%, #ffe3f6, #f6c7e8 70%); }
+
+.lh-hex > * { position: relative; }
+
+.lh-hex__glyph {
+    font-family: var(--lh-num);
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 0 12px rgba(203, 12, 159, .9);
+}
+
+.lh--light .lh-hex__glyph { color: var(--lh-brand-2); text-shadow: none; }
+
+.lh-hex img {
+    width: calc(100% - 4px);
+    height: calc(100% - 4px);
+    object-fit: cover;
+    clip-path: var(--hex);
+}
+
+.lh-hex--sm { width: 36px; height: 40px; }
+.lh-hex--sm .lh-hex__glyph { font-size: 15px; }
+.lh-hex--lg { width: 76px; height: 84px; }
+.lh-hex--lg .lh-hex__glyph { font-size: 32px; }
+
+.lh-hex--cyan { --hex-rim: linear-gradient(160deg, #a5f3fc, var(--lh-cyan) 50%, #1e3a8a); }
+.lh-hex--violet { --hex-rim: linear-gradient(160deg, #f0abfc, var(--lh-violet) 50%, #3b0764); }
+.lh-hex--gold { --hex-rim: linear-gradient(160deg, #fff3c4, var(--lh-gold) 45%, #8a5a00); }
+
+/* --- Buttons --------------------------------------------------------------------- */
+.lh-btn {
+    --cut: 9px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 0;
+    font-family: var(--lh-num);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+    transition: transform .16s var(--lh-ease), filter .16s ease;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+.lh-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+.lh-btn--gold {
+    color: var(--lh-gold-ink) !important;
+    background: linear-gradient(180deg, #ffd666, var(--lh-gold) 45%, var(--lh-gold-2));
+    box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .18);
+}
+
+.lh-btn--brand {
+    color: #fff !important;
+    background: linear-gradient(180deg, #e0149f, var(--lh-brand) 50%, var(--lh-brand-2));
+}
+
+/* Ghost buttons fake a clipped border: the outer layer is the border colour, an
+   inset pseudo in the panel colour sits on top of it. */
+.lh-btn--ghost {
+    color: var(--lh-ink) !important;
+    background: var(--lh-line-2);
+    isolation: isolate;
+}
+
+.lh-btn--ghost::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    z-index: -1;
+    background: var(--lh-panel-2);
+    clip-path: polygon(calc(var(--cut) - .5px) 0, 100% 0, 100% calc(100% - var(--cut) + .5px), calc(100% - var(--cut) + .5px) 100%, 0 100%, 0 calc(var(--cut) - .5px));
+}
+
+.lh-btn--sm { min-height: 38px; padding: 0 14px; font-size: 12px; --cut: 7px; }
+.lh-btn--block { width: 100%; }
+
+.lh-btn:active { transform: scale(.97); }
+
+@media (hover: hover) and (pointer: fine) {
+    .lh-btn--gold:hover,
+    .lh-btn--brand:hover { filter: brightness(1.08); }
+    .lh-btn--ghost:hover { background: var(--lh-brk); }
+}
+
+.lh-btn:focus-visible,
+.lh-tab:focus-visible,
+.lh-slot:focus-visible,
+.lh-row:focus-visible {
+    outline: 2px solid var(--lh-gold);
+    outline-offset: 2px;
+}
+
+/* --- Chips ----------------------------------------------------------------------- */
+.lh-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    background: var(--lh-panel-3);
+    border: 1px solid var(--lh-line);
+    font-family: var(--lh-num);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    color: var(--lh-body);
+    white-space: nowrap;
+}
+
+.lh-chip b { color: var(--lh-ink); font-weight: 700; }
+.lh-chip--up { color: var(--lh-green); border-color: rgba(34, 224, 160, .3); background: rgba(34, 224, 160, .08); }
+.lh-chip--down { color: var(--lh-red); border-color: rgba(255, 77, 106, .3); background: rgba(255, 77, 106, .08); }
+.lh-chip--gold { color: var(--lh-gold); border-color: rgba(255, 197, 61, .35); background: rgba(255, 197, 61, .08); }
+.lh-chip--new { color: var(--lh-cyan); border-color: rgba(56, 189, 248, .3); background: rgba(56, 189, 248, .08); }
+
+/* --- Meters ------------------------------------------------------------------------
+   A segmented bar: the fill is cut into ticks by a mask, like an ammo counter. */
+.lh-meter {
+    position: relative;
+    height: 10px;
+    border-radius: 3px;
+    background: var(--lh-sunk);
+    border: 1px solid var(--lh-line);
+    overflow: hidden;
+}
+
+.lh-meter__fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: linear-gradient(90deg, var(--lh-cyan), var(--lh-green));
+    transform-origin: left center;
+}
+
+.lh-meter--ticks .lh-meter__fill,
+.lh-meter--ticks .lh-split {
+    -webkit-mask: repeating-linear-gradient(90deg, #000 0 7px, transparent 7px 9px);
+    mask: repeating-linear-gradient(90deg, #000 0 7px, transparent 7px 9px);
+}
+
+.lh-meter--gold .lh-meter__fill { background: linear-gradient(90deg, var(--lh-gold-2), var(--lh-gold)); }
+
+/* Multi-part meter for the loadout split. */
+.lh-split {
+    position: absolute;
+    inset: 0;
+    display: flex;
+}
+
+.lh-split > span { height: 100%; }
+.lh-split .is-credits { background: var(--lh-gold); }
+.lh-split .is-coins { background: var(--lh-cyan); }
+.lh-split .is-creator { background: var(--lh-violet); }
+
+.lh-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-top: 10px;
+}
+
+.lh-legend__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--lh-body);
+}
+
+.lh-legend__item b {
+    font-family: var(--lh-num);
+    color: var(--lh-ink);
+}
+
+.lh-legend__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    transform: rotate(45deg);
+}
+
+/* --- Readouts (label + value) ----------------------------------------------------- */
+.lh-reads {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    border-radius: var(--lh-r);
+    overflow: hidden;
+    background: var(--lh-line);
+    border: 1px solid var(--lh-line);
+}
+
+.lh-read {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    background: var(--lh-panel);
+    min-width: 0;
+}
+
+.lh-read__value {
+    font-family: var(--lh-num);
+    font-size: 20px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--lh-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lh-read__sub { font-size: 12px; color: var(--lh-mute); }
+
+@media (min-width: 560px) {
+    .lh-reads--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* --- Rows (coins, activity, holdings) --------------------------------------------- */
+.lh-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.lh-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--lh-panel-2);
+    border: 1px solid var(--lh-line);
+    color: inherit;
+    transition: transform .16s var(--lh-ease), border-color .16s ease;
+}
+
+a.lh-row::before,
+.cm-row::before {
+    content: "";
+    position: absolute;
+    left: -1px;
+    top: 12px;
+    bottom: 12px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--lh-gold);
+    opacity: .9;
+}
+
+.lh-row__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+
+.lh-row__title {
+    font-family: var(--lh-num);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--lh-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lh-row__sub {
+    font-size: 12.5px;
+    color: var(--lh-mute);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lh-row__end {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    flex-shrink: 0;
+}
+
+.lh-row__value {
+    font-family: var(--lh-num);
+    font-size: 17px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--lh-gold);
+}
+
+.lh-row__spark { width: 64px; height: 26px; flex-shrink: 0; }
+.lh-row__spark svg { width: 100%; height: 100%; display: block; }
+
+@media (hover: hover) and (pointer: fine) {
+    a.lh-row:hover { transform: translateX(3px); border-color: var(--lh-brk); }
+}
+
+a.lh-row:active { transform: scale(.985); }
+
+/* Round icon for activity rows. */
+.lh-ico {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--lh-panel-3);
+    border: 1px solid var(--lh-line);
+    color: var(--lh-body);
+}
+
+.lh-ico svg { width: 18px; height: 18px; }
+.lh-ico--in { color: var(--lh-green); background: rgba(34, 224, 160, .08); border-color: rgba(34, 224, 160, .25); }
+.lh-ico--out { color: var(--lh-gold); background: rgba(255, 197, 61, .08); border-color: rgba(255, 197, 61, .25); }
+.lh-ico--nft { color: var(--lh-violet); background: rgba(168, 85, 247, .08); border-color: rgba(168, 85, 247, .25); }
+
+.lh-day {
+    margin: 10px 2px 2px;
+    font-family: var(--lh-num);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--lh-mute);
+}
+
+.lh-day:first-child { margin-top: 0; }
+
+/* --- Tabs ----------------------------------------------------------------------------- */
+.lh-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--lh-sunk);
+    border: 1px solid var(--lh-line);
+    overflow-x: auto;
+    scrollbar-width: none;
+    scroll-padding: 0 4px;
+    -webkit-mask: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
+    mask: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
+}
+
+.lh-tabs::-webkit-scrollbar { display: none; }
+
+.lh-tab {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 14px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    font-family: var(--lh-num);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--lh-mute);
+    cursor: pointer;
+    transition: color .15s ease, background .15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.lh-tab:last-child { margin-right: 20px; }
+
+.lh-tab.is-active {
+    color: #fff;
+    background: linear-gradient(180deg, rgba(203, 12, 159, .35), rgba(203, 12, 159, .14));
+    border-color: rgba(203, 12, 159, .6);
+    box-shadow: inset 0 -2px 0 var(--lh-brand);
+}
+
+.lh--light .lh-tab.is-active { color: var(--lh-brand-2); }
+
+.lh-tab__count {
+    min-width: 20px;
+    padding: 1px 6px;
+    border-radius: 5px;
+    background: rgba(255, 197, 61, .16);
+    color: var(--lh-gold);
+    font-size: 11px;
+    letter-spacing: 0;
+    text-align: center;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .lh-tab:not(.is-active):hover { color: var(--lh-ink); }
+}
+
+.lh-tabpanel { display: flex; flex-direction: column; gap: 18px; }
+.lh-tabpanel[hidden] { display: none; }
+
+/* --- Empty state ------------------------------------------------------------------------ */
+.lh-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 28px 18px;
+    text-align: center;
+    border-radius: var(--lh-r);
+    border: 1px dashed var(--lh-line-2);
+    background: repeating-linear-gradient(135deg, transparent 0 10px, rgba(255, 255, 255, .015) 10px 20px);
+}
+
+.lh-empty__icon {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    margin-bottom: 4px;
+    border-radius: 14px;
+    background: var(--lh-panel-3);
+    color: var(--lh-gold);
+}
+
+.lh-empty__icon svg { width: 26px; height: 26px; }
+
+.lh-empty h3 {
+    font-family: var(--lh-num);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--lh-ink);
+}
+
+.lh-empty p { max-width: 320px; font-size: 14px; line-height: 1.5; color: var(--lh-body); }
+.lh-empty .lh-btn { margin-top: 8px; }
+
+/* --- Flash ------------------------------------------------------------------------------ */
+.lh-flash {
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid;
+}
+
+.lh-flash--success { color: var(--lh-green); background: rgba(34, 224, 160, .08); border-color: rgba(34, 224, 160, .3); }
+.lh-flash--error { color: var(--lh-red); background: rgba(255, 77, 106, .08); border-color: rgba(255, 77, 106, .3); }
+
+/* --- Forms (transfer terminal) -----------------------------------------------------------
+   app.css forces text inputs and selects white with !important site-wide, so every
+   field here needs !important to stay dark. <label> is also forced grey by app.css,
+   so field labels are spans. */
+.lh-field { display: flex; flex-direction: column; gap: 8px; }
+
+.lh .lh-input,
+.lh .lh-field select {
+    width: 100%;
+    min-height: 52px;
+    padding: 0 16px;
+    border-radius: 10px;
+    border: 1px solid var(--lh-line-2);
+    background: var(--lh-sunk) !important;
+    color: var(--lh-ink) !important;
+    font-family: var(--lh-num);
+    font-size: 17px;
+    font-weight: 600;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.lh .lh-input::placeholder { color: var(--lh-mute); opacity: 1; }
+
+.lh .lh-input:focus,
+.lh .lh-field select:focus {
+    border-color: var(--lh-gold);
+    box-shadow: 0 0 0 3px rgba(255, 197, 61, .22);
+}
+
+.lh-money {
+    position: relative;
+    display: block;
+}
+
+.lh-money__sign {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--lh-num);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--lh-gold);
+    pointer-events: none;
+}
+
+.lh .lh-money .lh-input {
+    padding-left: 36px;
+    min-height: 60px;
+    font-size: 26px;
+    color: var(--lh-gold) !important;
+}
+
+.lh-quick {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.lh-quick button {
+    min-height: 40px;
+    border-radius: 8px;
+    border: 1px solid var(--lh-line-2);
+    background: var(--lh-panel-3);
+    color: var(--lh-ink);
+    font-family: var(--lh-num);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform .12s var(--lh-ease), border-color .12s ease;
+}
+
+.lh-quick button:active { transform: scale(.95); }
+.lh-quick button.is-on { border-color: var(--lh-gold); color: var(--lh-gold); }
+
+.lh-note { font-size: 13px; line-height: 1.5; color: var(--lh-body); }
+.lh-note strong { color: var(--lh-gold); font-family: var(--lh-num); }
+.lh-note--error { color: var(--lh-red); }
+
+/* --- Entrance --------------------------------------------------------------------------
+   Panels rise in once, staggered by --i. Pure CSS, no JS needed. */
+@keyframes lh-rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+}
+
+.lh-in {
+    animation: lh-rise .5s var(--lh-ease) both;
+    animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+/* One gold sweep across the hero, like a card being dealt. */
+@keyframes lh-sweep {
+    from { transform: translateX(-120%) skewX(-18deg); }
+    to { transform: translateX(260%) skewX(-18deg); }
+}
+
+.lh-sheen { position: relative; overflow: hidden; }
+
+.lh-sheen > .lh-sheen__bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 40%;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(255, 213, 102, .12), transparent);
+    animation: lh-sweep 1.4s .25s var(--lh-ease) both;
+}
+
+@keyframes lh-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .35; }
+}
+
+.lh-live {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--lh-green);
+    box-shadow: 0 0 0 3px rgba(34, 224, 160, .18);
+    animation: lh-pulse 1.8s ease-in-out infinite;
+}
+
+.lh-sr {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+/* =============================================================================
+   WALLET
+   ========================================================================== */
+
+/* wallet.css still styles the outside-wallet disclosure; its page wrapper padding
+   and background are superseded here. */
+.lh.wallet-page { padding: 18px 16px 64px; background-color: var(--lh-bg); }
+
+/* --- Operator card ---------------------------------------------------------------- */
+.wh-hero {
+    padding: 18px 18px 16px;
+    background:
+        radial-gradient(80% 90% at 100% 0%, rgba(255, 197, 61, .10), transparent 60%),
+        radial-gradient(70% 80% at 0% 100%, rgba(203, 12, 159, .10), transparent 60%),
+        linear-gradient(180deg, var(--lh-panel-2), var(--lh-panel));
+    border-color: var(--lh-line-2);
+    box-shadow: var(--lh-shadow), inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+
+.wh-op {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.wh-op__avatar {
+    position: relative;
+    flex-shrink: 0;
+    line-height: 0;
+}
+
+.wh-op__avatar img {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.wh-op__avatar:not(.has-frame) img { box-shadow: 0 0 0 2px var(--lh-line-2); }
+
+.wh-op__lvl {
+    position: absolute;
+    right: -6px;
+    bottom: -4px;
+    min-width: 22px;
+    padding: 2px 5px;
+    border-radius: 5px;
+    background: linear-gradient(180deg, #ffd666, var(--lh-gold-2));
+    color: var(--lh-gold-ink);
+    font-family: var(--lh-num);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: center;
+    box-shadow: 0 0 0 2px var(--lh-panel);
+}
+
+.wh-op__id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.wh-op__name {
+    font-family: var(--lh-num);
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--lh-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wh-op__rank {
+    font-family: var(--lh-num);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--lh-gold);
+}
+
+.wh-eye {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 10px;
+    border: 1px solid var(--lh-line);
+    background: var(--lh-panel-3);
+    color: var(--lh-body);
+    cursor: pointer;
+}
+
+.wh-eye svg { width: 18px; height: 18px; }
+
+.wh-worth { margin: 18px 0 4px; }
+
+.wh-worth__row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+
+.wh-worth__value {
+    font-family: var(--lh-num);
+    font-size: clamp(40px, 13vw, 60px);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -.01em;
+    font-variant-numeric: tabular-nums;
+    color: var(--lh-gold);
+    text-shadow: 0 0 32px rgba(255, 197, 61, .35);
+}
+
+.lh--light .wh-worth__value { text-shadow: none; }
+
+.wh-worth__hint { margin-top: 8px; font-size: 13px; color: var(--lh-mute); }
+
+.wh-loadout { margin-top: 16px; }
+
+.wh-loadout__top {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.wh-xp {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 10px;
+    background: var(--lh-sunk);
+    border: 1px solid var(--lh-line);
+}
+
+.wh-xp__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.wh-xp__nums { font-family: var(--lh-num); font-size: 12px; font-weight: 600; color: var(--lh-body); }
+.wh-xp__chips { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+
+/* Quick-slot bar: four actions, like a hotbar. */
+.wh-hotbar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.wh-hot {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    padding: 12px 4px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--lh-line-2);
+    background: var(--lh-panel-3);
+    color: var(--lh-ink) !important;
+    font-family: var(--lh-num);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    transition: transform .16s var(--lh-ease), border-color .16s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.wh-hot__ico {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--lh-sunk);
+    color: var(--lh-gold);
+}
+
+.wh-hot__ico svg { width: 20px; height: 20px; }
+
+.wh-hot__key {
+    position: absolute;
+    top: 5px;
+    left: 7px;
+    font-size: 9px;
+    color: var(--lh-mute);
+    letter-spacing: 0;
+}
+
+.wh-hot--money {
+    border-color: rgba(255, 197, 61, .55);
+    background: linear-gradient(180deg, rgba(255, 197, 61, .16), rgba(255, 197, 61, .04));
+}
+
+.wh-hot--money .wh-hot__ico {
+    background: linear-gradient(180deg, #ffd666, var(--lh-gold-2));
+    color: var(--lh-gold-ink);
+}
+
+.wh-hot:active { transform: scale(.95); }
+
+@media (hover: hover) and (pointer: fine) {
+    .wh-hot:hover { border-color: var(--lh-brk); transform: translateY(-2px); }
+}
+
+/* --- Inventory slots ------------------------------------------------------------ */
+.wh-slots {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.wh-slots li { display: flex; }
+
+.lh-slot {
+    --rare: var(--lh-gold);
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 14px 14px 13px;
+    border-radius: var(--lh-r);
+    border: 1px solid var(--lh-line);
+    background: var(--lh-panel);
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--rare) 10%, transparent), transparent 55%),
+        var(--lh-panel);
+    color: inherit;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform .16s var(--lh-ease), border-color .16s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Rarity edge along the top. */
+.lh-slot::before {
+    content: "";
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    top: 0;
+    height: 2px;
+    border-radius: 0 0 2px 2px;
+    background: var(--rare);
+    box-shadow: 0 0 12px var(--rare);
+}
+
+.lh-slot--cyan { --rare: var(--lh-cyan); }
+.lh-slot--violet { --rare: var(--lh-violet); }
+.lh-slot--brand { --rare: var(--lh-brand); }
+
+.lh-slot__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 6px;
+}
+
+.lh-slot__ico {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--lh-panel-3);
+    background: color-mix(in srgb, var(--rare) 14%, transparent);
+    color: var(--rare);
+}
+
+.lh-slot__ico svg { width: 18px; height: 18px; }
+
+.lh-slot__idx { font-family: var(--lh-num); font-size: 10px; font-weight: 600; color: var(--lh-mute); }
+
+.lh-slot__value {
+    font-family: var(--lh-num);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    color: var(--lh-ink);
+}
+
+.lh-slot__value.is-money { color: var(--lh-gold); }
+.lh-slot__sub { font-size: 12px; color: var(--lh-mute); }
+
+.lh-slot:active { transform: scale(.97); }
+
+@media (hover: hover) and (pointer: fine) {
+    .lh-slot:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--rare) 55%, transparent); }
+}
+
+.is-balance-hidden .lh-slot__value.is-money,
+.is-balance-hidden .wh-legend-val,
+.is-balance-hidden .lh-row__value { filter: blur(7px); }
+
+/* --- Quests ------------------------------------------------------------------- */
+.wh-quests__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.wh-quests__title {
+    font-family: var(--lh-num);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--lh-ink);
+}
+
+.wh-quest {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 0;
+    border-top: 1px solid var(--lh-line);
+    color: inherit;
+}
+
+.wh-quest__box {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    border: 1.5px solid var(--lh-line-2);
+    color: transparent;
+}
+
+.wh-quest__box svg { width: 15px; height: 15px; }
+
+.wh-quest.is-done .wh-quest__box {
+    border-color: var(--lh-green);
+    background: rgba(34, 224, 160, .14);
+    color: var(--lh-green);
+}
+
+.wh-quest__text { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--lh-ink); }
+.wh-quest.is-done .wh-quest__text { color: var(--lh-mute); text-decoration: line-through; }
+
+.wh-quest__go {
+    font-family: var(--lh-num);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--lh-gold);
+}
+
+/* --- Explore tiles ------------------------------------------------------------ */
+.wh-explore {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.wh-tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-height: 118px;
+    padding: 14px;
+    border-radius: var(--lh-r);
+    border: 1px solid var(--lh-line);
+    background: var(--lh-panel);
+    color: inherit;
+    overflow: hidden;
+    transition: transform .16s var(--lh-ease), border-color .16s ease;
+}
+
+.wh-tile__ico {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    margin-bottom: auto;
+    border-radius: 10px;
+    background: var(--lh-panel-3);
+    color: var(--lh-gold);
+}
+
+.wh-tile__ico svg { width: 19px; height: 19px; }
+
+.wh-tile__title {
+    margin-top: 12px;
+    font-family: var(--lh-num);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--lh-ink);
+}
+
+.wh-tile__sub { font-size: 12px; color: var(--lh-mute); }
+
+.wh-tile__arrow {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 16px;
+    height: 16px;
+    color: var(--lh-mute);
+}
+
+.wh-tile:active { transform: scale(.97); }
+
+@media (hover: hover) and (pointer: fine) {
+    .wh-tile:hover { transform: translateY(-2px); border-color: var(--lh-brk); }
+}
+
+/* --- Transfer terminal -------------------------------------------------------- */
+.wh-send { display: flex; flex-direction: column; gap: 14px; }
+
+.wh-send__actions {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 10px;
+}
+
+/* --- Outside-wallet disclosure -------------------------------------------------
+   Restyled lightly; its inner blocks keep wallet.css. */
+.lh .wallet-advanced {
+    border-radius: var(--lh-r);
+    border: 1px solid var(--lh-line);
+    background: var(--lh-panel);
+}
+
+.lh .wallet-advanced__summary span:first-child {
+    font-family: var(--lh-num);
+    font-weight: 700;
+    color: var(--lh-body);
+}
+
+.lh .wallet-advanced .wallet-field input {
+    background: var(--lh-sunk) !important;
+    color: var(--lh-ink) !important;
+}
+
+/* =============================================================================
+   COIN PAGE
+   ========================================================================== */
+
+.ch-hero {
+    padding: 18px;
+    background:
+        radial-gradient(90% 80% at 100% 0%, rgba(203, 12, 159, .14), transparent 60%),
+        linear-gradient(180deg, var(--lh-panel-2), var(--lh-panel));
+    border-color: var(--lh-line-2);
+    box-shadow: var(--lh-shadow), inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+
+.ch-id {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.ch-id__meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+
+.ch-id__name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--lh-num);
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--lh-ink);
+}
+
+.ch-id__name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ch-id__verified { flex-shrink: 0; width: 20px; height: 20px; color: var(--lh-green); }
+
+.ch-id__by { font-size: 13px; color: var(--lh-mute); }
+.ch-id__by a { color: var(--lh-body); font-weight: 600; }
+.ch-id__tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+
+.ch-stake {
+    margin-top: 18px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.ch-stake__value {
+    margin-top: 6px;
+    font-family: var(--lh-num);
+    font-size: clamp(36px, 11vw, 52px);
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--lh-gold);
+    text-shadow: 0 0 30px rgba(255, 197, 61, .35);
+}
+
+.lh--light .ch-stake__value { text-shadow: none; }
+
+.ch-stake__move { font-family: var(--lh-num); font-size: 15px; font-weight: 700; }
+
+/* Price chart: shape only, no axis prices (dollars-only rule: nobody sees a
+   per-coin price). The change is given as a percentage beside it. */
+.ch-chart {
+    position: relative;
+    margin: 18px -18px 0;
+    height: 150px;
+    border-top: 1px solid var(--lh-line);
+    border-bottom: 1px solid var(--lh-line);
+    background:
+        linear-gradient(var(--lh-line) 1px, transparent 1px) 0 0 / 100% 25%,
+        var(--lh-sunk);
+}
+
+.ch-chart svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+.ch-chart__line {
+    fill: none;
+    stroke-width: 2.25;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.ch-chart__label {
+    position: absolute;
+    left: 12px;
+    top: 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.ch-chart__empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    text-align: center;
+    padding: 0 20px;
+}
+
+.ch-chart__empty b { font-family: var(--lh-num); font-size: 14px; color: var(--lh-ink); }
+.ch-chart__empty span { font-size: 12.5px; color: var(--lh-mute); }
+
+/* The line wipes in left to right once. A dash animation would fight the
+   non-scaling stroke the stretched chart needs, so this clips the svg instead. */
+@keyframes ch-wipe {
+    from { clip-path: inset(0 100% 0 0); }
+    to { clip-path: inset(0 0 0 0); }
+}
+
+.ch-chart svg.is-draw { animation: ch-wipe 1.1s .2s var(--lh-ease) both; }
+
+.ch-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.ch-actions--one { grid-template-columns: 1fr; }
+
+/* Supply claimed + holders: the "weapon stats" block. */
+.ch-spec { display: flex; flex-direction: column; gap: 14px; }
+
+.ch-spec__row { display: flex; flex-direction: column; gap: 7px; }
+
+.ch-spec__top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.ch-spec__val { font-family: var(--lh-num); font-size: 15px; font-weight: 700; color: var(--lh-ink); }
+
+.ch-kv { display: flex; flex-direction: column; }
+
+.ch-kv__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 0;
+    border-top: 1px solid var(--lh-line);
+    font-size: 14px;
+    color: var(--lh-body);
+}
+
+.ch-kv__row:first-child { border-top: 0; padding-top: 2px; }
+.ch-kv__row b { font-family: var(--lh-num); font-size: 15px; color: var(--lh-ink); }
+
+.ch-about { font-size: 15px; line-height: 1.6; color: var(--lh-body); }
+.ch-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+.ch-creator {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: inherit;
+}
+
+.ch-creator img {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 0 0 2px var(--lh-line-2);
+}
+
+.ch-grid { display: grid; gap: 18px; }
+
+@media (min-width: 700px) {
+    .ch-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* =============================================================================
+   COIN MARKET
+   ========================================================================== */
+
+.cm-top {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.cm-title {
+    font-family: var(--lh-num);
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.05;
+    color: var(--lh-ink);
+}
+
+.cm-sub { margin-top: 6px; font-size: 14px; color: var(--lh-body); }
+
+/* Ticker: live figures on one strip instead of four big tiles. */
+.cm-ticker {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    border-radius: var(--lh-r);
+    overflow: hidden;
+    background: var(--lh-line);
+    border: 1px solid var(--lh-line);
+}
+
+.cm-ticker > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
+    background: var(--lh-panel);
+}
+
+.cm-ticker b {
+    font-family: var(--lh-num);
+    font-size: 19px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--lh-ink);
+}
+
+@media (min-width: 560px) {
+    .cm-ticker { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.cm-bag {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    color: inherit;
+    border-color: rgba(255, 197, 61, .35);
+    background:
+        linear-gradient(90deg, rgba(255, 197, 61, .12), transparent 70%),
+        var(--lh-panel);
+}
+
+.cm-bag__main { flex: 1; min-width: 0; }
+.cm-bag__value { font-family: var(--lh-num); font-size: 24px; font-weight: 700; color: var(--lh-gold); }
+
+.cm-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 5px 5px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--lh-line-2);
+    background: var(--lh-sunk);
+}
+
+.cm-search svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--lh-mute); }
+
+.lh .cm-search input {
+    flex: 1;
+    min-width: 0;
+    height: 42px;
+    border: 0 !important;
+    background: transparent !important;
+    color: var(--lh-ink) !important;
+    font-size: 16px;
+    outline: none;
+    box-shadow: none !important;
+}
+
+.lh .cm-search input::placeholder { color: var(--lh-mute); opacity: 1; }
+
+.cm-sorts {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-top: 10px;
+}
+
+.cm-sorts::-webkit-scrollbar { display: none; }
+
+.cm-sort {
+    flex-shrink: 0;
+    padding: 8px 13px;
+    border-radius: 8px;
+    border: 1px solid var(--lh-line);
+    background: var(--lh-panel);
+    font-family: var(--lh-num);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--lh-mute) !important;
+}
+
+.cm-sort.is-active {
+    color: var(--lh-gold) !important;
+    border-color: rgba(255, 197, 61, .55);
+    background: rgba(255, 197, 61, .08);
+}
+
+/* Featured #1: the biggest thing on the page after the header. */
+.cm-feature {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+    color: inherit;
+    border-color: var(--lh-line-2);
+    background:
+        radial-gradient(80% 100% at 100% 0%, rgba(255, 197, 61, .14), transparent 60%),
+        linear-gradient(180deg, var(--lh-panel-2), var(--lh-panel));
+    box-shadow: var(--lh-shadow);
+}
+
+.cm-feature__top { display: flex; align-items: center; gap: 14px; }
+.cm-feature__meta { flex: 1; min-width: 0; }
+
+.cm-feature__name {
+    font-family: var(--lh-num);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--lh-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cm-rank {
+    font-family: var(--lh-num);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    color: var(--lh-gold);
+}
+
+.cm-feature__spark { height: 64px; }
+.cm-feature__spark svg { width: 100%; height: 100%; display: block; }
+
+.cm-feature__stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--lh-line);
+}
+
+.cm-feature__stats b {
+    display: block;
+    margin-top: 4px;
+    font-family: var(--lh-num);
+    font-size: 16px;
+    color: var(--lh-ink);
+}
+
+.cm-feature__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Leaderboard rows. */
+.cm-row { padding: 10px 12px; gap: 10px; }
+
+.cm-row__rank {
+    width: 22px;
+    flex-shrink: 0;
+    font-family: var(--lh-num);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--lh-mute);
+    text-align: center;
+}
+
+.cm-row .lh-row__spark { display: none; }
+
+@media (min-width: 420px) {
+    .cm-row .lh-row__spark { display: block; }
+}
+
+.cm-row__buy {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #ffd666, var(--lh-gold-2));
+    color: var(--lh-gold-ink) !important;
+    font-family: var(--lh-num);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+/* The row is a div so it can hold its own Buy link; this stretched link makes the
+   rest of the row open the coin. */
+.cm-row__hit {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+}
+
+.cm-row__buy { position: relative; z-index: 1; }
+
+@media (hover: hover) and (pointer: fine) {
+    .cm-row:hover { border-color: var(--lh-brk); }
+}
+
+.cm-cta {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px 18px;
+    border-style: dashed;
+    border-color: var(--lh-line-2);
+}
+
+.cm-cta h2 { font-family: var(--lh-num); font-size: 20px; font-weight: 700; color: var(--lh-ink); }
+.cm-cta p { font-size: 14px; color: var(--lh-body); }
+
+.cm-pages .pagination { justify-content: center; flex-wrap: wrap; gap: 4px; }
+
+/* --- Reduced motion ---------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    .lh-in,
+    .lh-sheen > .lh-sheen__bar,
+    .ch-chart svg.is-draw,
+    .lh-live { animation: none; }
+
+    .lh-sheen > .lh-sheen__bar { display: none; }
+
+    .lh-btn,
+    .lh-row,
+    .lh-slot,
+    .wh-hot,
+    .wh-tile { transition: none; }
+}
+
+/* Direction colours win over the row's default gold/mute. */
+.lh-row__value.lh-up,
+.lh-row__sub.lh-up { color: var(--lh-green); }
+.lh-row__value.lh-down,
+.lh-row__sub.lh-down { color: var(--lh-red); }
+.lh-row__value.lh-flat { color: var(--lh-mute); }
+
+/* Semantic colour helpers beat component defaults (e.g. `.cm-ticker b`). */
+.lh .lh-gold { color: var(--lh-gold); }
+.lh .lh-up { color: var(--lh-green); }
+.lh .lh-down { color: var(--lh-red); }

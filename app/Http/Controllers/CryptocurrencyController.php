@@ -508,7 +508,8 @@ public function show($id)
             ->sum('total_price'),
         'avg_price' => CryptoTransaction::where('cryptocurrency_id', $id)
             ->where('price_per_token', '>', 0)
-            ->avg('price_per_token') ?? $cryptocurrency->current_price
+            ->avg('price_per_token') ?? $cryptocurrency->current_price,
+        'holders' => CryptoWallet::where('cryptocurrency_id', $id)->where('balance', '>', 0)->count(),
     ];
     
     return view('cryptocurrency.show', compact('cryptocurrency', 'marketData', 'wallet'));
@@ -694,8 +695,11 @@ public function show($id)
             ->where('balance', '>', 0)
             ->pluck('balance', 'cryptocurrency_id');
 
+        // Everything the viewer holds, in dollars, for the "your bag" strip.
+        $myBag = $active->sum(fn ($c) => TokenMoney::toUsd((float) ($myUnits[$c->id] ?? 0), (float) $c->current_price));
+
         return view('cryptocurrency.marketplace', compact(
-            'trending', 'cryptocurrencies', 'gainers', 'stats', 'volume24h', 'holders', 'search', 'sort', 'myUnits'
+            'trending', 'cryptocurrencies', 'gainers', 'stats', 'volume24h', 'holders', 'search', 'sort', 'myUnits', 'myBag'
         ));
     }
 

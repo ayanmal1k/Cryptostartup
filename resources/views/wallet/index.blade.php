@@ -5,175 +5,333 @@
         ? getSetting('site.default_user_theme') == 'dark'
         : Cookie::get('app_theme') == 'dark';
 
-    /**
-     * Build a sparkline path from a token's REAL recorded price history.
-     * Returns null when there is not enough history to plot — callers render a flat
-     * baseline instead. We deliberately never synthesise fake price movement here.
-     */
-    $sparkPath = function ($crypto) {
-        $history = $crypto->price_history;
-        if (is_string($history)) {
-            $history = json_decode($history, true);
+    // --- Operator card: the same level, XP, streak and sparks the Rewards hub tracks.
+    $perLevel = \App\Services\GamificationService::XP_PER_LEVEL;
+    $level = (int) ($user->level ?? 1);
+    $xp = (int) ($user->xp ?? 0);
+    $intoLevel = $perLevel > 0 ? $xp % $perLevel : 0;
+    $levelPct = $perLevel > 0 ? round($intoLevel / $perLevel * 100) : 0;
+    // Cosmetic rank names, by level band. Pure flavour; nothing is gated on them.
+    $rankTitle = collect([35 => __('Legend'), 20 => __('Whale'), 10 => __('Collector'), 5 => __('Hustler'), 0 => __('Rookie')])
+        ->first(fn ($title, $min) => $level >= $min);
+    $frameClass = \App\Services\PerkShopService::frameClass($user);
+
+    // --- Loadout: how the value splits across the three kinds of money.
+    $loadoutTotal = $credits + $tokenValue + $coinValue;
+    $pct = fn ($v) => $loadoutTotal > 0 ? round($v / $loadoutTotal * 100, 1) : 0;
+
+    // --- Quests: first steps, ticked off from what the user actually holds.
+    $quests = [
+        ['done' => $credits > 0 || $tokenWallets->count() > 0, 'text' => __('Add funds to your wallet'), 'href' => route('my.settings', ['type' => 'wallet', 'active' => 'deposit'])],
+        ['done' => $tokenWallets->count() > 0, 'text' => __('Own your first coin'), 'href' => route('cryptocurrency.marketplace')],
+        ['done' => $nftCount > 0, 'text' => __('Collect an NFT'), 'href' => route('nft.marketplace')],
+        ['done' => $coinBalances->count() > 0, 'text' => __('Back a creator'), 'href' => route('creator-coins.index')],
+    ];
+    $questsDone = collect($quests)->where('done', true)->count();
+
+    // --- Holdings, biggest first, for the overview preview and the coins tab.
+    $holdings = $tokenWallets->map(function ($w) {
+        $crypto = $w->cryptocurrency;
+        $change = (float) ($crypto->price_change_24h ?? 0);
+        $value = \App\Support\TokenMoney::toUsd((float) $w->balance, (float) $crypto->current_price);
+        $prices = \App\Support\Sparkline::prices($crypto);
+
+        return (object) [
+            'crypto' => $crypto,
+            'value' => $value,
+            'move' => \App\Support\TokenMoney::changeUsd($value, $change),
+            // A 0.00% "change" is no movement, not a gain — don't paint it green.
+            'dir' => abs($change) < 0.005 ? 'flat' : ($change > 0 ? 'up' : 'down'),
+            'spark' => \App\Support\Sparkline::line($prices, 64, 26),
+        ];
+    })->sortByDesc('value')->values();
+
+    // --- Activity, grouped into days.
+    $activityDays = $activity->groupBy(function ($item) {
+        if (!$item['at']) {
+            return __('Earlier');
         }
-        if (!is_array($history)) {
-            return null;
+        if ($item['at']->isToday()) {
+            return __('Today');
         }
 
-        $points = [];
-        foreach ($history as $entry) {
-            $price = is_array($entry) ? ($entry['price'] ?? $entry['value'] ?? null) : $entry;
-            if (is_numeric($price)) {
-                $points[] = (float) $price;
-            }
-        }
-        $points = array_slice($points, -24);
-        if (count($points) < 2) {
-            return null;
-        }
-
-        $min = min($points);
-        $max = max($points);
-        $range = ($max - $min) ?: 1;
-        $w = 120;
-        $h = 44;
-        $step = $w / (count($points) - 1);
-
-        $path = '';
-        foreach ($points as $i => $p) {
-            $x = round($i * $step, 2);
-            $y = round($h - (($p - $min) / $range) * $h, 2);
-            $path .= ($i === 0 ? 'M' : 'L') . $x . ' ' . $y . ' ';
-        }
-
-        return trim($path);
-    };
+        return $item['at']->isYesterday() ? __('Yesterday') : $item['at']->format('M j');
+    });
 @endphp
 
 @section('styles')
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+    {{-- wallet.css now only dresses the outside-wallet disclosure; the page itself is loot-hud. --}}
     <link rel="stylesheet" href="{{ asset('css/pages/wallet.css') }}?v=20260921a">
     <link rel="stylesheet" href="{{ asset('css/pages/nft-marketplace.css') }}?v=20260917b">
-    {{-- The loot-world skin. Loads last: it re-skins wallet.css rather than forking it. --}}
-    <link rel="stylesheet" href="{{ asset('css/pages/wallet-hud.css') }}?v=20260923a">
+    <link rel="stylesheet" href="{{ asset('css/frames.css') }}?v=20260917a">
+    <link rel="stylesheet" href="{{ asset('css/pages/loot-hud.css') }}?v=20260924a">
 @endsection
 
 @section('content')
-<div class="wallet-page {{ $isDarkTheme ? 'wallet-page--dark' : 'wallet-page--light' }}">
-<div class="wallet-container">
+<div class="lh wallet-page {{ $isDarkTheme ? 'lh--dark wallet-page--dark' : 'lh--light wallet-page--light' }}">
+<div class="lh-wrap">
 
-    {{-- ── Balance card ──────────────────────────────────────────────────────────── --}}
-    <section class="wallet-hero" id="walletHero">
-        <div class="wallet-hero__top">
-            <span class="wallet-hero__label">{{ __('Your balance') }}</span>
-            <button type="button" class="wallet-hero__eye" id="walletBalanceToggle" aria-pressed="false" aria-label="{{ __('Hide balance') }}">
-                <svg class="wallet-hero__eye-open" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    @foreach(['success', 'error'] as $flash)
+        @if(session($flash))
+            <div class="lh-flash lh-flash--{{ $flash }}" role="status">{{ session($flash) }}</div>
+        @endif
+    @endforeach
+
+    {{-- ── Operator card ──────────────────────────────────────────────────────────── --}}
+    <section class="lh-panel lh-brk lh-sheen wh-hero lh-in" id="walletHero">
+        <span class="lh-sheen__bar" aria-hidden="true"></span>
+
+        <div class="wh-op">
+            <a href="{{ route('profile', ['username' => $user->username]) }}" class="wh-op__avatar {{ $frameClass }}">
+                <img src="{{ $user->avatar }}" alt="">
+                <span class="wh-op__lvl" aria-label="{{ __('Level :n', ['n' => $level]) }}">{{ $level }}</span>
+            </a>
+            <div class="wh-op__id">
+                <span class="wh-op__name">{{ '@' . $user->username }}</span>
+                <span class="wh-op__rank">{{ __('Rank') }} · {{ $rankTitle }}</span>
+            </div>
+            <button type="button" class="wh-eye" id="walletBalanceToggle" aria-pressed="false" aria-label="{{ __('Hide balance') }}">
+                <svg class="wh-eye__open" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
                     <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.75"/>
                 </svg>
-                <svg class="wallet-hero__eye-closed" viewBox="0 0 24 24" fill="none" aria-hidden="true" hidden>
+                <svg class="wh-eye__closed" viewBox="0 0 24 24" fill="none" aria-hidden="true" hidden>
                     <path d="M3 3l18 18M10.6 10.6a3 3 0 004.24 4.24M9.9 5.2A9.7 9.7 0 0112 5c6.5 0 10 7 10 7a17.6 17.6 0 01-3.4 4.3M6.1 6.1A17.7 17.7 0 002 12s3.5 7 10 7c1 0 1.96-.14 2.86-.4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </button>
-
-            @if($address)
-                <span class="wallet-hero__addr" title="{{ $address }}">
-                    <span class="wallet-hero__addr-dot" aria-hidden="true"></span>
-                    {{ substr($address, 0, 6) }}…{{ substr($address, -4) }}
-                </span>
-            @endif
         </div>
 
-        <div class="wallet-hero__balance-row">
-            <span class="wallet-hero__coin" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 6.5v11M14.6 9.3c-.5-.8-1.5-1.3-2.6-1.3-1.5 0-2.6.8-2.6 2s1.1 1.7 2.6 2c1.5.3 2.6.8 2.6 2s-1.1 2-2.6 2c-1.1 0-2.1-.5-2.6-1.3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
-            </span>
-            <div class="wallet-hero__balance hud-count" data-balance="${{ number_format($totalBalance, 2) }}"
-                 data-count-to="{{ number_format($totalBalance, 2, '.', '') }}">${{ number_format($totalBalance, 2) }}</div>
-        </div>
-        <p class="wallet-hero__hint">{{ __("Your spendable balance plus what your coins are worth today") }}</p>
-
-        {{-- Rank strip: the same level, streak and sparks the Rewards hub tracks. --}}
-        @php
-            $perLevel = \App\Services\GamificationService::XP_PER_LEVEL;
-            $xp = (int) ($user->xp ?? 0);
-            $intoLevel = $perLevel > 0 ? $xp % $perLevel : 0;
-            $levelPct = $perLevel > 0 ? round($intoLevel / $perLevel * 100) : 0;
-        @endphp
-        <div class="hud-rank">
-            <span class="hud-rank__lvl">{{ __('LVL') }} {{ (int) ($user->level ?? 1) }}</span>
-            <span class="hud-rank__bar" role="progressbar" aria-valuenow="{{ $levelPct }}" aria-valuemin="0" aria-valuemax="100"
-                  aria-label="{{ __('Progress to the next level') }}">
-                <span class="hud-rank__fill" style="width: {{ $levelPct }}%"></span>
-            </span>
-            <span class="hud-rank__stats">
-                <span>🔥 <b>{{ number_format((int) ($user->streak_count ?? 0)) }}</b></span>
-                <span>✨ <b>{{ number_format((int) ($user->sparks ?? 0)) }}</b></span>
-            </span>
+        <div class="wh-worth">
+            <span class="lh-cap">{{ __('Net worth') }}</span>
+            <div class="wh-worth__row">
+                <span class="wh-worth__value" id="walletBalance" data-balance="${{ number_format($totalBalance, 2) }}"
+                      data-count-to="{{ number_format($totalBalance, 2, '.', '') }}">${{ number_format($totalBalance, 2) }}</span>
+            </div>
+            <p class="wh-worth__hint">{{ __('Spendable balance plus what your coins are worth today') }}</p>
         </div>
 
-        {{-- Deposit/withdraw route to the REAL payment flow (Stripe/PayPal via my.settings),
-             not CryptocurrencyController's stub which records a "completed" deposit without
-             ever taking payment. --}}
-        <div class="wallet-hero__actions">
-            <a href="{{ route('my.settings', ['type' => 'wallet', 'active' => 'deposit']) }}" class="wallet-btn wallet-btn--money">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                {{ __('Add funds') }}
+        {{-- Loadout: one segmented bar showing where the value sits. --}}
+        <div class="wh-loadout">
+            <div class="wh-loadout__top">
+                <span class="lh-cap">{{ __('Loadout') }}</span>
+                @if($loadoutTotal <= 0)
+                    <span class="lh-cap">{{ __('Empty') }}</span>
+                @endif
+            </div>
+            <div class="lh-meter lh-meter--ticks" aria-hidden="true">
+                <div class="lh-split">
+                    <span class="is-credits" style="width: {{ $pct($credits) }}%"></span>
+                    <span class="is-coins" style="width: {{ $pct($tokenValue) }}%"></span>
+                    <span class="is-creator" style="width: {{ $pct($coinValue) }}%"></span>
+                </div>
+            </div>
+            <div class="lh-legend">
+                <span class="lh-legend__item"><span class="lh-legend__dot" style="background: var(--lh-gold)"></span>{{ __('Credits') }} <b class="wh-legend-val">${{ number_format($credits, 2) }}</b></span>
+                <span class="lh-legend__item"><span class="lh-legend__dot" style="background: var(--lh-cyan)"></span>{{ __('Coins') }} <b class="wh-legend-val">${{ number_format($tokenValue, 2) }}</b></span>
+                <span class="lh-legend__item"><span class="lh-legend__dot" style="background: var(--lh-violet)"></span>{{ __('Perks') }} <b class="wh-legend-val">${{ number_format($coinValue, 2) }}</b></span>
+            </div>
+        </div>
+
+        <div class="wh-xp">
+            <div class="wh-xp__top">
+                <span class="lh-cap">{{ __('LVL :a → :b', ['a' => $level, 'b' => $level + 1]) }}</span>
+                <span class="wh-xp__nums">{{ number_format($intoLevel) }} / {{ number_format($perLevel) }} XP</span>
+            </div>
+            <div class="lh-meter lh-meter--ticks" role="progressbar" aria-valuenow="{{ $levelPct }}" aria-valuemin="0" aria-valuemax="100"
+                 aria-label="{{ __('Progress to the next level') }}">
+                <span class="lh-meter__fill" style="width: {{ $levelPct }}%"></span>
+            </div>
+            <div class="wh-xp__chips">
+                <a href="{{ route('engagement.hub') }}" class="lh-chip">🔥 <b>{{ number_format((int) ($user->streak_count ?? 0)) }}</b> {{ __('day streak') }}</a>
+                <a href="{{ route('engagement.hub') }}" class="lh-chip">✨ <b>{{ number_format((int) ($user->sparks ?? 0)) }}</b> {{ __('sparks') }}</a>
+            </div>
+        </div>
+
+        {{-- Hotbar. Deposit/withdraw route to the REAL payment flow (Stripe/PayPal via
+             my.settings), not CryptocurrencyController's stub which records a "completed"
+             deposit without ever taking payment. --}}
+        <nav class="wh-hotbar" aria-label="{{ __('Wallet actions') }}">
+            <a href="{{ route('my.settings', ['type' => 'wallet', 'active' => 'deposit']) }}" class="wh-hot wh-hot--money">
+                <span class="wh-hot__key" aria-hidden="true">1</span>
+                <span class="wh-hot__ico"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.25" stroke-linecap="round"/></svg></span>
+                {{ __('Add') }}
             </a>
-            <a href="{{ route('my.settings', ['type' => 'wallet', 'active' => 'withdraw']) }}" class="wallet-btn wallet-btn--ghost">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <a href="{{ route('my.settings', ['type' => 'wallet', 'active' => 'withdraw']) }}" class="wh-hot">
+                <span class="wh-hot__key" aria-hidden="true">2</span>
+                <span class="wh-hot__ico"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16v10H4zM12 10v4M4 11h2M18 13h2" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
                 {{ __('Cash out') }}
             </a>
-        </div>
+            <button type="button" class="wh-hot" data-open-panel="tokens" data-scroll-to="wallet-send">
+                <span class="wh-hot__key" aria-hidden="true">3</span>
+                <span class="wh-hot__ico"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4 18-7z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                {{ __('Send') }}
+            </button>
+            <a href="{{ route('cryptocurrency.marketplace') }}" class="wh-hot">
+                <span class="wh-hot__key" aria-hidden="true">4</span>
+                <span class="wh-hot__ico"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></span>
+                {{ __('Buy coins') }}
+            </a>
+        </nav>
     </section>
 
-    {{-- Every form of value the user holds; each tile opens its tab --}}
-    <ul class="wallet-breakdown" aria-label="{{ __('Balance breakdown') }}">
-        <li>
-            <button type="button" class="wallet-breakdown__item" data-open-panel="overview">
-                <span class="wallet-breakdown__label">{{ __('Credits') }}</span>
-                <span class="wallet-breakdown__value is-money hud-count" data-count-to="{{ number_format($credits, 2, '.', '') }}">${{ number_format($credits, 2) }}</span>
-                <span class="wallet-breakdown__sub">{{ __('Ready to spend') }}</span>
-            </button>
-        </li>
-        <li>
-            <button type="button" class="wallet-breakdown__item" data-open-panel="tokens">
-                <span class="wallet-breakdown__label">{{ __('Coins') }}</span>
-                <span class="wallet-breakdown__value is-money hud-count" data-count-to="{{ number_format($tokenValue, 2, '.', '') }}">${{ number_format($tokenValue, 2) }}</span>
-                <span class="wallet-breakdown__sub">{{ trans_choice('{0} None held|{1} :count coin|[2,*] :count coins', $tokenWallets->count(), ['count' => $tokenWallets->count()]) }}</span>
-            </button>
-        </li>
-        <li>
-            <button type="button" class="wallet-breakdown__item" data-open-panel="coins">
-                <span class="wallet-breakdown__label">{{ __('Creator coins') }}</span>
-                <span class="wallet-breakdown__value">{{ number_format($coinBalances->count()) }}</span>
-                <span class="wallet-breakdown__sub">{{ $coinValue > 0 ? '≈ $' . number_format($coinValue, 2) . ' ' . __('in perks') : __('Back a creator') }}</span>
-            </button>
-        </li>
-        <li>
-            <button type="button" class="wallet-breakdown__item" data-open-panel="nfts">
-                <span class="wallet-breakdown__label">{{ __('NFTs') }}</span>
-                <span class="wallet-breakdown__value">{{ number_format($nftCount) }}</span>
-                <span class="wallet-breakdown__sub">{{ $nftCount ? __('In your collection') : __('Mint your first') }}</span>
-            </button>
-        </li>
-    </ul>
+    {{-- ── Inventory: every form of value; each slot opens its tab ─────────────────── --}}
+    <section class="lh-in" style="--i: 1">
+        <div class="lh-head">
+            <h2 class="lh-head__title">{{ __('Inventory') }}</h2>
+            <span class="lh-head__rule" aria-hidden="true"></span>
+            <span class="lh-head__code">4 {{ __('slots') }}</span>
+        </div>
+        <ul class="wh-slots" aria-label="{{ __('Balance breakdown') }}">
+            <li>
+                <button type="button" class="lh-slot" data-open-panel="overview">
+                    <span class="lh-slot__top">
+                        <span class="lh-slot__ico"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3" stroke="currentColor" stroke-width="1.75"/><path d="M5 6v6c0 1.66 3.13 3 7 3s7-1.34 7-3V6M5 12v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6" stroke="currentColor" stroke-width="1.75"/></svg></span>
+                        <span class="lh-slot__idx">01</span>
+                    </span>
+                    <span class="lh-cap">{{ __('Credits') }}</span>
+                    <span class="lh-slot__value is-money" data-count-to="{{ number_format($credits, 2, '.', '') }}">${{ number_format($credits, 2) }}</span>
+                    <span class="lh-slot__sub">{{ __('Ready to spend') }}</span>
+                </button>
+            </li>
+            <li>
+                <button type="button" class="lh-slot lh-slot--cyan" data-open-panel="tokens">
+                    <span class="lh-slot__top">
+                        <span class="lh-slot__ico"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M12 7v10" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></span>
+                        <span class="lh-slot__idx">02</span>
+                    </span>
+                    <span class="lh-cap">{{ __('Coins') }}</span>
+                    <span class="lh-slot__value is-money" data-count-to="{{ number_format($tokenValue, 2, '.', '') }}">${{ number_format($tokenValue, 2) }}</span>
+                    <span class="lh-slot__sub">{{ trans_choice('{0} None held|{1} :count coin|[2,*] :count coins', $tokenWallets->count(), ['count' => $tokenWallets->count()]) }}</span>
+                </button>
+            </li>
+            <li>
+                <button type="button" class="lh-slot lh-slot--violet" data-open-panel="coins">
+                    <span class="lh-slot__top">
+                        <span class="lh-slot__ico"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m12 3 2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/></svg></span>
+                        <span class="lh-slot__idx">03</span>
+                    </span>
+                    <span class="lh-cap">{{ __('Creator coins') }}</span>
+                    <span class="lh-slot__value">{{ number_format($coinBalances->count()) }}</span>
+                    <span class="lh-slot__sub">{{ $coinValue > 0 ? '≈ $' . number_format($coinValue, 2) . ' ' . __('in perks') : __('Back a creator') }}</span>
+                </button>
+            </li>
+            <li>
+                <button type="button" class="lh-slot lh-slot--brand" data-open-panel="nfts">
+                    <span class="lh-slot__top">
+                        <span class="lh-slot__ico"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 3h12l3 6-9 12L3 9z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M3 9h18M9 3l3 18 3-18" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></span>
+                        <span class="lh-slot__idx">04</span>
+                    </span>
+                    <span class="lh-cap">{{ __('NFTs') }}</span>
+                    <span class="lh-slot__value">{{ number_format($nftCount) }}</span>
+                    <span class="lh-slot__sub">{{ $nftCount ? __('In your collection') : __('Mint your first') }}</span>
+                </button>
+            </li>
+        </ul>
+    </section>
 
     {{-- ── Tabs ──────────────────────────────────────────────────────────────────── --}}
-    <nav class="wallet-tabs" role="tablist" aria-label="{{ __('Wallet sections') }}">
-        <button class="wallet-tab is-active" role="tab" aria-selected="true" data-panel="overview">{{ __('Overview') }}</button>
-        <button class="wallet-tab" role="tab" aria-selected="false" data-panel="tokens">{{ __('Coins') }} <span class="wallet-tab__count">{{ $tokenWallets->count() }}</span></button>
-        <button class="wallet-tab" role="tab" aria-selected="false" data-panel="nfts">{{ __('NFTs') }} <span class="wallet-tab__count">{{ $nftCount }}</span></button>
-        <button class="wallet-tab" role="tab" aria-selected="false" data-panel="coins">{{ __('Creator coins') }} <span class="wallet-tab__count">{{ $coinBalances->count() }}</span></button>
-        <button class="wallet-tab" role="tab" aria-selected="false" data-panel="activity">{{ __('Activity') }}</button>
+    <nav class="lh-tabs lh-in" style="--i: 2" role="tablist" aria-label="{{ __('Wallet sections') }}" id="walletTabs">
+        <button class="lh-tab is-active" role="tab" aria-selected="true" data-panel="overview">{{ __('Overview') }}</button>
+        <button class="lh-tab" role="tab" aria-selected="false" data-panel="tokens">{{ __('Coins') }} <span class="lh-tab__count">{{ $tokenWallets->count() }}</span></button>
+        <button class="lh-tab" role="tab" aria-selected="false" data-panel="nfts">{{ __('NFTs') }} <span class="lh-tab__count">{{ $nftCount }}</span></button>
+        <button class="lh-tab" role="tab" aria-selected="false" data-panel="coins">{{ __('Creator') }} <span class="lh-tab__count">{{ $coinBalances->count() }}</span></button>
+        <button class="lh-tab" role="tab" aria-selected="false" data-panel="activity">{{ __('Activity') }}</button>
     </nav>
 
     {{-- ── Overview ──────────────────────────────────────────────────────────────── --}}
-    <section class="wallet-panel is-active" id="wallet-panel-overview" role="tabpanel">
+    <section class="lh-tabpanel is-active" id="wallet-panel-overview" role="tabpanel">
+
+        {{-- Quests --}}
+        <div class="lh-panel lh-brk">
+            <div class="wh-quests__top">
+                <div>
+                    <span class="lh-cap">{{ __('Wallet quests') }}</span>
+                    <p class="wh-quests__title">{{ $questsDone === count($quests) ? __('All done — nice.') : __('Finish setting up your wallet') }}</p>
+                </div>
+                <span class="lh-chip lh-chip--gold"><b class="lh-gold">{{ $questsDone }}</b>/{{ count($quests) }}</span>
+            </div>
+            <div class="lh-meter lh-meter--ticks lh-meter--gold" aria-hidden="true" style="margin-bottom: 6px">
+                <span class="lh-meter__fill" style="width: {{ round($questsDone / count($quests) * 100) }}%"></span>
+            </div>
+            @foreach($quests as $quest)
+                <a href="{{ $quest['href'] }}" class="wh-quest {{ $quest['done'] ? 'is-done' : '' }}">
+                    <span class="wh-quest__box" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none"><path d="m5 12.5 4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </span>
+                    <span class="wh-quest__text">{{ $quest['text'] }}</span>
+                    @unless($quest['done'])
+                        <span class="wh-quest__go">{{ __('Go') }} →</span>
+                    @endunless
+                    <span class="lh-sr">{{ $quest['done'] ? __('Done') : __('Not done') }}</span>
+                </a>
+            @endforeach
+        </div>
+
+        {{-- Top holdings --}}
+        @if($holdings->count())
+            <div>
+                <div class="lh-head">
+                    <h2 class="lh-head__title">{{ __('Top holdings') }}</h2>
+                    <span class="lh-head__rule" aria-hidden="true"></span>
+                    <button type="button" class="lh-head__link" data-open-panel="tokens" style="background:none;border:0;padding:0;cursor:pointer">{{ __('All') }}</button>
+                </div>
+                <div class="lh-list">
+                    @foreach($holdings->take(3) as $h)
+                        @include('wallet.partials.holding-row', ['h' => $h])
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
+        {{-- Latest activity --}}
+        @if($activity->count())
+            <div>
+                <div class="lh-head">
+                    <h2 class="lh-head__title">{{ __('Latest') }}</h2>
+                    <span class="lh-head__rule" aria-hidden="true"></span>
+                    <button type="button" class="lh-head__link" data-open-panel="activity" style="background:none;border:0;padding:0;cursor:pointer">{{ __('Log') }}</button>
+                </div>
+                <div class="lh-list">
+                    @foreach($activity->take(3) as $item)
+                        @include('wallet.partials.activity-row', ['item' => $item])
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
+        {{-- Explore --}}
+        <div>
+            <div class="lh-head">
+                <h2 class="lh-head__title">{{ __('Explore') }}</h2>
+                <span class="lh-head__rule" aria-hidden="true"></span>
+            </div>
+            <div class="wh-explore">
+                @foreach([
+                    ['route' => route('cryptocurrency.marketplace'), 'title' => __('Coins'), 'sub' => __('Buy from $1'),
+                     'icon' => '<path d="M12 2l8.66 5v10L12 22l-8.66-5V7z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M12 7v10" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>'],
+                    ['route' => route('nft.marketplace'), 'title' => __('NFT market'), 'sub' => __('Collect one-offs'),
+                     'icon' => '<path d="M6 3h12l3 6-9 12L3 9z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M3 9h18" stroke="currentColor" stroke-width="1.5"/>'],
+                    ['route' => route('creator-coins.index'), 'title' => __('Creator coins'), 'sub' => __('Unlock perks'),
+                     'icon' => '<path d="m12 3 2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>'],
+                    ['route' => route('nft.mintable'), 'title' => __('Mint an NFT'), 'sub' => __('From your uploads'),
+                     'icon' => '<path d="M12 3v12M6 9l6-6 6 6M4 17v4h16v-4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>'],
+                ] as $tile)
+                    <a href="{{ $tile['route'] }}" class="wh-tile">
+                        <span class="wh-tile__ico"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">{!! $tile['icon'] !!}</svg></span>
+                        <svg class="wh-tile__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        <span class="wh-tile__title">{{ $tile['title'] }}</span>
+                        <span class="wh-tile__sub">{{ $tile['sub'] }}</span>
+                    </a>
+                @endforeach
+            </div>
+        </div>
+
         {{-- Everything a crypto-naive user needs is in dollars above. Connecting an outside
              crypto wallet, addresses and raw sends are for people who already use crypto, so
-             they live behind this disclosure instead of greeting everyone. --}}
+             they live behind this disclosure at the bottom instead of greeting everyone. --}}
         <details class="wallet-advanced">
         <summary class="wallet-advanced__summary">
             <span>{{ __('Use an outside crypto wallet') }}</span>
@@ -227,101 +385,35 @@
             </div>
         @endif
         </details>
-
-        {{-- Quick links keep the rest of the ecosystem one tap away --}}
-        <div class="wallet-block">
-            <div class="wallet-block__head">
-                <h2 class="wallet-block__title">{{ __('Explore') }}</h2>
-            </div>
-            <div class="wallet-links">
-                <a href="{{ route('cryptocurrency.marketplace') }}" class="wallet-link">
-                    <span class="wallet-link__title">{{ __('Coins') }}</span>
-                    <span class="wallet-link__sub">{{ __('Buy from $1') }}</span>
-                </a>
-                <a href="{{ route('nft.marketplace') }}" class="wallet-link">
-                    <span class="wallet-link__title">{{ __('NFT Marketplace') }}</span>
-                    <span class="wallet-link__sub">{{ __('Collect digital assets') }}</span>
-                </a>
-                <a href="{{ route('creator-coins.index') }}" class="wallet-link">
-                    <span class="wallet-link__title">{{ __('Creator Coins') }}</span>
-                    <span class="wallet-link__sub">{{ __('Support your creators') }}</span>
-                </a>
-                <a href="{{ route('nft.mintable') }}" class="wallet-link">
-                    <span class="wallet-link__title">{{ __('Mint an NFT') }}</span>
-                    <span class="wallet-link__sub">{{ __('From your uploads') }}</span>
-                </a>
-            </div>
-        </div>
     </section>
 
-    {{-- ── Tokens ────────────────────────────────────────────────────────────────── --}}
-    <section class="wallet-panel" id="wallet-panel-tokens" role="tabpanel" hidden>
-        <div class="wallet-block">
-            <div class="wallet-block__head">
-                <h2 class="wallet-block__title">{{ __('My coins') }}</h2>
-                <a href="{{ route('cryptocurrency.marketplace') }}" class="wallet-block__link">{{ __('See all') }}</a>
+    {{-- ── Coins ─────────────────────────────────────────────────────────────────── --}}
+    <section class="lh-tabpanel" id="wallet-panel-tokens" role="tabpanel" hidden>
+        <div>
+            <div class="lh-head">
+                <h2 class="lh-head__title">{{ __('My coins') }}</h2>
+                <span class="lh-head__rule" aria-hidden="true"></span>
+                <a href="{{ route('cryptocurrency.marketplace') }}" class="lh-head__link">{{ __('Market') }}</a>
             </div>
 
-            @forelse($tokenWallets as $wallet)
-                @php
-                    $crypto = $wallet->cryptocurrency;
-                    $change = (float) ($crypto->price_change_24h ?? 0);
-                    $isUp = $change >= 0;
-                    // A 0.00% "change" is no movement, not a gain — don't paint it green.
-                    $deltaClass = abs($change) < 0.005 ? 'flat' : ($isUp ? 'up' : 'down');
-                    // Dollars only: the holding's value and how much that moved today.
-                    $holdingValue = \App\Support\TokenMoney::toUsd((float) $wallet->balance, (float) $crypto->current_price);
-                    $move = \App\Support\TokenMoney::changeUsd($holdingValue, $change);
-                    $path = $sparkPath($crypto);
-                @endphp
-                <a href="{{ route('cryptocurrency.show', $crypto->id) }}" class="token-item">
-                    <div class="token-item__row">
-                        <div class="token-item__id">
-                            @if($crypto->logo)
-                                <img src="{{ asset('storage/' . $crypto->logo) }}" alt="{{ $crypto->name }}" class="token-item__logo">
-                            @else
-                                <span class="token-item__symbol-circle">{{ strtoupper(substr($crypto->name, 0, 1)) }}</span>
-                            @endif
-                            <div class="token-item__meta">
-                                <span class="token-item__name">{{ $crypto->name }}</span>
-                                <span class="token-item__price">
-                                    <span class="token-item__delta token-item__delta--{{ $deltaClass }}">
-                                        @if($deltaClass === 'flat')
-                                            {{ __('No change today') }}
-                                        @else
-                                            {{ $deltaClass === 'up' ? __('Up') : __('Down') }} {{ \App\Support\TokenMoney::format(abs($move)) }} {{ __('today') }}
-                                        @endif
-                                    </span>
-                                </span>
-                            </div>
-                        </div>
-                        {{-- Only plotted from real recorded history; with none, show nothing rather
-                             than a line that reads as a flat market. --}}
-                        @if($path !== null)
-                            <div class="token-item__spark">
-                                <svg viewBox="0 0 120 44" preserveAspectRatio="none" aria-hidden="true">
-                                    <path d="{{ $path }}" fill="none" stroke="{{ $isUp ? '#22e0a0' : '#ff3b5c' }}"
-                                          stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </div>
-                        @endif
-                    </div>
-                    <div class="token-item__foot">
-                        <span class="token-item__amount">{{ __('Worth now') }}</span>
-                        <span class="token-item__value">{{ \App\Support\TokenMoney::format($holdingValue) }}</span>
-                    </div>
-                </a>
-            @empty
-                <div class="wallet-empty">
-                    <h4>{{ __("You don't own any coins yet") }}</h4>
-                    <p>{{ __('Back a creator you love — start with as little as $1') }}</p>
-                    <a href="{{ route('cryptocurrency.marketplace') }}" class="wallet-btn wallet-btn--primary wallet-btn--inline">{{ __('Browse Marketplace') }}</a>
+            @if($holdings->count())
+                <div class="lh-list">
+                    @foreach($holdings as $h)
+                        @include('wallet.partials.holding-row', ['h' => $h])
+                    @endforeach
                 </div>
-            @endforelse
+            @else
+                <div class="lh-empty">
+                    <span class="lh-empty__icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/></svg></span>
+                    <h3>{{ __('No coins in your bag') }}</h3>
+                    <p>{{ __('Back a creator you love — start with as little as $1') }}</p>
+                    <a href="{{ route('cryptocurrency.marketplace') }}" class="lh-btn lh-btn--gold">{{ __('Browse coins') }}</a>
+                </div>
+            @endif
         </div>
 
         @if(session('send_success'))
-            <p class="wallet-note wallet-note--boxed wallet-note--success" role="status">{{ session('send_success') }}</p>
+            <p class="lh-flash lh-flash--success" role="status">{{ session('send_success') }}</p>
         @endif
 
         {{-- Send to another member, in dollars. Units are worked out on the server
@@ -333,57 +425,72 @@
                 $firstSend = $firstSend ?? $sendable->first();
             @endphp
             @if($firstSend)
-                <div class="wallet-block" id="wallet-send">
-                    <div class="wallet-block__head">
-                        <h2 class="wallet-block__title">{{ __('Send to someone') }}</h2>
+                @php
+                    $firstWorth = \App\Support\TokenMoney::toUsd((float) $firstSend->balance, (float) $firstSend->cryptocurrency->current_price);
+                @endphp
+                <div class="lh-panel lh-brk" id="wallet-send">
+                    <div class="lh-head" style="margin-top: 0">
+                        <h2 class="lh-head__title">{{ __('Transfer') }}</h2>
+                        <span class="lh-head__rule" aria-hidden="true"></span>
+                        <span class="lh-chip lh-chip--up"><span class="lh-live" aria-hidden="true"></span>{{ __('Instant · free') }}</span>
                     </div>
-                    <form method="POST" class="wallet-form" id="coinSendForm"
+                    <form method="POST" class="wh-send" id="coinSendForm"
                           action="{{ route('wallet.coins.send', $firstSend->cryptocurrency_id) }}">
                         @csrf
                         @if($sendable->count() > 1)
-                            <label class="wallet-field">
-                                <span>{{ __('Which coin') }}</span>
-                                <select name="coin_id" id="coinSendCoin">
+                            <div class="lh-field">
+                                <span class="lh-cap">{{ __('Which coin') }}</span>
+                                <select name="coin_id" id="coinSendCoin" aria-label="{{ __('Which coin') }}">
                                     @foreach($sendable as $w)
                                         @php $worth = \App\Support\TokenMoney::toUsd((float) $w->balance, (float) $w->cryptocurrency->current_price); @endphp
                                         <option value="{{ $w->cryptocurrency_id }}"
                                                 data-action="{{ route('wallet.coins.send', $w->cryptocurrency_id) }}"
                                                 data-worth="{{ \App\Support\TokenMoney::format($worth) }}"
+                                                data-worth-raw="{{ number_format($worth, 2, '.', '') }}"
                                                 @selected($w->is($firstSend))>
                                             {{ $w->cryptocurrency->name }} — {{ \App\Support\TokenMoney::format($worth) }}
                                         </option>
                                     @endforeach
                                 </select>
-                            </label>
+                            </div>
                         @else
                             <input type="hidden" name="coin_id" value="{{ $firstSend->cryptocurrency_id }}">
                         @endif
-                        <label class="wallet-field">
-                            <span>{{ __('To') }}</span>
-                            <input type="text" name="recipient" value="{{ old('recipient') }}" placeholder="@username"
-                                   autocomplete="off" autocapitalize="none" spellcheck="false" required>
-                        </label>
-                        <label class="wallet-field">
-                            <span>{{ __('Amount') }}</span>
-                            <span class="wallet-money-input">
-                                <span class="wallet-money-input__sign" aria-hidden="true">$</span>
-                                <input type="number" name="amount_usd" id="coinSendAmount" inputmode="decimal"
-                                       step="0.01" min="1" placeholder="0.00" value="{{ old('amount_usd') }}">
+                        <div class="lh-field">
+                            <span class="lh-cap" id="coinSendToLabel">{{ __('To') }}</span>
+                            <input type="text" class="lh-input" name="recipient" value="{{ old('recipient') }}" placeholder="@username"
+                                   aria-labelledby="coinSendToLabel" autocomplete="off" autocapitalize="none" spellcheck="false" required>
+                        </div>
+                        <div class="lh-field">
+                            <span class="lh-cap" id="coinSendAmountLabel">{{ __('Amount') }}</span>
+                            <span class="lh-money">
+                                <span class="lh-money__sign" aria-hidden="true">$</span>
+                                <input type="number" class="lh-input" name="amount_usd" id="coinSendAmount" inputmode="decimal"
+                                       aria-labelledby="coinSendAmountLabel" step="0.01" min="1" placeholder="0.00" value="{{ old('amount_usd') }}">
                             </span>
-                        </label>
-                        <p class="wallet-note">
-                            {{ __('You have') }} <strong id="coinSendWorth">{{ \App\Support\TokenMoney::format(\App\Support\TokenMoney::toUsd((float) $firstSend->balance, (float) $firstSend->cryptocurrency->current_price)) }}</strong>
+                            <div class="lh-quick" id="coinSendQuick" data-worth="{{ number_format($firstWorth, 2, '.', '') }}">
+                                <button type="button" data-amount="5">$5</button>
+                                <button type="button" data-amount="10">$10</button>
+                                <button type="button" data-amount="25">$25</button>
+                                <button type="button" data-fraction="0.5">{{ __('Half') }}</button>
+                            </div>
+                        </div>
+                        <p class="lh-note">
+                            {{ __('You have') }} <strong id="coinSendWorth">{{ \App\Support\TokenMoney::format($firstWorth) }}</strong>
                             {{ __('to send. They get the same dollar value in their wallet, instantly and free.') }}
                         </p>
                         @if(session('send_error'))
-                            <p class="wallet-note wallet-note--error" role="alert">{{ session('send_error') }}</p>
+                            <p class="lh-note lh-note--error" role="alert">{{ session('send_error') }}</p>
                         @endif
                         @foreach(['recipient', 'amount_usd'] as $field)
-                            @error($field)<p class="wallet-note wallet-note--error" role="alert">{{ $message }}</p>@enderror
+                            @error($field)<p class="lh-note lh-note--error" role="alert">{{ $message }}</p>@enderror
                         @endforeach
-                        <div class="wallet-send__actions">
-                            <button type="submit" class="wallet-btn wallet-btn--primary wallet-btn--inline">{{ __('Send') }}</button>
-                            <button type="submit" name="send_all" value="1" class="wallet-btn wallet-btn--ghost wallet-btn--inline" formnovalidate>{{ __('Send all') }}</button>
+                        <div class="wh-send__actions">
+                            <button type="submit" class="lh-btn lh-btn--brand">
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4 18-7z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                {{ __('Send') }}
+                            </button>
+                            <button type="submit" name="send_all" value="1" class="lh-btn lh-btn--ghost" formnovalidate>{{ __('Send all') }}</button>
                         </div>
                     </form>
                 </div>
@@ -392,11 +499,12 @@
     </section>
 
     {{-- ── NFTs ──────────────────────────────────────────────────────────────────── --}}
-    <section class="wallet-panel" id="wallet-panel-nfts" role="tabpanel" hidden>
-        <div class="wallet-block">
-            <div class="wallet-block__head">
-                <h2 class="wallet-block__title">{{ __('My NFTs') }}</h2>
-                <a href="{{ route('nft.my-listings') }}" class="wallet-block__link">{{ __('My listings') }}</a>
+    <section class="lh-tabpanel" id="wallet-panel-nfts" role="tabpanel" hidden>
+        <div>
+            <div class="lh-head">
+                <h2 class="lh-head__title">{{ __('My NFTs') }}</h2>
+                <span class="lh-head__rule" aria-hidden="true"></span>
+                <a href="{{ route('nft.my-listings') }}" class="lh-head__link">{{ __('Listings') }}</a>
             </div>
 
             @if($nfts->count())
@@ -410,99 +518,88 @@
                     @endforeach
                 </div>
             @else
-                <div class="wallet-empty">
-                    <h4>{{ __('No NFTs yet') }}</h4>
+                <div class="lh-empty">
+                    <span class="lh-empty__icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 3h12l3 6-9 12L3 9z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M3 9h18" stroke="currentColor" stroke-width="1.5"/></svg></span>
+                    <h3>{{ __('No NFTs yet') }}</h3>
                     <p>{{ __('Buy one from a creator, or turn something you posted into one you can sell') }}</p>
-                    <a href="{{ route('nft.marketplace') }}" class="wallet-btn wallet-btn--primary wallet-btn--inline">{{ __('Explore NFTs') }}</a>
+                    <a href="{{ route('nft.marketplace') }}" class="lh-btn lh-btn--gold">{{ __('Explore NFTs') }}</a>
                 </div>
             @endif
         </div>
     </section>
 
     {{-- ── Creator coins ─────────────────────────────────────────────────────────── --}}
-    <section class="wallet-panel" id="wallet-panel-coins" role="tabpanel" hidden>
-        <div class="wallet-block">
-            <div class="wallet-block__head">
-                <h2 class="wallet-block__title">{{ __('Creator Coins') }}</h2>
-                <a href="{{ route('creator-coins.index') }}" class="wallet-block__link">{{ __('Browse') }}</a>
+    <section class="lh-tabpanel" id="wallet-panel-coins" role="tabpanel" hidden>
+        <div>
+            <div class="lh-head">
+                <h2 class="lh-head__title">{{ __('Creator coins') }}</h2>
+                <span class="lh-head__rule" aria-hidden="true"></span>
+                <a href="{{ route('creator-coins.index') }}" class="lh-head__link">{{ __('Browse') }}</a>
             </div>
 
-            @forelse($coinBalances as $balance)
-                @php $coin = $balance->coin; @endphp
-                <a href="{{ route('creator-coins.show', $coin->id) }}" class="token-item">
-                    <div class="token-item__row">
-                        <div class="token-item__id">
-                            @if($coin->logo)
-                                <img src="{{ asset('storage/' . $coin->logo) }}" alt="{{ $coin->name }}" class="token-item__logo">
-                            @else
-                                <span class="token-item__symbol-circle">{{ strtoupper(substr($coin->name, 0, 1)) }}</span>
-                            @endif
-                            <div class="token-item__meta">
-                                <span class="token-item__name">{{ $coin->name }}</span>
-                                <span class="token-item__price">{{ __('Unlocks perks') }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="token-item__foot">
-                        <span class="token-item__amount">{{ __('In perks') }}</span>
-                        <span class="token-item__value">{{ \App\Support\TokenMoney::format((float) $balance->balance * (float) $coin->price_per_point) }}</span>
-                    </div>
-                </a>
-            @empty
-                <div class="wallet-empty">
-                    <h4>{{ __('No creator coins yet') }}</h4>
-                    <p>{{ __('Buy a creator coin to unlock perks and support creators directly') }}</p>
-                    <a href="{{ route('creator-coins.index') }}" class="wallet-btn wallet-btn--primary wallet-btn--inline">{{ __('Browse Creator Coins') }}</a>
-                </div>
-            @endforelse
-
             @if($coinBalances->count())
-                <p class="wallet-note wallet-note--boxed">
+                <div class="lh-list">
+                    @foreach($coinBalances as $balance)
+                        @php $coin = $balance->coin; @endphp
+                        <a href="{{ route('creator-coins.show', $coin->id) }}" class="lh-row">
+                            <span class="lh-hex lh-hex--sm lh-hex--violet">
+                                @if($coin->logo)
+                                    <img src="{{ asset('storage/' . $coin->logo) }}" alt="">
+                                @else
+                                    <span class="lh-hex__glyph">{{ strtoupper(substr($coin->name, 0, 1)) }}</span>
+                                @endif
+                            </span>
+                            <span class="lh-row__main">
+                                <span class="lh-row__title">{{ $coin->name }}</span>
+                                <span class="lh-row__sub">{{ __('Unlocks perks') }}</span>
+                            </span>
+                            <span class="lh-row__end">
+                                <span class="lh-row__value">{{ \App\Support\TokenMoney::format((float) $balance->balance * (float) $coin->price_per_point) }}</span>
+                                <span class="lh-cap">{{ __('In perks') }}</span>
+                            </span>
+                        </a>
+                    @endforeach
+                </div>
+                <p class="lh-note" style="margin-top: 12px">
                     {{ __('Creator points unlock perks and access. They are not redeemable for cash.') }}
                     {{ __('Indicative value:') }} <strong>${{ number_format($coinValue, 2) }}</strong>
                 </p>
+            @else
+                <div class="lh-empty">
+                    <span class="lh-empty__icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m12 3 2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/></svg></span>
+                    <h3>{{ __('No creator coins yet') }}</h3>
+                    <p>{{ __('Buy a creator coin to unlock perks and support creators directly') }}</p>
+                    <a href="{{ route('creator-coins.index') }}" class="lh-btn lh-btn--gold">{{ __('Browse creator coins') }}</a>
+                </div>
             @endif
         </div>
     </section>
 
     {{-- ── Activity ──────────────────────────────────────────────────────────────── --}}
-    <section class="wallet-panel" id="wallet-panel-activity" role="tabpanel" hidden>
-        <div class="wallet-block">
-            <div class="wallet-block__head">
-                <h2 class="wallet-block__title">{{ __('Recent Activity') }}</h2>
+    <section class="lh-tabpanel" id="wallet-panel-activity" role="tabpanel" hidden>
+        <div>
+            <div class="lh-head">
+                <h2 class="lh-head__title">{{ __('Activity log') }}</h2>
+                <span class="lh-head__rule" aria-hidden="true"></span>
+                <span class="lh-head__code">{{ $activity->count() }}</span>
             </div>
 
-            @forelse($activity as $item)
-                <div class="txn-item">
-                    <span class="txn-item__icon txn-item__icon--{{ $item['kind'] }}" aria-hidden="true">
-                        @if($item['kind'] === 'nft')
-                            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.75"/><path d="m21 15-5-5L5 21" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        @elseif($item['kind'] === 'coin')
-                            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/><path d="M12 7v10M9.5 9.5h5M9.5 14.5h5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
-                        @else
-                            <svg viewBox="0 0 24 24" fill="none"><path d="M7 7h10l-3-3M17 17H7l3 3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        @endif
-                    </span>
-                    <div class="txn-item__meta">
-                        <span class="txn-item__title">{{ $item['label'] }}</span>
-                        <span class="txn-item__date">{{ $item['at'] ? $item['at']->diffForHumans() : '' }}</span>
-                    </div>
-                    <div class="txn-item__right">
-                        @if($item['amount'] !== null)
-                            <span class="txn-item__amount txn-item__amount--{{ $item['in'] ? 'in' : 'out' }}">
-                                {{ $item['in'] ? '+' : '−' }}{{ $item['amount'] }}
-                            </span>
-                        @else
-                            <span class="txn-item__status">{{ $item['in'] ? __('in') : __('out') }}</span>
-                        @endif
-                    </div>
+            @if($activity->count())
+                <div class="lh-list">
+                    @foreach($activityDays as $day => $items)
+                        <h3 class="lh-day">{{ $day }}</h3>
+                        @foreach($items as $item)
+                            @include('wallet.partials.activity-row', ['item' => $item])
+                        @endforeach
+                    @endforeach
                 </div>
-            @empty
-                <div class="wallet-empty">
-                    <h4>{{ __('No activity yet') }}</h4>
-                    <p>{{ __('Your token, coin and NFT activity will appear here') }}</p>
+            @else
+                <div class="lh-empty">
+                    <span class="lh-empty__icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></span>
+                    <h3>{{ __('Nothing logged yet') }}</h3>
+                    <p>{{ __('Your coin, creator coin and NFT activity will show up here') }}</p>
                 </div>
-            @endforelse
+            @endif
         </div>
     </section>
 
@@ -512,22 +609,22 @@
 @if($address)
 <script src="{{ asset('libs/easyqrcodejs/dist/easy.qrcode.min.js') }}"></script>
 @endif
-<script src="{{ asset('js/pages/wallet-hud.js') }}?v=20260923a" defer></script>
+<script src="{{ asset('js/pages/wallet-hud.js') }}?v=20260924a" defer></script>
 <script>
 (function () {
     // --- Balance visibility ---------------------------------------------------------
     var toggle = document.getElementById('walletBalanceToggle');
-    var balance = document.querySelector('.wallet-hero__balance');
+    var balance = document.getElementById('walletBalance');
     if (toggle && balance) {
-        var open = toggle.querySelector('.wallet-hero__eye-open');
-        var closed = toggle.querySelector('.wallet-hero__eye-closed');
+        var open = toggle.querySelector('.wh-eye__open');
+        var closed = toggle.querySelector('.wh-eye__closed');
         var hidden = false;
         toggle.addEventListener('click', function () {
             hidden = !hidden;
-            balance.textContent = hidden ? '••••••' : balance.getAttribute('data-balance');
+            balance.textContent = hidden ? '$••••••' : balance.getAttribute('data-balance');
             if (open) open.hidden = hidden;
             if (closed) closed.hidden = !hidden;
-            // The breakdown carries the same figures, so it hides with the headline.
+            // The slots, legend and rows carry the same figures, so they blur with the headline.
             document.querySelector('.wallet-page').classList.toggle('is-balance-hidden', hidden);
             toggle.setAttribute('aria-pressed', hidden ? 'true' : 'false');
             toggle.setAttribute('aria-label', hidden ? @json(__('Show balance')) : @json(__('Hide balance')));
@@ -535,14 +632,15 @@
     }
 
     // --- Tabs -----------------------------------------------------------------------
-    var tabs = Array.prototype.slice.call(document.querySelectorAll('.wallet-tab'));
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('.lh-tab'));
     function activate(name, push) {
         tabs.forEach(function (t) {
             var on = t.dataset.panel === name;
             t.classList.toggle('is-active', on);
             t.setAttribute('aria-selected', on ? 'true' : 'false');
+            if (on && t.scrollIntoView) t.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         });
-        document.querySelectorAll('.wallet-panel').forEach(function (p) {
+        document.querySelectorAll('.lh-tabpanel').forEach(function (p) {
             var on = p.id === 'wallet-panel-' + name;
             p.hidden = !on;
             p.classList.toggle('is-active', on);
@@ -554,12 +652,12 @@
     tabs.forEach(function (t) {
         t.addEventListener('click', function () { activate(t.dataset.panel, true); });
     });
-    // Breakdown tiles are shortcuts into their tab.
+    // Slots, hotbar and "All" links are shortcuts into their tab.
     document.querySelectorAll('[data-open-panel]').forEach(function (b) {
         b.addEventListener('click', function () {
             activate(b.dataset.openPanel, true);
-            var bar = document.querySelector('.wallet-tabs');
-            if (bar && bar.scrollIntoView) bar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            var target = (b.dataset.scrollTo && document.getElementById(b.dataset.scrollTo)) || document.getElementById('walletTabs');
+            if (target && target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
     });
     // Deep-link support: /wallet#nfts opens straight to the NFT tab.
@@ -625,10 +723,25 @@
     if (sendForm) {
         var coinSelect = document.getElementById('coinSendCoin');
         var worthEl = document.getElementById('coinSendWorth');
+        var quick = document.getElementById('coinSendQuick');
+        var amountEl = document.getElementById('coinSendAmount');
         if (coinSelect) coinSelect.addEventListener('change', function () {
             var opt = coinSelect.options[coinSelect.selectedIndex];
             sendForm.action = opt.getAttribute('data-action');
             worthEl.textContent = opt.getAttribute('data-worth');
+            if (quick) quick.setAttribute('data-worth', opt.getAttribute('data-worth-raw'));
+        });
+        // Quick amounts: fixed dollars, or half of what this coin is worth.
+        if (quick) quick.addEventListener('click', function (e) {
+            var b = e.target.closest('button');
+            if (!b) return;
+            var worth = parseFloat(quick.getAttribute('data-worth')) || 0;
+            var value = b.dataset.fraction ? Math.floor(worth * parseFloat(b.dataset.fraction) * 100) / 100 : parseFloat(b.dataset.amount);
+            amountEl.value = Math.min(value, worth).toFixed(2);
+            quick.querySelectorAll('button').forEach(function (x) { x.classList.toggle('is-on', x === b); });
+        });
+        if (amountEl && quick) amountEl.addEventListener('input', function () {
+            quick.querySelectorAll('button').forEach(function (x) { x.classList.remove('is-on'); });
         });
         // Sends can't be undone, so read it back in plain words first.
         sendForm.addEventListener('submit', function (e) {

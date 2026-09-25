@@ -1,111 +1,55 @@
 @php
     /**
-     * $crypto            - Cryptocurrency
-     * $volume24h/$holders - keyed collections from the controller (avoids an N+1 per card)
+     * One leaderboard row on the coin market.
+     *
+     * $crypto             - Cryptocurrency
+     * $rank               - position in the list
+     * $volume24h/$holders - keyed collections from the controller (avoids an N+1 per row)
+     * $myUnits            - what the viewer holds, keyed by coin id
      */
     $rolling = $crypto->rollingChange(24);
-    $hasHistory = $rolling !== null;
-    $change = $hasHistory ? $rolling : (float) $crypto->price_change_percentage;
-    $isUp = $change >= 0;
-
-    $priceDecimals = $crypto->current_price < 1 ? 4 : 2;
-    $tokenVolume = (float) (($volume24h ?? collect())[$crypto->id] ?? 0);
     $tokenHolders = (int) (($holders ?? collect())[$crypto->id] ?? 0);
     // What the viewer owns of this coin, in dollars (no unit counts or per-coin price).
     $ownedUsd = \App\Support\TokenMoney::toUsd((float) (($myUnits ?? collect())[$crypto->id] ?? 0), (float) $crypto->current_price);
-
-    // Sparkline from REAL recorded history. Null when there isn't enough to plot — we draw a
-    // flat baseline rather than inventing movement.
-    $points = collect($crypto->priceHistoryPoints())->pluck('price')->take(-24)->values()->all();
-    $sparkPath = null;
-    if (count($points) >= 2) {
-        $min = min($points);
-        $max = max($points);
-        $range = ($max - $min) ?: 1;
-        $step = 120 / (count($points) - 1);
-        $sparkPath = '';
-        foreach ($points as $i => $p) {
-            $x = round($i * $step, 2);
-            $y = round(44 - (($p - $min) / $range) * 44, 2);
-            $sparkPath .= ($i === 0 ? 'M' : 'L') . $x . ' ' . $y . ' ';
-        }
-        $sparkPath = trim($sparkPath);
-    }
+    // Sparkline from REAL recorded history only; nothing is drawn without it.
+    $spark = \App\Support\Sparkline::line(\App\Support\Sparkline::prices($crypto), 64, 26);
+    $down = $rolling !== null && $rolling < 0;
 @endphp
-<article class="mp-token">
-    <a href="{{ route('cryptocurrency.show', $crypto->id) }}" class="mp-token__body">
-        <div class="mp-token__top">
-            <div class="mp-token__id">
-                @if($crypto->logo)
-                    <img src="{{ asset('storage/' . $crypto->logo) }}" alt="{{ $crypto->name }}" class="mp-token__logo">
-                @else
-                    <span class="mp-token__logo mp-token__logo--fallback">{{ strtoupper(substr($crypto->name, 0, 1)) }}</span>
-                @endif
-                <div class="mp-token__meta">
-                    <span class="mp-token__name">{{ $crypto->name }}</span>
-                    @if($crypto->creator)
-                        <span class="mp-token__symbol">{{ __('by') }} {{ $crypto->creator->name }}</span>
-                    @endif
-                </div>
-            </div>
-            @if($hasHistory)
-                <span class="mp-token__change mp-token__change--{{ $isUp ? 'up' : 'down' }}">
-                    {{ $isUp ? '+' : '' }}{{ number_format($change, 2) }}%
-                </span>
-            @else
-                {{-- No price history yet: say so, rather than printing a misleading +0.00%. --}}
-                <span class="mp-token__change mp-token__change--flat" title="{{ __('Not enough price history yet') }}">{{ __('New') }}</span>
-            @endif
-        </div>
-
-        <div class="mp-token__price">
+<article class="lh-row cm-row">
+    <a href="{{ route('cryptocurrency.show', $crypto->id) }}" class="cm-row__hit" aria-label="{{ $crypto->name }}"></a>
+    <span class="cm-row__rank">{{ $rank ?? '' }}</span>
+    <span class="lh-hex lh-hex--sm">
+        @if($crypto->logo)
+            <img src="{{ asset('storage/' . $crypto->logo) }}" alt="">
+        @else
+            <span class="lh-hex__glyph">{{ strtoupper(substr($crypto->name, 0, 1)) }}</span>
+        @endif
+    </span>
+    <span class="lh-row__main">
+        <span class="lh-row__title">{{ $crypto->name }}</span>
+        <span class="lh-row__sub">
             @if($ownedUsd > 0)
-                {{ __('You own') }} {{ \App\Support\TokenMoney::format($ownedUsd) }}
+                <span class="lh-gold">{{ __('You own') }} {{ \App\Support\TokenMoney::format($ownedUsd) }}</span>
             @else
-                {{ __('Buy from $1') }}
+                {{ trans_choice('{0} No owners yet|{1} :n owner|[2,*] :n owners', $tokenHolders, ['n' => number_format($tokenHolders)]) }}
             @endif
-        </div>
-
-        <div class="mp-token__spark">
-            <svg viewBox="0 0 120 44" preserveAspectRatio="none" aria-hidden="true">
-                <path d="{{ $sparkPath ?? 'M0 22 L120 22' }}"
-                      fill="none"
-                      stroke="{{ $sparkPath === null ? 'currentColor' : ($isUp ? '#22c55e' : '#f43f5e') }}"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      @if($sparkPath === null) opacity="0.2" @endif/>
+        </span>
+    </span>
+    @if($spark !== null)
+        <span class="lh-row__spark" aria-hidden="true">
+            <svg viewBox="0 0 64 26" preserveAspectRatio="none">
+                <path d="{{ $spark }}" fill="none" stroke="{{ $down ? 'var(--lh-red)' : 'var(--lh-green)' }}"
+                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
             </svg>
-        </div>
-
-        <div class="mp-token__stats">
-            <div class="mp-token__stat">
-                <span class="mp-token__stat-label">{{ __('Owners') }}</span>
-                <span class="mp-token__stat-value">{{ number_format($tokenHolders) }}</span>
-            </div>
-            <div class="mp-token__stat">
-                <span class="mp-token__stat-label">{{ __('Traded today') }}</span>
-                <span class="mp-token__stat-value">${{ number_format($tokenVolume, 2) }}</span>
-            </div>
-            <div class="mp-token__stat">
-                <span class="mp-token__stat-label">{{ __('Total value') }}</span>
-                <span class="mp-token__stat-value">
-                    {{-- Market cap is circulating_supply x price; show a dash rather than "$0"
-                         when nothing is circulating, which reads as broken. --}}
-                    @if((float) $crypto->market_cap > 0)
-                        ${{ number_format($crypto->market_cap, 0) }}
-                    @else
-                        &mdash;
-                    @endif
-                </span>
-            </div>
-        </div>
-
-
-    </a>
-
-    <div class="mp-token__actions">
-        <a href="{{ route('cryptocurrency.buy.form', $crypto->id) }}" class="mp-token__action mp-token__action--buy">{{ __('Buy') }}</a>
-        <a href="{{ route('cryptocurrency.show', $crypto->id) }}" class="mp-token__action">{{ __('Details') }}</a>
-    </div>
+        </span>
+    @endif
+    <span class="lh-row__end">
+        @if($rolling !== null)
+            <span class="lh-chip lh-chip--{{ $down ? 'down' : 'up' }}" style="padding: 3px 7px">{{ $down ? '▼' : '▲' }} {{ number_format(abs($rolling), 1) }}%</span>
+        @else
+            {{-- No price history yet: say so, rather than printing a misleading +0.00%. --}}
+            <span class="lh-chip lh-chip--new" style="padding: 3px 7px" title="{{ __('Not enough price history yet') }}">{{ __('New') }}</span>
+        @endif
+    </span>
+    <a href="{{ route('cryptocurrency.buy.form', $crypto->id) }}" class="cm-row__buy">{{ __('Buy') }}</a>
 </article>
