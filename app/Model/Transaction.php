@@ -35,6 +35,7 @@ class Transaction extends Model
     public const PAYSTACK_PROVIDER = 'paystack';
     public const OXXO_PROVIDER = 'oxxo';
     public const MERCADO_PROVIDER = 'mercado';
+    public const PAYRAM_PROVIDER = 'payram';
     public const COINBASE_API_BASE_PATH = 'https://api.commerce.coinbase.com';
     public const NOWPAYMENTS_API_BASE_PATH = 'https://api.nowpayments.io/v1/';
     public const ALLOWED_PAYMENT_PROVIDERS = [
@@ -46,12 +47,14 @@ class Transaction extends Model
         self::PAYSTACK_PROVIDER,
         self::OXXO_PROVIDER,
         self::MERCADO_PROVIDER,
+        self::PAYRAM_PROVIDER,
     ];
     public const PENDING_PAYMENT_PROCESSORS = [
         self::COINBASE_PROVIDER,
         self::NOWPAYMENTS_PROVIDER,
         self::CCBILL_PROVIDER,
         self::OXXO_PROVIDER,
+        self::PAYRAM_PROVIDER,
     ];
     public const CCBILL_FLEX_FORM_BASE_PATH = 'https://api.ccbill.com/wap-frontflex/flexforms/';
     public const CCBILL_CANCEL_SUBSCRIPTION_BASE_PATH = 'https://datalink.ccbill.com/utils/subscriptionManagement.cgi';
@@ -66,6 +69,7 @@ class Transaction extends Model
         'paypal_transaction_id', 'status', 'type', 'amount', 'payment_provider', 'paypal_transaction_token', 'currency', 'taxes',
         'coinbase_charge_id', 'coinbase_transaction_token', 'ccbill_payment_token', 'ccbill_transaction_id', 'nowpayments_payment_id',
         'nowpayments_order_id', 'stream_id', 'ccbill_subscription_id', 'user_message_id', 'paystack_transaction_token',
+        'payram_payment_id', 'payram_order_id',
     ];
 
     /**

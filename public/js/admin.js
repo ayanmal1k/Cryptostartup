@@ -768,6 +768,9 @@ var Admin = {
         case 'paystack':
             Admin.togglePaymentsSubCategory('paystack');
             break;
+        case 'payram':
+            Admin.togglePaymentsSubCategory('payram');
+            break;
         case 'mercado':
             Admin.togglePaymentsSubCategory('mercado');
             break;
@@ -820,6 +823,7 @@ var Admin = {
             'payments-info-paystack',
             'payments-info-mercado',
             'payments-info-nowpayments',
+            'payments-info-payram',
         ];
         for(let i = 0; i < tabs.length; i++){
             $('.'+tabs[i]).addClass('d-none');

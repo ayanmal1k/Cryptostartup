@@ -225,6 +225,13 @@
                                         </div>
                                     </div>
                                 @endif
+                                @if((getSetting('payments.payram_api_key') || env('PAYRAM_API_KEY')) && (getSetting('payments.payram_api_url') || env('PAYRAM_API_URL')) && !getSetting('payments.payram_checkout_disabled'))
+                                    <div class="p-1 col-6 col-md-3 d-none payram-payment-method">
+                                        <div class="radio mx-auto payram-payment-provider checkout-payment-provider d-flex align-items-center justify-content-center" data-value="payram">
+                                            <img src="{{asset('/img/logos/payram.svg')}}" alt="PayRam">
+                                        </div>
+                                    </div>
+                                @endif
                                 <div class="credit-payment-method p-1 col-6 col-md-3" @if(!Auth::check() || !Auth::user()->wallet || Auth::user()->wallet->total <= 0) data-toggle="tooltip" data-placement="right" @endif title="{{__('You can use the wallet deposit page to add credit.')}}">
                                     <div class="radio mx-auto credit-payment-provider checkout-payment-provider d-flex align-items-center justify-content-center" data-value="credit">
                                         <div class="credit-provider-text">

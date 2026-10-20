@@ -1278,6 +1278,95 @@ class PaymentHelper
     }
 
     /**
+     * Generate a PayRam payment checkout session.
+     * Calls the self-hosted PayRam API to create a payment link, then stores
+     * the reference_id and order_id on the transaction for webhook matching.
+     *
+     * @param $transaction
+     * @return string|null  The checkout URL to redirect the user to, or null on failure.
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    public function generatePayramTransaction($transaction)
+    {
+        $redirectUrl = null;
+        $payramApiUrl = getSetting('payments.payram_api_url') ?: env('PAYRAM_API_URL');
+        $payramApiKey = getSetting('payments.payram_api_key') ?: env('PAYRAM_API_KEY');
+
+        if (!$payramApiUrl || !$payramApiKey) {
+            Log::channel('payments')->error('PayRam: Missing API URL or API Key in admin settings or .env file.');
+            return null;
+        }
+
+        // Strip trailing slash from API URL
+        $payramApiUrl = rtrim($payramApiUrl, '/');
+
+        $httpClient = new Client();
+        $orderId = $this->generatePayramOrderId($transaction);
+        $user = Auth::user();
+
+        try {
+            $response = $httpClient->request(
+                'POST',
+                $payramApiUrl . '/api/v1/payment',
+                [
+                    'headers' => [
+                        'Content-Type' => 'application/json',
+                        'API-Key' => $payramApiKey,
+                    ],
+                    'body' => json_encode([
+                        'customerEmail' => $user->email,
+                        'customerID' => (string) $user->id,
+                        'amountInUSD' => (float) $transaction->amount,
+                        'invoiceID' => $orderId,
+                    ]),
+                    'timeout' => 30,
+                    'connect_timeout' => 10,
+                ]
+            );
+
+            $responseBody = json_decode($response->getBody(), true);
+            Log::channel('payments')->info('PayRam: Payment created successfully.', [
+                'order_id' => $orderId,
+                'response' => $responseBody,
+            ]);
+
+            if (isset($responseBody['reference_id'])) {
+                $transaction->payram_payment_id = $responseBody['reference_id'];
+            }
+
+            if (isset($responseBody['url'])) {
+                $redirectUrl = $responseBody['url'];
+            }
+        } catch (\Exception $exception) {
+            Log::channel('payments')->error('PayRam: Failed to create payment.', [
+                'error' => $exception->getMessage(),
+                'order_id' => $orderId,
+            ]);
+        }
+
+        return $redirectUrl;
+    }
+
+    /**
+     * Generate a unique order ID for a PayRam transaction.
+     * Used as the invoiceID sent to PayRam and returned in the webhook payload
+     * for matching the payment back to the correct transaction.
+     *
+     * @param $transaction
+     * @return string
+     * @throws \Exception
+     */
+    private function generatePayramOrderId($transaction)
+    {
+        do {
+            $id = Uuid::uuid4()->getHex();
+        } while (Transaction::query()->where('payram_order_id', $id)->first() != null);
+        $transaction->payram_order_id = $id;
+
+        return $id;
+    }
+
+    /**
      * Generates a unique identifier for ccbill transaction.
      * @param $transaction
      * @return string

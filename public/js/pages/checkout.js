@@ -175,10 +175,11 @@ $(function () {
  * Checkout class
  */
 var checkout = {
-    allowedPaymentProcessors: ['stripe', 'paypal', 'credit', 'coinbase', 'nowpayments', 'ccbill', 'paystack', 'oxxo', 'mercado'],
+    allowedPaymentProcessors: ['stripe', 'paypal', 'credit', 'coinbase', 'nowpayments', 'payram', 'ccbill', 'paystack', 'oxxo', 'mercado'],
     paymentData: {},
     oneTimePaymentProcessorClasses: [
         '.nowpayments-payment-method',
+        '.payram-payment-method',
         '.coinbase-payment-method',
         '.ccbill-payment-method',
         '.stripe-payment-method',
@@ -311,6 +312,7 @@ var checkout = {
         const creditProvider = $('.credit-payment-provider').hasClass('selected');
         const coinbaseProvider = $('.coinbase-payment-provider').hasClass('selected');
         const nowPaymentsProvider = $('.nowpayments-payment-provider').hasClass('selected');
+        const payramProvider = $('.payram-payment-provider').hasClass('selected');
         const ccbillProvider = $('.ccbill-payment-provider').hasClass('selected');
         const paystackProvider = $('.paystack-payment-provider').hasClass('selected');
         const oxxoProvider = $('.oxxo-payment-provider').hasClass('selected');
@@ -326,6 +328,8 @@ var checkout = {
             val = 'coinbase';
         } else if(nowPaymentsProvider){
             val = 'nowpayments';
+        } else if(payramProvider){
+            val = 'payram';
         } else if(ccbillProvider){
             val = 'ccbill';
         } else if(paystackProvider){
@@ -627,6 +631,7 @@ var checkout = {
     toggleCryptoPaymentProviders: function(toggle){
         let coinbasePaymentMethod = $('.coinbase-payment-method');
         let nowPaymentsPaymentMethod = $('.nowpayments-payment-method');
+        let payramPaymentMethod = $('.payram-payment-method');
         if(toggle){
             if(coinbasePaymentMethod.hasClass('d-none')){
                 coinbasePaymentMethod.removeClass('d-none');
@@ -634,12 +639,18 @@ var checkout = {
             if(nowPaymentsPaymentMethod.hasClass('d-none')){
                 nowPaymentsPaymentMethod.removeClass('d-none');
             }
+            if(payramPaymentMethod.hasClass('d-none')){
+                payramPaymentMethod.removeClass('d-none');
+            }
         } else {
             if(!coinbasePaymentMethod.hasClass('d-none')){
                 coinbasePaymentMethod.addClass('d-none');
             }
             if(!nowPaymentsPaymentMethod.hasClass('d-none')){
                 nowPaymentsPaymentMethod.addClass('d-none');
+            }
+            if(!payramPaymentMethod.hasClass('d-none')){
+                payramPaymentMethod.addClass('d-none');
             }
         }
 

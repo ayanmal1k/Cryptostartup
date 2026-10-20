@@ -149,6 +149,8 @@ class PaymentsController extends Controller
                         $redirectLink = $this->paymentHandler->generatePaystackTransaction($transaction, Auth::user()->email);
                     } elseif($transaction['payment_provider'] == Transaction::MERCADO_PROVIDER) {
                         $redirectLink = $this->paymentHandler->generateMercadoTransaction($transaction);
+                    } elseif($transaction['payment_provider'] == Transaction::PAYRAM_PROVIDER) {
+                        $redirectLink = $this->paymentHandler->generatePayramTransaction($transaction);
                     }
                     break;
                 case Transaction::DEPOSIT_TYPE:
@@ -165,6 +167,8 @@ class PaymentsController extends Controller
                         $redirectLink = $this->paymentHandler->generatePaystackTransaction($transaction, Auth::user()->email);
                     } elseif($transaction['payment_provider'] == Transaction::MERCADO_PROVIDER) {
                         $redirectLink = $this->paymentHandler->generateMercadoTransaction($transaction);
+                    } elseif($transaction['payment_provider'] == Transaction::PAYRAM_PROVIDER) {
+                        $redirectLink = $this->paymentHandler->generatePayramTransaction($transaction);
                     }
                     break;
                 case Transaction::ONE_MONTH_SUBSCRIPTION:
@@ -1000,5 +1004,165 @@ class PaymentsController extends Controller
         }
 
         http_response_code(200);
+    }
+
+    /**
+     * Handle the return URL redirect after a user completes or cancels PayRam checkout.
+     * Looks up the transaction by the order ID and redirects the user to the appropriate page.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function checkAndUpdatePayramTransaction(Request $request)
+    {
+        $payramOrderId = $request->get('orderId');
+        $transaction = null;
+        if ($payramOrderId) {
+            $transaction = Transaction::query()->where('payram_order_id', $payramOrderId)->first();
+        }
+
+        return $this->paymentHandler->redirectByTransaction($transaction);
+    }
+
+    /**
+     * Process PayRam webhook notifications.
+     * Verifies the HMAC-SHA256 signature, then updates the transaction status
+     * based on the payment lifecycle event (FILLED, PARTIALLY_FILLED, CANCELLED).
+     *
+     * Production safety features:
+     * - HMAC signature verification prevents spoofed webhooks
+     * - Idempotency check prevents double-crediting on webhook retries
+     * - All state transitions are logged for audit trail
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function payramHook(Request $request)
+    {
+        $webhookSecret = getSetting('payments.payram_webhook_secret') ?: env('PAYRAM_WEBHOOK_SECRET');
+        if (!$webhookSecret) {
+            Log::channel('payments')->error('PayRam webhook error: missing webhook secret in admin settings or .env file.');
+            return response()->json(['status' => 400, 'message' => 'Missing webhook secret'], 400);
+        }
+
+        try {
+            $signatureHeader = $request->header('X-Payram-Signature');
+            if (!$signatureHeader) {
+                Log::channel('payments')->warning('PayRam webhook rejected: No X-Payram-Signature header.');
+                return response()->json(['status' => 400, 'message' => 'Missing signature'], 400);
+            }
+
+            $rawPayload = $request->getContent();
+            $expectedSignature = hash_hmac('sha256', $rawPayload, trim($webhookSecret));
+
+            if (!hash_equals($expectedSignature, $signatureHeader)) {
+                Log::channel('payments')->warning('PayRam webhook rejected: HMAC signature mismatch.', [
+                    'received' => $signatureHeader,
+                ]);
+                return response()->json(['status' => 400, 'message' => 'Invalid signature'], 400);
+            }
+
+            $payload = json_decode($rawPayload, true);
+            Log::channel('payments')->info('PayRam webhook received (verified):', [$payload]);
+
+            // Match transaction by invoice_id (our payram_order_id) or by reference_id (payram_payment_id)
+            $transaction = null;
+            if (isset($payload['invoice_id'])) {
+                $transaction = Transaction::query()
+                    ->where('payram_order_id', $payload['invoice_id'])
+                    ->with('receiver')
+                    ->first();
+            }
+            if (!$transaction && isset($payload['reference_id'])) {
+                $transaction = Transaction::query()
+                    ->where('payram_payment_id', $payload['reference_id'])
+                    ->with('receiver')
+                    ->first();
+            }
+
+            if (!$transaction) {
+                Log::channel('payments')->warning('PayRam webhook: No matching transaction found.', [
+                    'invoice_id' => $payload['invoice_id'] ?? null,
+                    'reference_id' => $payload['reference_id'] ?? null,
+                ]);
+                return response()->json(['status' => 404, 'message' => 'Transaction not found'], 404);
+            }
+
+            // Store the reference_id if we haven't already
+            if (isset($payload['reference_id']) && !$transaction->payram_payment_id) {
+                $transaction->payram_payment_id = $payload['reference_id'];
+            }
+
+            $paymentStatus = $payload['status'] ?? ($payload['event'] ?? null);
+
+            // Only process if the transaction is in an actionable state
+            if (in_array($transaction->status, [Transaction::INITIATED_STATUS, Transaction::PENDING_STATUS, Transaction::PARTIALLY_PAID_STATUS])) {
+
+                // Payment confirmed / filled — approve and credit
+                if (in_array($paymentStatus, ['FILLED', 'payment.confirmed'])) {
+                    $transaction->status = Transaction::APPROVED_STATUS;
+                    $transaction->save();
+
+                    $this->paymentHandler->creditReceiverForTransaction($transaction);
+                    NotificationServiceProvider::createTipNotificationByTransaction($transaction);
+                    NotificationServiceProvider::sendApprovedDepositTransactionEmailNotification($transaction);
+                    NotificationServiceProvider::createPPVNotificationByTransaction($transaction);
+
+                    Log::channel('payments')->info('PayRam: Transaction approved and credited.', [
+                        'transaction_id' => $transaction->id,
+                        'amount' => $transaction->amount,
+                    ]);
+
+                // Payment partially received
+                } elseif (in_array($paymentStatus, ['PARTIALLY_FILLED']) && $transaction->status !== Transaction::PARTIALLY_PAID_STATUS) {
+                    $transaction->status = Transaction::PARTIALLY_PAID_STATUS;
+                    $transaction->save();
+
+                    Log::channel('payments')->info('PayRam: Transaction partially paid.', [
+                        'transaction_id' => $transaction->id,
+                    ]);
+
+                // Payment pending / processing on-chain
+                } elseif (in_array($paymentStatus, ['OPEN']) && $transaction->status === Transaction::INITIATED_STATUS) {
+                    $transaction->status = Transaction::PENDING_STATUS;
+                    $transaction->save();
+
+                // Payment expired or cancelled
+                } elseif (in_array($paymentStatus, ['CANCELLED', 'EXPIRED'])) {
+                    $transaction->status = Transaction::DECLINED_STATUS;
+                    $transaction->save();
+
+                    Log::channel('payments')->info('PayRam: Transaction declined/expired.', [
+                        'transaction_id' => $transaction->id,
+                        'reason' => $paymentStatus,
+                    ]);
+                }
+
+            // Handle refund on an already-approved transaction
+            } elseif ($transaction->status === Transaction::APPROVED_STATUS && in_array($paymentStatus, ['REFUNDED', 'payment.refunded'])) {
+                $this->paymentHandler->deductMoneyFromUserForRefundedTransaction($transaction);
+                $transaction->status = Transaction::REFUNDED_STATUS;
+                $transaction->save();
+
+                Log::channel('payments')->info('PayRam: Transaction refunded.', [
+                    'transaction_id' => $transaction->id,
+                ]);
+            } else {
+                Log::channel('payments')->info('PayRam webhook: No state change needed.', [
+                    'transaction_id' => $transaction->id,
+                    'current_status' => $transaction->status,
+                    'webhook_status' => $paymentStatus,
+                ]);
+            }
+
+            return response()->json(['status' => 200], 200);
+
+        } catch (\Exception $exception) {
+            Log::channel('payments')->error('PayRam webhook error: ' . $exception->getMessage(), [
+                'trace' => $exception->getTraceAsString(),
+            ]);
+        }
+
+        return response()->json(['status' => 400], 400);
     }
 }

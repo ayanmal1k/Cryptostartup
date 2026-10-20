@@ -266,6 +266,14 @@
                                                 </ul>
                                             </div>
 
+                                            <div class="alert alert-info alert-dismissible mb-1 payments-info-payram d-none">
+                                                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                                                <div class="info-label"><div class="icon voyager-info-circled"></div> In order to use PayRam as payment provider you'll need the following endpoint in your PayRam dashboard:</div>
+                                                <ul>
+                                                    <li>Webhook URL: <code>{{route('payram.payment.update')}}</code></li>
+                                                </ul>
+                                            </div>
+
                                             <div class="alert alert-info alert-dismissible mb-1 payments-info-stripeConnect d-none">
                                                 <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                                                 <div class="info-label"><div class="icon voyager-info-circled"></div> In order to use StripeConnect as payment option for withdrawals you'll need the following endpoint:</div>
@@ -318,6 +326,7 @@
                                                 <option value="paypal">Paypal</option>
                                                 <option value="coinbase">Coinbase</option>
                                                 <option value="nowpayments">NowPayments</option>
+                                                <option value="payram">PayRam</option>
                                                 <option value="ccbill">CCBill</option>
                                                 <option value="offline">Offline payments</option>
                                                 <option value="paystack">Paystack</option>

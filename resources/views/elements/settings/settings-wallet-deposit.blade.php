@@ -58,6 +58,13 @@
                 <label class="custom-control-label stepTooltip" for="customRadio5" title="">{{__("NowPayments Crypto")}}</label>
             </div>
         @endif
+        @if((getSetting('payments.payram_api_key') || env('PAYRAM_API_KEY')) && (getSetting('payments.payram_api_url') || env('PAYRAM_API_URL')))
+            <div class="custom-control custom-radio mb-1">
+                <input type="radio" id="customRadioPayram" name="payment-radio-option" class="custom-control-input"
+                       value="payment-payram">
+                <label class="custom-control-label stepTooltip" for="customRadioPayram" title="">{{__("PayRam Crypto")}}</label>
+            </div>
+        @endif
         @if(getSetting('payments.mercado_access_token'))
             <div class="custom-control custom-radio mb-1">
                 <input type="radio" id="customRadio6" name="payment-radio-option" class="custom-control-input" value="payment-mercado">

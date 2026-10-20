@@ -89,6 +89,9 @@ var DepositSettings = {
             case 'payment-nowpayments':
                 DepositSettings.provider = 'nowpayments';
                 break;
+            case 'payment-payram':
+                DepositSettings.provider = 'payram';
+                break;
             case 'payment-ccbill':
                 DepositSettings.provider = 'ccbill';
                 break;

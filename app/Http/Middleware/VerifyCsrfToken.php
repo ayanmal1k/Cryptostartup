@@ -26,6 +26,7 @@ class VerifyCsrfToken extends Middleware
         'payment/ccBillPaymentStatusUpdate',
         'payment/paystackPaymentStatusUpdate',
         'payment/mercadoPaymentStatusUpdate',
+        'payment/payramStatusUpdate',
         'beacon/feed',
         'transcoding/coconut/update',
         'payment/stripeConnectStatusUpdate',

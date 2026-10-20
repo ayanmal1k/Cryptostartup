@@ -774,6 +774,7 @@ Route::group(['middleware' => ['auth', 'verified', '2fa']], function () {
         Route::get('/ccbill/status', ['uses' => 'PaymentsController@processCCBillTransaction', 'as'   => 'checkCCBillPaymentStatus']);
         Route::get('/paystack/status', ['uses' => 'PaymentsController@verifyPaystackTransaction', 'as'   => 'checkPaystackPaymentStatus']);
         Route::get('/mercado/status', ['uses' => 'PaymentsController@verifyMercadoTransaction', 'as'   => 'checkMercadoPaymentStatus']);
+        Route::get('/payram/status', ['uses' => 'PaymentsController@checkAndUpdatePayramTransaction', 'as'   => 'checkPayramPaymentStatus']);
     });
 
     // Cryptocurrency routes
@@ -995,6 +996,11 @@ Route::post('payment/paystackPaymentStatusUpdate', [
 Route::post('payment/mercadoPaymentStatusUpdate', [
     'as'   => 'mercado.payment.update',
     'uses' => 'PaymentsController@mercadoHook',
+]);
+
+Route::post('payment/payramStatusUpdate', [
+    'as'   => 'payram.payment.update',
+    'uses' => 'PaymentsController@payramHook',
 ]);
 
 Route::post('transcoding/coconut/update', [
