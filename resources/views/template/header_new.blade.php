@@ -39,7 +39,7 @@
                         {{-- Wallet Balance --}}
                         <a href="{{ route('cryptocurrency.wallet') }}" class="action-item wallet-balance" title="{{__('My Wallet')}}">
                             <i class="fas fa-wallet"></i>
-                            <span class="balance-text">${{ number_format(Auth::user()->wallet->total_balance ?? Auth::user()->wallet->balance ?? 0, 2) }}</span>
+                            <span class="balance-text">${{ number_format(Auth::user()->wallet->total ?? Auth::user()->wallet->total_balance ?? 0, 2) }}</span>
                         </a>
 
                         {{-- Create Post --}}

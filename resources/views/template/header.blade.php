@@ -82,7 +82,7 @@
                                     <path d="M18 12a2 2 0 0 0-2 2v1a2 2 0 0 0 2 2h2v-5h-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                             </div>
-                            <span class="wallet-balance">${{ number_format(Auth::user()->wallet->total_balance ?? Auth::user()->wallet->balance ?? 0, 2) }}</span>
+                            <span class="wallet-balance">${{ number_format(Auth::user()->wallet->total ?? Auth::user()->wallet->total_balance ?? 0, 2) }}</span>
                         </a>
 
                         {{-- Notifications --}}

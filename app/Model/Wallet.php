@@ -55,4 +55,14 @@ class Wallet extends Model
     {
         return Withdrawal::query()->where(['user_id' => Auth::user()->id, 'status' => Withdrawal::REQUESTED_STATUS])->sum('amount');
     }
+
+    public function getTotalBalanceAttribute()
+    {
+        return (float) ($this->attributes['total'] ?? 0);
+    }
+
+    public function getBalanceAttribute()
+    {
+        return (float) ($this->attributes['total'] ?? 0);
+    }
 }

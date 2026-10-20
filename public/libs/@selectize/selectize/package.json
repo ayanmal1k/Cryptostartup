@@ -71,10 +71,10 @@
   },
   "scripts": {
     "test": "karma start",
-    "build": "make",
+    "build": "node api.js && make",
     "clean": "rm -rf dist build node_modules",
     "prestart": "npm run build",
-    "start": "grunt serve",
+    "start": "node api.js && grunt serve",
     "grunt": "grunt"
   },
   "engines": {
