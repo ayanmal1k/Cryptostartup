@@ -585,7 +585,7 @@ class CustomRequestController extends Controller
                 $user = Auth::user();
                 $wallet = $user->wallet ?? null;
                 
-                if (!$wallet || $wallet->total_balance < $amount) {
+                if (!$wallet || (float) $wallet->total < (float) $amount) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Insufficient wallet balance. Please deposit funds first.'
